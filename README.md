@@ -1,50 +1,63 @@
-# 🩺 Healthcare Voice Agent System
+# 🛒 E-Commerce Voice Agent System
 
-A comprehensive healthcare voice agent system built with Python backend and MERN stack dashboard for managing patient information, appointments, and lab results through voice interactions.
+A comprehensive e-commerce voice agent system built with Python backend and MERN stack dashboard for managing orders, customers, and products through voice interactions and IVR (Interactive Voice Response).
 
 ## 🚀 Features
 
 ### Voice Agent Capabilities
-- **Patient Information Retrieval**: Get patient details by ID
-- **Appointment Scheduling**: Book appointments with doctors
-- **Lab Results Access**: Retrieve latest lab test results
-- **Multi-Agent Architecture**: Specialized agents for different tasks
-- **Conversation Memory**: Persistent session management
-- **Real-time Processing**: Interactive voice responses
+- **Order Management**: Create, track, modify, and cancel orders via voice
+- **Customer Support**: Voice-based customer service and assistance
+- **Product Search**: Voice-powered product discovery and recommendations
+- **Payment Processing**: Voice-guided payment and refund handling
+- **Multi-Agent Architecture**: Specialized agents for different business functions
+- **Conversation Memory**: Persistent session management across calls
+- **Real-time Processing**: Interactive voice responses with IVR integration
 
 ### Dashboard Features
-- **Real-time Order Updates**: Live order status changes
-- **Patient Management**: Patient lookup and details
-- **Appointment Tracking**: Monitor scheduled appointments
-- **Lab Results Dashboard**: View and manage lab results
-- **Analytics**: Performance metrics and insights
+- **Real-time Order Updates**: Live order status changes and tracking
+- **Customer Management**: Customer lookup, registration, and support
+- **Order Analytics**: Order trends, patterns, and performance metrics
+- **Voice Call Monitoring**: Track active voice calls and call history
+- **Inventory Management**: Product availability and stock monitoring
+- **Analytics Dashboard**: Business insights and performance metrics
 
 ## 🏗️ Architecture
 
 ### Backend (Python)
 - **FastAPI**: High-performance API framework
 - **OpenAI Agents SDK**: AI-powered voice processing
-- **PostgreSQL**: Primary database for patient data
+- **PostgreSQL**: Primary database for orders and customers
 - **SQLite**: Session and conversation memory
+- **Twilio/Plivo**: IVR integration for phone calls
 - **LangSmith**: Tracing and monitoring
 
 ### Frontend (MERN Stack)
-- **React**: Modern UI components
+- **React**: Modern UI components for dashboard
 - **Express.js**: API gateway and server
-- **MongoDB**: Document storage
+- **MongoDB**: Document storage for analytics
 - **Node.js**: Runtime environment
+- **WebSocket**: Real-time communication
 
 ## 📁 Project Structure
 
 ```
-healthcare_voice_agent/
+ecommerce_voice_agent/
 ├── 📁 backend/                    # Python FastAPI Backend
 │   ├── 📁 app/
 │   │   ├── 📁 core/               # Core business logic
+│   │   │   ├── 📁 domain/         # Domain entities (Order, Customer, Product)
+│   │   │   ├── 📁 services/       # Business services
+│   │   │   └── 📁 repositories/   # Data access layer
 │   │   ├── 📁 agents/             # AI Voice Agents
+│   │   │   ├── 📁 order_agents/   # Order management agents
+│   │   │   ├── 📁 customer_agents/ # Customer service agents
+│   │   │   ├── 📁 product_agents/ # Product search agents
+│   │   │   └── 📁 payment_agents/ # Payment processing agents
 │   │   ├── 📁 infrastructure/     # Infrastructure layer
+│   │   │   ├── 📁 database/       # Database connections
+│   │   │   └── 📁 external_services/ # Twilio, Payment gateways
 │   │   ├── 📁 memory/             # Memory management
-│   │   ├── 📁 voice/              # Voice processing
+│   │   ├── 📁 voice/              # Voice processing & IVR
 │   │   ├── 📁 api/                # FastAPI routes
 │   │   └── main.py                # FastAPI app entry point
 │   └── 📄 requirements.txt
@@ -53,6 +66,10 @@ healthcare_voice_agent/
 │   ├── 📁 client/                  # React Frontend
 │   │   ├── 📁 src/
 │   │   │   ├── 📁 components/     # React Components
+│   │   │   │   ├── 📁 orders/     # Order management components
+│   │   │   │   ├── 📁 customers/  # Customer management components
+│   │   │   │   ├── 📁 dashboard/  # Analytics dashboard
+│   │   │   │   └── 📁 voice/      # Voice call monitoring
 │   │   │   ├── 📁 pages/         # React Pages
 │   │   │   ├── 📁 hooks/         # Custom React Hooks
 │   │   │   └── 📁 services/      # API Services
@@ -61,7 +78,7 @@ healthcare_voice_agent/
 │   ├── 📁 server/                 # Express.js Backend
 │   │   ├── 📁 routes/
 │   │   ├── 📁 controllers/
-│   │   ├── 📁 models/
+│   │   ├── 📁 models/             # Mongoose models
 │   │   └── 📄 server.js
 │   └── 📄 docker-compose.yml
 │
@@ -79,6 +96,9 @@ sqlalchemy==2.0.0
 psycopg2-binary==2.9.0
 python-dotenv==1.0.0
 langsmith==0.1.0
+twilio==8.10.0
+websockets==11.0.0
+redis==4.6.0
 ```
 
 ### Frontend Dependencies
@@ -88,13 +108,16 @@ langsmith==0.1.0
     "react": "^18.2.0",
     "react-router-dom": "^6.8.0",
     "axios": "^1.3.0",
-    "socket.io-client": "^4.6.0"
+    "socket.io-client": "^4.6.0",
+    "recharts": "^2.8.0",
+    "tailwindcss": "^3.2.0"
   },
   "server": {
     "express": "^4.18.0",
     "mongoose": "^7.0.0",
     "socket.io": "^4.6.0",
-    "cors": "^2.8.5"
+    "cors": "^2.8.5",
+    "helmet": "^6.0.0"
   }
 }
 ```
@@ -105,14 +128,16 @@ langsmith==0.1.0
 - Python 3.10+
 - Node.js 18+
 - PostgreSQL
+- MongoDB
 - OpenAI API Key
+- Twilio Account (for IVR)
 
 ### Backend Setup
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/healthcare-voice-agent.git
-   cd healthcare-voice-agent
+   git clone https://github.com/shankasf/E-Commerce-Voice-Agent.git
+   cd E-Commerce-Voice-Agent
    ```
 
 2. **Install Python dependencies**
@@ -176,7 +201,12 @@ OPENAI_API_KEY=your_openai_api_key_here
 PG_HOST=localhost
 PG_USER=postgres
 PG_PASS=your_password
-PG_DB=healthcare
+PG_DB=ecommerce
+
+# Twilio Configuration (for IVR)
+TWILIO_ACCOUNT_SID=your_twilio_account_sid
+TWILIO_AUTH_TOKEN=your_twilio_auth_token
+TWILIO_PHONE_NUMBER=your_twilio_phone_number
 
 # LangSmith Tracing (Optional)
 LANGSMITH_TRACING=true
@@ -192,77 +222,108 @@ REACT_APP_API_URL=http://localhost:8000
 REACT_APP_WS_URL=ws://localhost:8000
 
 # Server Configuration
-MONGODB_URI=mongodb://localhost:27017/healthcare
+MONGODB_URI=mongodb://localhost:27017/ecommerce
 PORT=3001
 ```
 
 ## 📊 Database Schema
 
-### Patient Information
+### Orders
 ```sql
-CREATE TABLE patients (
-    patient_id SERIAL PRIMARY KEY,
+CREATE TABLE orders (
+    order_id SERIAL PRIMARY KEY,
+    customer_id INTEGER REFERENCES customers(customer_id),
+    order_date TIMESTAMP NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    total_amount DECIMAL(10,2) NOT NULL,
+    shipping_address TEXT,
+    payment_status VARCHAR(20) NOT NULL
+);
+```
+
+### Customers
+```sql
+CREATE TABLE customers (
+    customer_id SERIAL PRIMARY KEY,
     first_name VARCHAR(50) NOT NULL,
     last_name VARCHAR(50) NOT NULL,
-    dob DATE NOT NULL,
-    gender VARCHAR(10) NOT NULL
+    email VARCHAR(100) UNIQUE NOT NULL,
+    phone VARCHAR(20),
+    address TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
-### Appointments
+### Products
 ```sql
-CREATE TABLE appointments (
-    appointment_id SERIAL PRIMARY KEY,
-    patient_id INTEGER REFERENCES patients(patient_id),
-    doctor_name VARCHAR(100) NOT NULL,
-    appointment_date TIMESTAMP NOT NULL,
-    reason TEXT
+CREATE TABLE products (
+    product_id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    price DECIMAL(10,2) NOT NULL,
+    stock_quantity INTEGER NOT NULL,
+    category VARCHAR(50),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
-### Lab Results
+### Order Items
 ```sql
-CREATE TABLE labs (
-    lab_id SERIAL PRIMARY KEY,
-    patient_id INTEGER REFERENCES patients(patient_id),
-    test_name VARCHAR(100) NOT NULL,
-    result VARCHAR(100) NOT NULL,
-    units VARCHAR(20),
-    collected_date DATE NOT NULL
+CREATE TABLE order_items (
+    item_id SERIAL PRIMARY KEY,
+    order_id INTEGER REFERENCES orders(order_id),
+    product_id INTEGER REFERENCES products(product_id),
+    quantity INTEGER NOT NULL,
+    unit_price DECIMAL(10,2) NOT NULL
 );
 ```
 
 ## 🎯 Usage Examples
 
 ### Voice Commands
-- "Show me patient information for patient ID 5"
-- "Schedule an appointment with Dr. Smith for patient 10"
-- "Get lab results for patient ID 15"
-- "Book an appointment for tomorrow with Dr. Johnson"
+- "I want to place an order"
+- "Track my order status"
+- "Modify my existing order"
+- "Cancel my order"
+- "I need help with my order"
+- "What products do you have?"
+- "I want to speak to customer support"
 
 ### API Endpoints
 
-#### Patient Information
+#### Order Management
 ```http
-GET /api/v1/patients/{patient_id}
+GET /api/v1/orders/{order_id}
+POST /api/v1/orders
+PUT /api/v1/orders/{order_id}
+DELETE /api/v1/orders/{order_id}
 ```
 
-#### Schedule Appointment
+#### Customer Management
 ```http
-POST /api/v1/appointments
+GET /api/v1/customers/{customer_id}
+POST /api/v1/customers
+PUT /api/v1/customers/{customer_id}
+```
+
+#### Product Search
+```http
+GET /api/v1/products
+GET /api/v1/products/{product_id}
+GET /api/v1/products/search?q={query}
+```
+
+#### IVR Webhooks
+```http
+POST /api/v1/ivr/webhook
 Content-Type: application/json
 
 {
-  "patient_id": 10,
-  "doctor_name": "Dr. Smith",
-  "days_from_now": 3,
-  "reason": "Regular checkup"
+  "call_sid": "CA1234567890",
+  "from": "+1234567890",
+  "to": "+0987654321",
+  "call_status": "in-progress"
 }
-```
-
-#### Get Lab Results
-```http
-GET /api/v1/patients/{patient_id}/lab-results
 ```
 
 ## 🔍 Monitoring and Analytics
@@ -274,10 +335,11 @@ GET /api/v1/patients/{patient_id}/lab-results
 - **Usage Analytics**: Understand user patterns
 
 ### Dashboard Analytics
-- **Patient Statistics**: Total patients, active appointments
-- **Appointment Trends**: Booking patterns and preferences
-- **Lab Results**: Test frequency and results analysis
-- **Voice Call Metrics**: Call duration, success rates
+- **Order Statistics**: Total orders, revenue, conversion rates
+- **Customer Analytics**: Customer acquisition, retention rates
+- **Product Performance**: Best-selling products, inventory levels
+- **Voice Call Metrics**: Call duration, success rates, customer satisfaction
+- **Sales Trends**: Daily, weekly, monthly sales patterns
 
 ## 🧪 Testing
 
@@ -357,9 +419,11 @@ For support and questions:
 - [ ] Multi-language support
 - [ ] Advanced analytics dashboard
 - [ ] Mobile app integration
-- [ ] AI-powered diagnosis suggestions
-- [ ] Integration with EHR systems
+- [ ] AI-powered product recommendations
+- [ ] Integration with payment gateways
 - [ ] Voice biometric authentication
+- [ ] Inventory management automation
+- [ ] Customer sentiment analysis
 
 ### Version History
 - **v1.0.0**: Initial release with basic voice agent functionality
@@ -377,4 +441,4 @@ For support and questions:
 
 ---
 
-**Built with ❤️ for healthcare innovation**
+**Built with ❤️ for e-commerce innovation**
