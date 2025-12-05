@@ -40,6 +40,12 @@ class VoiceSession:
     conversation_history: list = field(default_factory=list)
     metadata: Dict[str, Any] = field(default_factory=dict)
     
+    # Tool usage tracking
+    tool_calls: list = field(default_factory=list)
+    conversion_detected: bool = False
+    follow_up_detected: bool = False
+    escalation_detected: bool = False
+    
     def is_expired(self, timeout_seconds: int) -> bool:
         """Check if session has expired due to inactivity."""
         return (time.time() - self.last_activity) > timeout_seconds
@@ -55,6 +61,24 @@ class VoiceSession:
             "content": content,
             "timestamp": datetime.utcnow().isoformat()
         })
+        self.touch()
+    
+    def add_tool_call(self, name: str, arguments: Dict[str, Any], result: Any, success: bool) -> None:
+        """Record a tool/function call made during the session."""
+        self.tool_calls.append({
+            "name": name,
+            "arguments": arguments,
+            "result": result,
+            "success": success,
+            "timestamp": datetime.utcnow().isoformat()
+        })
+        # Detect conversion signals based on tool name
+        conversion_tools = {
+            "create_party_booking", "create_order_with_item", "record_payment",
+            "confirm_admission", "create_customer_profile"
+        }
+        if name in conversion_tools and success:
+            self.conversion_detected = True
         self.touch()
 
 
@@ -272,6 +296,11 @@ class VoiceSessionManager(ISessionManager):
 
         summary, sentiment, lead_score = await self._analyze_conversation(transcript_lines)
 
+        # Build list of tool names used
+        tools_used = list({tc.get("name") for tc in session.tool_calls if tc.get("name")})
+        tool_success_count = sum(1 for tc in session.tool_calls if tc.get("success"))
+        tool_failure_count = len(session.tool_calls) - tool_success_count
+
         payload = {
             "call_sid": session.call_info.call_sid,
             "session_id": session.session_id,
@@ -285,6 +314,15 @@ class VoiceSessionManager(ISessionManager):
             "sentiment": sentiment,
             "lead_score": lead_score,
             "ended_at": datetime.utcnow().isoformat(),
+            # New fields for tool and conversion tracking
+            "tool_calls_json": session.tool_calls,
+            "tools_used": tools_used,
+            "tool_call_count": len(session.tool_calls),
+            "tool_success_count": tool_success_count,
+            "tool_failure_count": tool_failure_count,
+            "conversion": session.conversion_detected,
+            "follow_up_needed": session.follow_up_detected,
+            "escalated": session.escalation_detected,
         }
 
         def _insert():

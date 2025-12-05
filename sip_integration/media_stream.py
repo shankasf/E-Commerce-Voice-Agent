@@ -193,7 +193,16 @@ class MediaStreamHandler:
         logger.info(f"Function call requested: {name}")
         
         # Execute through agent adapter
-        result = await self.agent_adapter.execute_tool(name, arguments)
+        success = True
+        try:
+            result = await self.agent_adapter.execute_tool(name, arguments)
+        except Exception as e:
+            logger.error(f"Tool execution failed: {e}")
+            result = {"error": str(e)}
+            success = False
+        
+        # Track tool call in session
+        self.session.add_tool_call(name, arguments, result, success)
         
         return result
     
