@@ -13,11 +13,19 @@ from fastapi import WebSocket, WebSocketDisconnect
 
 from .interfaces import AudioChunk, AudioFormat, CallState
 from .session_manager import VoiceSession, get_session_manager
-from .openai_realtime import OpenAIRealtimeConnection, create_realtime_connection
+from .openai_realtime import (
+    OpenAIRealtimeConnection,
+    SYSTEM_PROMPT,
+    create_realtime_connection,
+)
 from .agent_adapter import create_agent_adapter
 from .config import get_config
 
 logger = logging.getLogger(__name__)
+
+
+MAX_UTTERANCE_BYTES = 32_000  # keep outbound speech in short chunks
+COMMIT_SILENCE_SECONDS = 0.6  # consider user done after 600ms silence
 
 
 class MediaStreamHandler:
@@ -43,6 +51,15 @@ class MediaStreamHandler:
         
         # Running state
         self._running = False
+
+        # Response/state tracking
+        self._current_response_id: Optional[str] = None
+        self._commit_task: Optional[asyncio.Task] = None
+        self._has_pending_user_audio: bool = False
+
+        # Outbound audio chunking
+        self._utterance_buffer = bytearray()
+        self._flush_on_punctuation = False
     
     async def handle(self) -> None:
         """Main handler for the WebSocket connection."""
@@ -77,7 +94,7 @@ class MediaStreamHandler:
         
         # Create OpenAI connection with tools
         self.openai_connection = create_realtime_connection(
-            system_prompt=self.config.system_prompt,
+            system_prompt=SYSTEM_PROMPT,
             tools=tools
         )
         
@@ -85,6 +102,7 @@ class MediaStreamHandler:
         self.openai_connection.set_audio_callback(self._on_openai_audio)
         self.openai_connection.set_text_callback(self._on_openai_text)
         self.openai_connection.set_function_callback(self._on_openai_function)
+        self.openai_connection.set_response_callback(self._on_openai_response_event)
         
         # Connect
         connected = await self.openai_connection.connect(self.session.session_id)
@@ -125,6 +143,14 @@ class MediaStreamHandler:
                 payload = media_data.get("payload", "")
                 
                 if payload and self.openai_connection:
+                    # If the bot is speaking, cancel its response before listening
+                    if self._current_response_id:
+                        await self.openai_connection.cancel_response(self._current_response_id)
+                        self._current_response_id = None
+                        # Also clear any queued audio heading back to Twilio
+                        await self.clear_audio()
+                        self._utterance_buffer.clear()
+
                     # Decode base64 audio and send to OpenAI
                     audio_bytes = base64.b64decode(payload)
                     chunk = AudioChunk(
@@ -133,9 +159,12 @@ class MediaStreamHandler:
                         timestamp=float(media_data.get("timestamp", 0))
                     )
                     await self.openai_connection.send_audio(chunk)
+                    self._has_pending_user_audio = True
+                    self._schedule_commit()
             
             elif event_type == "stop":
                 logger.info("Twilio media stream stopped")
+                await self._commit_user_turn(force=True)
                 self._running = False
             
             elif event_type == "mark":
@@ -152,13 +181,20 @@ class MediaStreamHandler:
             logger.error(f"Error processing Twilio message: {e}")
     
     def _on_openai_audio(self, chunk: AudioChunk) -> None:
-        """Callback when audio is received from OpenAI."""
+        """Callback when audio is received from OpenAI (buffered into short utterances)."""
         if not self._running or not self.stream_sid:
             return
-        
+
         if chunk.data:
-            # Send audio to Twilio
-            asyncio.create_task(self._send_audio_to_twilio(chunk.data))
+            self._utterance_buffer.extend(chunk.data)
+
+        # Flush if buffer is big or punctuation signaled
+        if len(self._utterance_buffer) >= MAX_UTTERANCE_BYTES or self._flush_on_punctuation:
+            asyncio.create_task(self._flush_audio_buffer())
+            self._flush_on_punctuation = False
+
+        if chunk.is_final:
+            asyncio.create_task(self._flush_audio_buffer())
     
     async def _send_audio_to_twilio(self, audio_data: bytes) -> None:
         """Send audio data to Twilio WebSocket."""
@@ -179,6 +215,14 @@ class MediaStreamHandler:
         
         except Exception as e:
             logger.error(f"Error sending audio to Twilio: {e}")
+
+    async def _flush_audio_buffer(self) -> None:
+        """Flush buffered audio to Twilio in one short burst."""
+        if not self._utterance_buffer or not self.stream_sid:
+            return
+        data = bytes(self._utterance_buffer)
+        self._utterance_buffer.clear()
+        await self._send_audio_to_twilio(data)
     
     def _on_openai_text(self, text: str) -> None:
         """Callback when text/transcription is received from OpenAI."""
@@ -187,6 +231,10 @@ class MediaStreamHandler:
         
         # Add to conversation history
         self.session.add_message("assistant", text)
+
+        # If the model text shows sentence end, flush the current utterance chunk
+        if any(p in text for p in (".", "?", "!")):
+            self._flush_on_punctuation = True
     
     async def _on_openai_function(self, name: str, arguments: Dict[str, Any]) -> Any:
         """Callback when OpenAI requests a function call."""
@@ -196,6 +244,16 @@ class MediaStreamHandler:
         result = await self.agent_adapter.execute_tool(name, arguments)
         
         return result
+
+    def _on_openai_response_event(self, event: dict) -> None:
+        """Track response lifecycle to enable barge-in cancellation."""
+        event_type = event.get("type")
+        if event_type == "response.created":
+            response = event.get("response", {})
+            self._current_response_id = response.get("id")
+        elif event_type in {"response.done", "response.failed", "response.canceled", "response.completed"}:
+            self._current_response_id = None
+            asyncio.create_task(self._flush_audio_buffer())
     
     async def _cleanup(self) -> None:
         """Clean up resources."""
@@ -229,3 +287,28 @@ class MediaStreamHandler:
                 "streamSid": self.stream_sid
             }
             await self.websocket.send_text(json.dumps(message))
+
+    def _schedule_commit(self) -> None:
+        """Schedule a commit when the caller pauses for a moment."""
+        if self._commit_task and not self._commit_task.done():
+            self._commit_task.cancel()
+        self._commit_task = asyncio.create_task(self._delayed_commit())
+
+    async def _delayed_commit(self) -> None:
+        try:
+            await asyncio.sleep(COMMIT_SILENCE_SECONDS)
+            await self._commit_user_turn()
+        except asyncio.CancelledError:
+            return
+
+    async def _commit_user_turn(self, force: bool = False) -> None:
+        """Commit buffered user audio and trigger a short response."""
+        if (not self._has_pending_user_audio and not force) or not self.openai_connection:
+            return
+        if self._commit_task and not self._commit_task.done():
+            self._commit_task.cancel()
+        self._commit_task = None
+        self._has_pending_user_audio = False
+        # Ask for a short reply per turn
+        instructions = "User finished speaking. Respond briefly (1–2 sentences), then stop."
+        await self.openai_connection.commit_audio_buffer(response_instructions=instructions)

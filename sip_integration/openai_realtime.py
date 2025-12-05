@@ -18,6 +18,16 @@ from .config import get_config
 logger = logging.getLogger(__name__)
 
 
+SYSTEM_PROMPT = """
+You are the Playfunia / Kids4Fun voice assistant.
+
+- Speak in very short answers: 1–2 sentences at a time.
+- After answering, STOP speaking and wait for the caller.
+- Do NOT keep talking unless the caller explicitly asks you to continue.
+- Use a conversational, back-and-forth style, not long monologues.
+""".strip()
+
+
 class OpenAIRealtimeConnection(IRealtimeConnection):
     """
     WebSocket connection to OpenAI Realtime API.
@@ -27,7 +37,8 @@ class OpenAIRealtimeConnection(IRealtimeConnection):
     
     def __init__(self, system_prompt: Optional[str] = None, tools: Optional[list[dict]] = None):
         self.config = get_config()
-        self.system_prompt = system_prompt or self.config.system_prompt
+        # Prefer explicit system prompt, otherwise enforce the short-turn voice style.
+        self.system_prompt = system_prompt or SYSTEM_PROMPT
         self.tools = tools or []
         
         self._ws: Optional[ClientConnection] = None
@@ -38,6 +49,7 @@ class OpenAIRealtimeConnection(IRealtimeConnection):
         self._audio_callback: Optional[Callable[[AudioChunk], None]] = None
         self._text_callback: Optional[Callable[[str], None]] = None
         self._function_callback: Optional[Callable[[str, Dict[str, Any]], Any]] = None
+        self._response_event_callback: Optional[Callable[[dict], None]] = None
         
         # Background task for receiving messages
         self._receive_task: Optional[asyncio.Task] = None
@@ -223,6 +235,29 @@ class OpenAIRealtimeConnection(IRealtimeConnection):
     def set_function_callback(self, callback: Callable[[str, Dict[str, Any]], Any]) -> None:
         """Set callback for function/tool calls from AI."""
         self._function_callback = callback
+
+    def set_response_callback(self, callback: Callable[[dict], None]) -> None:
+        """Set callback for response lifecycle events (created/done/cancelled)."""
+        self._response_event_callback = callback
+
+    async def cancel_response(self, response_id: str) -> None:
+        """Request cancellation of an active response."""
+        if not self._is_connected or not self._ws:
+            return
+        await self._send_event({"type": "response.cancel", "response_id": response_id})
+
+    async def commit_audio_buffer(self, response_instructions: Optional[str] = None) -> None:
+        """Commit buffered audio and optionally trigger a response."""
+        if not self._is_connected or not self._ws:
+            return
+        await self._send_event({"type": "input_audio_buffer.commit"})
+        if response_instructions:
+            await self._send_event({
+                "type": "response.create",
+                "response": {"instructions": response_instructions}
+            })
+        else:
+            await self._send_event({"type": "response.create"})
     
     async def _send_event(self, event: dict) -> None:
         """Send an event to OpenAI."""
@@ -254,7 +289,13 @@ class OpenAIRealtimeConnection(IRealtimeConnection):
         """Handle an event received from OpenAI."""
         event_type = event.get("type", "")
         
-        if event_type == "response.audio.delta":
+        if event_type == "response.created":
+            if self._response_event_callback:
+                self._response_event_callback(event)
+        elif event_type in ("response.done", "response.failed", "response.canceled", "response.completed"):
+            if self._response_event_callback:
+                self._response_event_callback(event)
+        elif event_type == "response.audio.delta":
             # Audio output from AI
             if self._audio_callback and "delta" in event:
                 audio_data = base64.b64decode(event["delta"])
