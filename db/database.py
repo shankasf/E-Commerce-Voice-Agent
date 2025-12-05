@@ -17,7 +17,8 @@ load_dotenv()
 class SupabaseClient:
     def __init__(self):
         self.url = os.getenv("SUPABASE_URL")
-        self.key = os.getenv("SUPABASE_ANON_KEY")
+        # Prefer service role for writes; fall back to anon.
+        self.key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_ANON_KEY")
         self.headers = {
             "apikey": self.key,
             "Authorization": f"Bearer {self.key}",

@@ -8,12 +8,16 @@ import asyncio
 import logging
 import time
 import uuid
+import os
+import json
+import requests
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 from datetime import datetime
 
 from .interfaces import ISessionManager, CallInfo, CallState
 from .config import get_config
+from db.database import db
 
 logger = logging.getLogger(__name__)
 
@@ -203,6 +207,11 @@ class VoiceSessionManager(ISessionManager):
             session = self._sessions.pop(session_id, None)
         
         if session:
+            try:
+                await self._persist_call_log(session)
+            except Exception as e:
+                logger.error(f"Failed to persist call log for {session_id}: {e}")
+            
             # Cleanup associated resources
             if session.realtime_connection:
                 try:
@@ -253,6 +262,101 @@ class VoiceSessionManager(ISessionManager):
                 break
             except Exception as e:
                 logger.error(f"Error in cleanup loop: {e}")
+
+    # --- Persistence helpers ---
+    async def _persist_call_log(self, session: VoiceSession) -> None:
+        """Persist conversation history + summary to Supabase."""
+        transcript_lines = [f"{m.get('role')}: {m.get('content')}" for m in session.conversation_history]
+        full_transcript = "\n".join(transcript_lines).strip()
+        duration_seconds = int(time.time() - session.created_at)
+
+        summary, sentiment, lead_score = await self._analyze_conversation(transcript_lines)
+
+        payload = {
+            "call_sid": session.call_info.call_sid,
+            "session_id": session.session_id,
+            "from_number": session.call_info.from_number,
+            "to_number": session.call_info.to_number,
+            "direction": session.call_info.direction,
+            "duration_seconds": duration_seconds,
+            "transcript": full_transcript,
+            "transcript_json": session.conversation_history,
+            "summary": summary,
+            "sentiment": sentiment,
+            "lead_score": lead_score,
+            "ended_at": datetime.utcnow().isoformat(),
+        }
+
+        def _insert():
+            db.insert("call_logs", payload)
+
+        await asyncio.to_thread(_insert)
+        logger.info(f"Persisted call log for session {session.session_id}")
+
+    async def _analyze_conversation(self, transcript_lines: list[str]) -> Tuple[str, str, int]:
+        """Summarize conversation + estimate sentiment/lead score via OpenAI; fallback heuristics if it fails."""
+        if not transcript_lines:
+            return "", "unknown", 0
+
+        conversation_text = "\n".join(transcript_lines)
+        api_key = os.getenv("OPENAI_API_KEY", "")
+        if not api_key:
+            return self._fallback_summary(transcript_lines)
+
+        payload = {
+            "model": "gpt-4o-mini",
+            "messages": [
+                {
+                    "role": "system",
+                    "content": (
+                        "You are generating analytics from a voice call. "
+                        "Return strict JSON only with keys: summary, sentiment, lead_score. "
+                        "- summary: 2 concise sentences, focus on intent/outcome and next step. "
+                        "- sentiment: one of positive | neutral | negative. "
+                        "- lead_score: integer 0-100, higher = more likely to buy/book; include quick rationale in summary, not a separate field."
+                    ),
+                },
+                {"role": "user", "content": conversation_text},
+            ],
+            "temperature": 0.2,
+            "max_tokens": 180,
+            "response_format": {"type": "json_object"},
+        }
+
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+
+        def _request():
+            resp = requests.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers=headers,
+                data=json.dumps(payload),
+                timeout=15,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            content = data.get("choices", [{}])[0].get("message", {}).get("content", "{}")
+            parsed = json.loads(content)
+            return (
+                str(parsed.get("summary", "")),
+                str(parsed.get("sentiment", "unknown")),
+                int(parsed.get("lead_score", 0)),
+            )
+
+        try:
+            return await asyncio.to_thread(_request)
+        except Exception as e:
+            logger.error(f"OpenAI summary failed: {e}")
+            return self._fallback_summary(transcript_lines)
+
+    def _fallback_summary(self, transcript_lines: list[str]) -> Tuple[str, str, int]:
+        """Basic heuristic summary if OpenAI is unavailable."""
+        summary = " ".join(transcript_lines[:3])[:300]
+        sentiment = "unknown"
+        lead_score = 50
+        return summary, sentiment, lead_score
     
     @property
     def active_session_count(self) -> int:

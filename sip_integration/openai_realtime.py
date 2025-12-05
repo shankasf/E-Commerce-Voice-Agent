@@ -18,16 +18,6 @@ from .config import get_config
 logger = logging.getLogger(__name__)
 
 
-SYSTEM_PROMPT = """
-You are the Playfunia / Kids4Fun voice assistant.
-
-- Speak in very short answers: 1–2 sentences at a time.
-- After answering, STOP speaking and wait for the caller.
-- Do NOT keep talking unless the caller explicitly asks you to continue.
-- Use a conversational, back-and-forth style, not long monologues.
-""".strip()
-
-
 class OpenAIRealtimeConnection(IRealtimeConnection):
     """
     WebSocket connection to OpenAI Realtime API.
@@ -37,22 +27,23 @@ class OpenAIRealtimeConnection(IRealtimeConnection):
     
     def __init__(self, system_prompt: Optional[str] = None, tools: Optional[list[dict]] = None):
         self.config = get_config()
-        # Prefer explicit system prompt, otherwise enforce the short-turn voice style.
-        self.system_prompt = system_prompt or SYSTEM_PROMPT
+        self.system_prompt = system_prompt or self.config.system_prompt
         self.tools = tools or []
         
         self._ws: Optional[ClientConnection] = None
         self._session_id: Optional[str] = None
         self._is_connected = False
+        self._greeting_sent = False
         
         # Callbacks
         self._audio_callback: Optional[Callable[[AudioChunk], None]] = None
-        self._text_callback: Optional[Callable[[str], None]] = None
+        # text callback signature: (role, text)
+        self._text_callback: Optional[Callable[[str, str], None]] = None
         self._function_callback: Optional[Callable[[str, Dict[str, Any]], Any]] = None
-        self._response_event_callback: Optional[Callable[[dict], None]] = None
         
         # Background task for receiving messages
         self._receive_task: Optional[asyncio.Task] = None
+        self._assistant_transcript_buffer: str = ""
     
     async def connect(self, session_id: str) -> bool:
         """
@@ -197,6 +188,26 @@ class OpenAIRealtimeConnection(IRealtimeConnection):
         
         # Trigger response generation
         await self._send_event({"type": "response.create"})
+
+    async def start_greeting(self) -> None:
+        """Trigger the assistant to greet immediately after connect."""
+        if not self._is_connected or not self._ws:
+            logger.warning("Cannot start greeting: not connected")
+            return
+
+        if self._greeting_sent:
+            return
+
+        greeting_event = {
+            "type": "response.create",
+            "response": {
+                # Nudge model to follow the welcome line before any user input.
+                "instructions": "Begin with the welcome greeting before anything else."
+            },
+        }
+
+        await self._send_event(greeting_event)
+        self._greeting_sent = True
     
     async def send_function_result(self, call_id: str, result: Any) -> None:
         """
@@ -228,36 +239,13 @@ class OpenAIRealtimeConnection(IRealtimeConnection):
         """Set callback for receiving audio from AI."""
         self._audio_callback = callback
     
-    def set_text_callback(self, callback: Callable[[str], None]) -> None:
-        """Set callback for receiving text transcription."""
+    def set_text_callback(self, callback: Callable[[str, str], None]) -> None:
+        """Set callback for receiving text transcription with role."""
         self._text_callback = callback
     
     def set_function_callback(self, callback: Callable[[str, Dict[str, Any]], Any]) -> None:
         """Set callback for function/tool calls from AI."""
         self._function_callback = callback
-
-    def set_response_callback(self, callback: Callable[[dict], None]) -> None:
-        """Set callback for response lifecycle events (created/done/cancelled)."""
-        self._response_event_callback = callback
-
-    async def cancel_response(self, response_id: str) -> None:
-        """Request cancellation of an active response."""
-        if not self._is_connected or not self._ws:
-            return
-        await self._send_event({"type": "response.cancel", "response_id": response_id})
-
-    async def commit_audio_buffer(self, response_instructions: Optional[str] = None) -> None:
-        """Commit buffered audio and optionally trigger a response."""
-        if not self._is_connected or not self._ws:
-            return
-        await self._send_event({"type": "input_audio_buffer.commit"})
-        if response_instructions:
-            await self._send_event({
-                "type": "response.create",
-                "response": {"instructions": response_instructions}
-            })
-        else:
-            await self._send_event({"type": "response.create"})
     
     async def _send_event(self, event: dict) -> None:
         """Send an event to OpenAI."""
@@ -289,13 +277,7 @@ class OpenAIRealtimeConnection(IRealtimeConnection):
         """Handle an event received from OpenAI."""
         event_type = event.get("type", "")
         
-        if event_type == "response.created":
-            if self._response_event_callback:
-                self._response_event_callback(event)
-        elif event_type in ("response.done", "response.failed", "response.canceled", "response.completed"):
-            if self._response_event_callback:
-                self._response_event_callback(event)
-        elif event_type == "response.audio.delta":
+        if event_type == "response.audio.delta":
             # Audio output from AI
             if self._audio_callback and "delta" in event:
                 audio_data = base64.b64decode(event["delta"])
@@ -305,6 +287,7 @@ class OpenAIRealtimeConnection(IRealtimeConnection):
                     timestamp=asyncio.get_event_loop().time()
                 )
                 self._audio_callback(chunk)
+            # Accumulate transcript text separately; actual transcript text is provided via transcript events.
         
         elif event_type == "response.audio.done":
             # Audio stream completed
@@ -316,16 +299,22 @@ class OpenAIRealtimeConnection(IRealtimeConnection):
                     is_final=True
                 )
                 self._audio_callback(chunk)
+            # Flush assistant transcript buffer as a single message when audio turn completes.
+            if self._text_callback and self._assistant_transcript_buffer:
+                self._text_callback("assistant", self._assistant_transcript_buffer.strip())
+                self._assistant_transcript_buffer = ""
         
         elif event_type == "response.audio_transcript.delta":
             # Transcription of AI's speech
             if self._text_callback and "delta" in event:
-                self._text_callback(event["delta"])
+                # Collect streaming transcript; flush on audio.done to avoid many fragments in history.
+                self._assistant_transcript_buffer += event["delta"]
         
         elif event_type == "conversation.item.input_audio_transcription.completed":
             # Transcription of user's speech
             if self._text_callback and "transcript" in event:
                 logger.info(f"User said: {event['transcript']}")
+                self._text_callback("user", event["transcript"])
         
         elif event_type == "response.function_call_arguments.done":
             # Function call from AI
