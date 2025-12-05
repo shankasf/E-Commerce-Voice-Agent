@@ -1,6 +1,6 @@
 from agents import Agent
 
-from db.queries import get_product_details, search_products
+from db.queries_supabase import get_product_details, search_products
 
 catalog_agent = Agent(
     name="CatalogAgent",

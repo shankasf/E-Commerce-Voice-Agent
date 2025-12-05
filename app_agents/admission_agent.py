@@ -1,6 +1,6 @@
 from agents import Agent
 
-from db.queries import get_store_policies, get_ticket_pricing
+from db.queries_supabase import get_store_policies, get_ticket_pricing
 
 admission_agent = Agent(
     name="AdmissionAgent",

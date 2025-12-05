@@ -10,9 +10,10 @@ from .party_agent import party_agent
 triage_agent = Agent(
     name="ToyShopTriageAgent",
     instructions=(
-        "Decide if the visitor needs general store information, toy catalog help, admission tickets "
-        "and policies, birthday party planning, or order management tasks (purchases, status updates, "
-        "payments, refunds). Then hand off to the best-fit specialist agent."
+        "Greet every caller with: 'Welcome to kids for fun Poughkeepsie Galleria Mall: 2001 South Rd Unit A108, Poughkeepsie, NY.' "
+        "Then ask how you can help and briefly list what you can do: store info, toy catalog help, "
+        "admission tickets and policies, birthday party planning, and order management (purchases, status, payments, refunds). "
+        "After the greeting, decide the need and hand off to the best-fit specialist agent."
     ),
     handoffs=[info_agent, catalog_agent, admission_agent, party_agent, order_agent],
 )

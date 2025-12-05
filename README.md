@@ -1,403 +1,93 @@
-# 🛒 E-Commerce Voice Agent System
+# Playfunia Voice Agent (Kids4Fun)
 
-A comprehensive e-commerce voice agent system built with Python backend and MERN stack dashboard for managing orders, customers, and products through voice interactions and IVR (Interactive Voice Response).
+Production voice assistant for Kids4Fun at Poughkeepsie Galleria Mall. Twilio voice calls are proxied through Node (port 4001) to a Python FastAPI SIP integration (port 8080) that drives an OpenAI Realtime multi-agent stack. All business data (products, tickets, parties, orders, payments, refunds, staff, testimonials, promos, waivers, FAQs) is read/written via Supabase REST. Calls are managed by PM2 under the name `callsphere-webhook` and fronted by nginx at `https://webhook.callsphere.tech`.
 
-## 🚀 Features
+## High-level flow
+- **Ingress:** Twilio webhook hits Node `server.js` (port 4001). Node upgrades media WebSocket and proxies to Python on 8080.
+- **Python SIP Integration:** `sip_integration/webhook_server.py` exposes `/twilio` (TwiML) and `/media-stream/{session}` (WebSocket). `media_stream.py` pipes audio to OpenAI Realtime and relays function calls to the ToyShopAgentAdapter.
+- **Agent adapter:** `sip_integration/agent_adapter.py` registers 25+ tools backed by Supabase (reads+writes). It lazily loads specialist agents from `app_agents/` and supplies tool schemas to the OpenAI session.
+- **Data layer:** `db/queries_supabase.py` implements all tools via Supabase REST with optional upsert and conflict checks. `db/database.py` wraps HTTP calls and logs response bodies on errors. `db/playfunia_schema.sql` documents the schema.
+- **Multi-agent brain:** `app_agents/*` defines specialized agents (triage, info, catalog, admission, party, order). The triage agent greets callers with the Kids4Fun address and routes to the right specialist.
+- **Voice memory:** `memory/` handles lightweight conversation state; `conversations.db` is the local SQLite store for sessions (when used).
 
-### Voice Agent Capabilities
-- **Order Management**: Create, track, modify, and cancel orders via voice
-- **Customer Support**: Voice-based customer service and assistance
-- **Product Search**: Voice-powered product discovery and recommendations
-- **Payment Processing**: Voice-guided payment and refund handling
-- **Multi-Agent Architecture**: Specialized agents for different business functions
-- **Conversation Memory**: Persistent session management across calls
-- **Real-time Processing**: Interactive voice responses with IVR integration
+## Greeting and behavior
+- Initial greeting (triage): “Welcome to kids for fun Poughkeepsie Galleria Mall: 2001 South Rd Unit A108, Poughkeepsie, NY. How can I help? I can share store info, toy catalog, admissions/policies, party planning, orders/status, payments, and refunds.”
+- The party and order agents must collect all required customer/contact fields before any DB write. If Supabase rejects an input (e.g., bad datetime), `_format_request_error` returns a user-facing prompt so the voice agent re-asks for the correct format instead of silently failing.
 
-### Dashboard Features
-- **Real-time Order Updates**: Live order status changes and tracking
-- **Customer Management**: Customer lookup, registration, and support
-- **Order Analytics**: Order trends, patterns, and performance metrics
-- **Voice Call Monitoring**: Track active voice calls and call history
-- **Inventory Management**: Product availability and stock monitoring
-- **Analytics Dashboard**: Business insights and performance metrics
+## Key tools (Supabase-backed)
+- **Customer:** `create_customer_profile`, `list_customer_orders`
+- **Party:** `list_party_packages`, `get_party_availability`, `create_party_booking`, `update_party_booking`
+- **Orders:** `create_order_with_item`, `add_order_item`, `update_order_status`, `get_order_details`, `record_payment`, `create_refund`
+- **Catalog & info:** `search_products`, `get_product_details`, `get_ticket_pricing`, `get_store_policies`, `list_faqs`, `list_staff`, `list_testimonials`, `list_promotions`, `list_waivers`, `list_payments`, `list_refunds`, `get_locations`, `get_knowledge_base_article`
 
-## 🏗️ Architecture
+## Input validation highlights
+- Datetimes accept `YYYY-MM-DDTHH:MM:SS` with optional `Z`; all conflict/availability checks URL-encode `+00:00` to avoid Supabase parsing errors.
+- Party/Order creation blocks until full customer/contact fields are present when no `customer_id` is given.
+- Error bodies from Supabase are surfaced to callers so the agent can re-ask with corrected format.
 
-### Backend (Python)
-- **FastAPI**: High-performance API framework
-- **OpenAI Agents SDK**: AI-powered voice processing
-- **PostgreSQL**: Primary database for orders and customers
-- **SQLite**: Session and conversation memory
-- **Twilio/Plivo**: IVR integration for phone calls
-- **LangSmith**: Tracing and monitoring
-
-### Frontend (MERN Stack)
-- **React**: Modern UI components for dashboard
-- **Express.js**: API gateway and server
-- **MongoDB**: Document storage for analytics
-- **Node.js**: Runtime environment
-- **WebSocket**: Real-time communication
-
-## 📁 Project Structure
-
-```
-ecommerce_voice_agent/
-├── 📁 backend/                    # Python FastAPI Backend
-│   ├── 📁 app/
-│   │   ├── 📁 core/               # Core business logic
-│   │   │   ├── 📁 domain/         # Domain entities (Order, Customer, Product)
-│   │   │   ├── 📁 services/       # Business services
-│   │   │   └── 📁 repositories/   # Data access layer
-│   │   ├── 📁 agents/             # AI Voice Agents
-│   │   │   ├── 📁 order_agents/   # Order management agents
-│   │   │   ├── 📁 customer_agents/ # Customer service agents
-│   │   │   ├── 📁 product_agents/ # Product search agents
-│   │   │   └── 📁 payment_agents/ # Payment processing agents
-│   │   ├── 📁 infrastructure/     # Infrastructure layer
-│   │   │   ├── 📁 database/       # Database connections
-│   │   │   └── 📁 external_services/ # Twilio, Payment gateways
-│   │   ├── 📁 memory/             # Memory management
-│   │   ├── 📁 voice/              # Voice processing & IVR
-│   │   ├── 📁 api/                # FastAPI routes
-│   │   └── main.py                # FastAPI app entry point
-│   └── 📄 requirements.txt
-│
-├── 📁 frontend/                   # MERN Stack Dashboard
-│   ├── 📁 client/                  # React Frontend
-│   │   ├── 📁 src/
-│   │   │   ├── 📁 components/     # React Components
-│   │   │   │   ├── 📁 orders/     # Order management components
-│   │   │   │   ├── 📁 customers/  # Customer management components
-│   │   │   │   ├── 📁 dashboard/  # Analytics dashboard
-│   │   │   │   └── 📁 voice/      # Voice call monitoring
-│   │   │   ├── 📁 pages/         # React Pages
-│   │   │   ├── 📁 hooks/         # Custom React Hooks
-│   │   │   └── 📁 services/      # API Services
-│   │   └── 📄 package.json
-│   │
-│   ├── 📁 server/                 # Express.js Backend
-│   │   ├── 📁 routes/
-│   │   ├── 📁 controllers/
-│   │   ├── 📁 models/             # Mongoose models
-│   │   └── 📄 server.js
-│   └── 📄 docker-compose.yml
-│
-└── 📄 docker-compose.yml          # Root docker-compose
-```
-
-## 🛠️ Technology Stack
-
-### Backend Dependencies
-```txt
-fastapi==0.104.0
-uvicorn==0.24.0
-openai==1.109.0
-sqlalchemy==2.0.0
-psycopg2-binary==2.9.0
-python-dotenv==1.0.0
-langsmith==0.1.0
-twilio==8.10.0
-websockets==11.0.0
-redis==4.6.0
-```
-
-### Frontend Dependencies
-```json
-{
-  "client": {
-    "react": "^18.2.0",
-    "react-router-dom": "^6.8.0",
-    "axios": "^1.3.0",
-    "socket.io-client": "^4.6.0",
-    "recharts": "^2.8.0",
-    "tailwindcss": "^3.2.0"
-  },
-  "server": {
-    "express": "^4.18.0",
-    "mongoose": "^7.0.0",
-    "socket.io": "^4.6.0",
-    "cors": "^2.8.5",
-    "helmet": "^6.0.0"
-  }
-}
-```
-
-## 🚀 Quick Start
-
-### Prerequisites
-- Python 3.10+
-- Node.js 18+
-- PostgreSQL
-- MongoDB
-- OpenAI API Key
-- Twilio Account (for IVR)
-
-### Backend Setup
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/shankasf/E-Commerce-Voice-Agent.git
-   cd E-Commerce-Voice-Agent
-   ```
-
-2. **Install Python dependencies**
-   ```bash
-   cd backend
-   pip install -r requirements.txt
-   ```
-
-3. **Set up environment variables**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
-   ```
-
-4. **Configure database**
-   ```bash
-   # Set up PostgreSQL database
-   # Update connection details in .env
-   ```
-
-5. **Run the backend**
-   ```bash
-   python main.py
-   ```
-
-### Frontend Setup
-
-1. **Install Node.js dependencies**
-   ```bash
-   cd frontend/client
-   npm install
-   ```
-
-2. **Install server dependencies**
-   ```bash
-   cd frontend/server
-   npm install
-   ```
-
-3. **Start the development servers**
-   ```bash
-   # Start React client
-   cd frontend/client
-   npm start
-
-   # Start Express server
-   cd frontend/server
-   npm run dev
-   ```
-
-## 🔧 Configuration
-
-### Environment Variables
-
-#### Backend (.env)
-```env
-# OpenAI Configuration
-OPENAI_API_KEY=your_openai_api_key_here
-
-# Database Configuration
-PG_HOST=localhost
-PG_USER=postgres
-PG_PASS=your_password
-PG_DB=ecommerce
-
-# Twilio Configuration (for IVR)
-TWILIO_ACCOUNT_SID=your_twilio_account_sid
-TWILIO_AUTH_TOKEN=your_twilio_auth_token
-TWILIO_PHONE_NUMBER=your_twilio_phone_number
-
-# LangSmith Tracing (Optional)
-LANGSMITH_TRACING=true
-LANGSMITH_ENDPOINT=https://api.smith.langchain.com
-LANGSMITH_API_KEY=your_langsmith_key
-LANGSMITH_PROJECT=your_project_name
-```
-
-#### Frontend (.env)
-```env
-# API Configuration
-REACT_APP_API_URL=http://localhost:8000
-REACT_APP_WS_URL=ws://localhost:8000
-
-# Server Configuration
-MONGODB_URI=mongodb://localhost:27017/ecommerce
-PORT=3001
-```
-
-## 📊 Database Schema
-
-### Orders
-```sql
-CREATE TABLE orders (
-    order_id SERIAL PRIMARY KEY,
-    customer_id INTEGER REFERENCES customers(customer_id),
-    order_date TIMESTAMP NOT NULL,
-    status VARCHAR(20) NOT NULL,
-    total_amount DECIMAL(10,2) NOT NULL,
-    shipping_address TEXT,
-    payment_status VARCHAR(20) NOT NULL
-);
-```
-
-### Customers
-```sql
-CREATE TABLE customers (
-    customer_id SERIAL PRIMARY KEY,
-    first_name VARCHAR(50) NOT NULL,
-    last_name VARCHAR(50) NOT NULL,
-    email VARCHAR(100) UNIQUE NOT NULL,
-    phone VARCHAR(20),
-    address TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-### Products
-```sql
-CREATE TABLE products (
-    product_id SERIAL PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    description TEXT,
-    price DECIMAL(10,2) NOT NULL,
-    stock_quantity INTEGER NOT NULL,
-    category VARCHAR(50),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-### Order Items
-```sql
-CREATE TABLE order_items (
-    item_id SERIAL PRIMARY KEY,
-    order_id INTEGER REFERENCES orders(order_id),
-    product_id INTEGER REFERENCES products(product_id),
-    quantity INTEGER NOT NULL,
-    unit_price DECIMAL(10,2) NOT NULL
-);
-```
-
-## 🎯 Usage Examples
-
-### Voice Commands
-- "I want to place an order"
-- "Track my order status"
-- "Modify my existing order"
-- "Cancel my order"
-- "I need help with my order"
-- "What products do you have?"
-- "I want to speak to customer support"
-
-### API Endpoints
-
-#### Order Management
-```http
-GET /api/v1/orders/{order_id}
-POST /api/v1/orders
-PUT /api/v1/orders/{order_id}
-DELETE /api/v1/orders/{order_id}
-```
-
-#### Customer Management
-```http
-GET /api/v1/customers/{customer_id}
-POST /api/v1/customers
-PUT /api/v1/customers/{customer_id}
-```
-
-#### Product Search
-```http
-GET /api/v1/products
-GET /api/v1/products/{product_id}
-GET /api/v1/products/search?q={query}
-```
-
-#### IVR Webhooks
-```http
-POST /api/v1/ivr/webhook
-Content-Type: application/json
-
-{
-  "call_sid": "CA1234567890",
-  "from": "+1234567890",
-  "to": "+0987654321",
-  "call_status": "in-progress"
-}
-```
-
-## 🔍 Monitoring and Analytics
-
-### LangSmith Integration
-- **Conversation Tracing**: Track all voice interactions
-- **Performance Metrics**: Monitor response times
-- **Error Tracking**: Identify and resolve issues
-- **Usage Analytics**: Understand user patterns
-
-### Dashboard Analytics
-- **Order Statistics**: Total orders, revenue, conversion rates
-- **Customer Analytics**: Customer acquisition, retention rates
-- **Product Performance**: Best-selling products, inventory levels
-- **Voice Call Metrics**: Call duration, success rates, customer satisfaction
-- **Sales Trends**: Daily, weekly, monthly sales patterns
-
-## 🧪 Testing
-
-### Backend Tests
+## Running locally (voice stack only)
 ```bash
-cd backend
-python -m pytest tests/
+cd /root/webhook/playfunia_agentic_chatbot2
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r sip_integration/requirements.txt  # if present, or install listed deps manually
+python main.py  # starts FastAPI on :8080
+
+# In another shell, start the Node proxy
+node /root/webhook/server.js  # expects python at 127.0.0.1:8080
 ```
 
-### Frontend Tests
-```bash
-cd frontend/client
-npm test
+## PM2 (production host)
+- Process: `callsphere-webhook` (Node + Python managed together via `server.js`)
+- Restart: `pm2 restart callsphere-webhook`
+- Logs: `pm2 logs callsphere-webhook --lines 200`
+
+## Environment (expected)
+```
+OPENAI_API_KEY=...
+SUPABASE_URL=https://<project>.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=...
+WEBHOOK_BASE_URL=https://webhook.callsphere.tech
+TWILIO_AUTH_TOKEN= (blank when bypassing signature in dev)
 ```
 
-### Integration Tests
-```bash
-cd frontend/server
-npm run test:integration
+## Repository map (voice stack)
+```
+playfunia_agentic_chatbot2/
+├─ main.py                      # Starts FastAPI SIP server
+├─ server.js (root)             # Node proxy on :4001 → Python :8080
+├─ sip_integration/
+│  ├─ webhook_server.py         # FastAPI routes for Twilio + WS
+│  ├─ media_stream.py           # WebSocket audio bridge to OpenAI Realtime
+│  ├─ agent_adapter.py          # Registers tools and agents
+│  └─ openai_realtime.py        # Realtime client wrapper
+├─ app_agents/                  # Specialized agents (triage/info/catalog/admission/party/order)
+├─ db/
+│  ├─ queries_supabase.py       # All Supabase tool functions
+│  ├─ database.py               # Supabase REST wrapper with logging
+│  └─ playfunia_schema.sql      # Schema reference
+├─ memory/                      # Session/memory utilities
+├─ agents.py                    # Agent base & tool decorator
+├─ voice.py                     # Legacy/aux voice helpers
+└─ README.md                    # This file
 ```
 
-## 🚀 Deployment
+## Operational notes
+- Greeting and capability prompt are enforced in `app_agents/triage_agent.py`.
+- Booking/order tools guard required inputs and surface Supabase errors so the agent can re-ask users.
+- All timestamps are ISO8601; conflict checks are URL-encoded to avoid `+` → space issues in Supabase filters.
+- Latest fixes: removed nonexistent `notes` column from party bookings; added error-body logging; added `_parse_datetime` for `Z`; added `_format_request_error` to drive voice re-prompts.
 
-### Docker Deployment
-```bash
-# Build and run with Docker Compose
-docker-compose up -d
-```
+## Support commands
+- Tail logs: `pm2 logs callsphere-webhook --lines 200 --nostream`
+- Check schema quickly: `python - <<'PY'
+from db import queries_supabase as q
+print(q.db._make_request('GET','resources')[:2])
+print(q.db._make_request('GET','party_packages')[:2])
+PY`
 
-### Production Environment
-```bash
-# Set production environment variables
-export NODE_ENV=production
-export PYTHON_ENV=production
-
-# Run production build
-npm run build
-python main.py
-```
-
-## 📈 Performance
-
-### Backend Performance
-- **Response Time**: < 200ms for voice processing
-- **Concurrent Users**: Supports 100+ simultaneous voice calls
-- **Memory Usage**: Optimized for long-running sessions
-- **Database**: Connection pooling for high availability
-
-### Frontend Performance
-- **Load Time**: < 2s for initial page load
-- **Real-time Updates**: WebSocket connections for live data
-- **Responsive Design**: Mobile and desktop optimized
-- **Caching**: Intelligent data caching for better performance
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+## Contact & location
+- Venue: Kids4Fun, Poughkeepsie Galleria Mall, 2001 South Rd Unit A108, Poughkeepsie, NY.
+- Voice entrypoint: https://webhook.callsphere.tech (proxied to Twilio number configured in console).
 3. Commit your changes (`git commit -m 'Add some amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request

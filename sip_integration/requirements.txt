@@ -1,0 +1,19 @@
+# SIP Integration - Additional Dependencies
+# Install with: pip install -r sip_integration/requirements.txt
+
+# Web framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+
+# Twilio SDK
+twilio>=8.10.0
+
+# WebSocket support
+websockets>=12.0
+
+# Environment and utilities
+python-dotenv>=1.0.0
+python-multipart>=0.0.6  # For form data parsing
+
+# OpenAI (realtime API)
+openai>=1.3.0

@@ -1,7 +1,7 @@
 
 from agents import Agent
 
-from db.queries import get_store_policies, list_store_locations
+from db.queries_supabase import get_store_policies, list_store_locations
 from memory.knowledge_base import lookup_store_info
 
 info_agent = Agent(
