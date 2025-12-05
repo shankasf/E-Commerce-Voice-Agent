@@ -1,18 +1,26 @@
 # Playfunia Voice Agent (Kids4Fun)
 
-Production voice assistant for Kids4Fun at Poughkeepsie Galleria Mall. Twilio voice calls are proxied through Node (port 4001) to a Python FastAPI SIP integration (port 8080) that drives an OpenAI Realtime multi-agent stack. All business data (products, tickets, parties, orders, payments, refunds, staff, testimonials, promos, waivers, FAQs) is read/written via Supabase REST. Calls are managed by PM2 under the name `callsphere-webhook` and fronted by nginx at `https://webhook.callsphere.tech`.
+Production voice assistant for Kids4Fun at Poughkeepsie Galleria Mall. Twilio calls hit a Node gateway on port 4001, which proxies media to a Python FastAPI SIP server on port 8080 that drives an OpenAI Realtime multi-agent stack. All business data (catalog, tickets, parties, orders, payments, refunds, staff, promos, waivers, FAQs) is served from Supabase. A full analytics dashboard is served from the same Node process and managed by PM2 as `callsphere-webhook` behind nginx at `https://webhook.callsphere.tech`.
 
-## High-level flow
-- **Ingress:** Twilio webhook hits Node `server.js` (port 4001). Node upgrades media WebSocket and proxies to Python on 8080.
-- **Python SIP Integration:** `sip_integration/webhook_server.py` exposes `/twilio` (TwiML) and `/media-stream/{session}` (WebSocket). `media_stream.py` pipes audio to OpenAI Realtime and relays function calls to the ToyShopAgentAdapter.
-- **Agent adapter:** `sip_integration/agent_adapter.py` registers 25+ tools backed by Supabase (reads+writes). It lazily loads specialist agents from `app_agents/` and supplies tool schemas to the OpenAI session.
-- **Data layer:** `db/queries_supabase.py` implements all tools via Supabase REST with optional upsert and conflict checks. `db/database.py` wraps HTTP calls and logs response bodies on errors. `db/playfunia_schema.sql` documents the schema.
-- **Multi-agent brain:** `app_agents/*` defines specialized agents (triage, info, catalog, admission, party, order). The triage agent greets callers with the Kids4Fun address and routes to the right specialist.
-- **Voice memory:** `memory/` handles lightweight conversation state; `conversations.db` is the local SQLite store for sessions (when used).
+## Tech stack
+- Node.js (Express) gateway + analytics dashboard (Chart.js)
+- Python FastAPI SIP integration (Twilio Webhook + media WebSocket)
+- OpenAI Realtime API (`gpt-4o-realtime-preview-2024-12-17`, voice `alloy`, server VAD)
+- Supabase (PostgreSQL + REST) for all business data and call logs
+- PM2 for process supervision; nginx for TLS/frontend
+
+## End-to-end call flow
+1) **Twilio → Node**: Twilio webhook hits `server.js` on port 4001; Node upgrades to media WebSocket and proxies to Python on 8080.
+2) **Node → Python**: Media is forwarded to `sip_integration/webhook_server.py` (`/media-stream/{session}`); TwiML is served from `/twilio`.
+3) **Python → OpenAI**: `media_stream.py` streams audio to OpenAI Realtime; function calls are relayed to the agent adapter.
+4) **Agent adapter**: `sip_integration/agent_adapter.py` registers 25+ Supabase-backed tools and lazy-loads specialist agents from `app_agents/` (triage/info/catalog/admission/party/order).
+5) **Data layer**: `db/queries_supabase.py` and `db/database.py` perform Supabase REST calls with logging and error surfacing.
+6) **Voice memory**: `memory/` holds lightweight session state (with optional local SQLite).
+7) **Persistence + analytics**: `server.js` records call logs to Supabase, derives 50+ metrics, and renders the dashboard with time-range filters and export endpoints.
 
 ## Greeting and behavior
 - Initial greeting (triage): “Welcome to kids for fun Poughkeepsie Galleria Mall: 2001 South Rd Unit A108, Poughkeepsie, NY. How can I help? I can share store info, toy catalog, admissions/policies, party planning, orders/status, payments, and refunds.”
-- The party and order agents must collect all required customer/contact fields before any DB write. If Supabase rejects an input (e.g., bad datetime), `_format_request_error` returns a user-facing prompt so the voice agent re-asks for the correct format instead of silently failing.
+- Party and order agents must collect all required customer/contact fields before any write. Supabase errors are surfaced so the agent re-asks with corrected formats.
 
 ## Key tools (Supabase-backed)
 - **Customer:** `create_customer_profile`, `list_customer_orders`
@@ -20,51 +28,59 @@ Production voice assistant for Kids4Fun at Poughkeepsie Galleria Mall. Twilio vo
 - **Orders:** `create_order_with_item`, `add_order_item`, `update_order_status`, `get_order_details`, `record_payment`, `create_refund`
 - **Catalog & info:** `search_products`, `get_product_details`, `get_ticket_pricing`, `get_store_policies`, `list_faqs`, `list_staff`, `list_testimonials`, `list_promotions`, `list_waivers`, `list_payments`, `list_refunds`, `get_locations`, `get_knowledge_base_article`
 
-## Input validation highlights
-- Datetimes accept `YYYY-MM-DDTHH:MM:SS` with optional `Z`; all conflict/availability checks URL-encode `+00:00` to avoid Supabase parsing errors.
-- Party/Order creation blocks until full customer/contact fields are present when no `customer_id` is given.
-- Error bodies from Supabase are surfaced to callers so the agent can re-ask with corrected format.
+## Dashboard highlights (Node `/dashboard`)
+- 50+ derived KPIs: volume, sentiment, lead quality, conversions, tool usage, follow-ups, escalations, silence/talk ratios, repeat callers, new vs returning, and more.
+- Charts: volume trend, funnel, sentiment pulse, lead score trend, intent mix, hourly load, lead grade bands.
+- Heatmap of engagement, insights panel, recent calls, top callers, follow-up queue, quality alerts.
+- Time-range filters: `?range=today|7d|30d|90d|all` with UI buttons.
+- Exports: `/dashboard/export/json` and `/dashboard/export/csv` (honors `?range=`). API JSON: `/dashboard/api/metrics`.
 
-## Running locally (voice stack only)
-```bash
-cd /root/webhook/playfunia_agentic_chatbot2
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r sip_integration/requirements.txt  # if present, or install listed deps manually
-python main.py  # starts FastAPI on :8080
-
-# In another shell, start the Node proxy
-node /root/webhook/server.js  # expects python at 127.0.0.1:8080
-```
-
-## PM2 (production host)
-- Process: `callsphere-webhook` (Node + Python managed together via `server.js`)
-- Restart: `pm2 restart callsphere-webhook`
-- Logs: `pm2 logs callsphere-webhook --lines 200`
-
-## Environment (expected)
+## Environment (required)
 ```
 OPENAI_API_KEY=...
 SUPABASE_URL=https://<project>.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=...
 WEBHOOK_BASE_URL=https://webhook.callsphere.tech
-TWILIO_AUTH_TOKEN= (blank when bypassing signature in dev)
+TWILIO_AUTH_TOKEN=  # blank in dev if bypassing signature
 ```
 
-## Repository map (voice stack)
+## Local run (voice + dashboard)
+```bash
+cd /root/webhook/playfunia_agentic_chatbot2
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r sip_integration/requirements.txt
+python main.py  # FastAPI SIP server on :8080
+
+# In another shell (root of repo)
+node server.js  # Node gateway + dashboard on :4001
+
+# Open dashboard
+curl -u admin:kids4fun123 http://localhost:4001/dashboard
+```
+
+## PM2 (production)
+- Process: `callsphere-webhook`
+- Restart: `pm2 restart callsphere-webhook --update-env`
+- Logs: `pm2 logs callsphere-webhook --lines 200`
+
+## Repository map (voice + gateway)
 ```
 playfunia_agentic_chatbot2/
 ├─ main.py                      # Starts FastAPI SIP server
-├─ server.js (root)             # Node proxy on :4001 → Python :8080
+├─ server.js (root)             # Node proxy on :4001 → Python :8080 + dashboard
 ├─ sip_integration/
 │  ├─ webhook_server.py         # FastAPI routes for Twilio + WS
-│  ├─ media_stream.py           # WebSocket audio bridge to OpenAI Realtime
-│  ├─ agent_adapter.py          # Registers tools and agents
+│  ├─ media_stream.py           # WS audio bridge to OpenAI Realtime
+│  ├─ agent_adapter.py          # Registers tools/agents
+│  ├─ session_manager.py        # Persists call log + tool calls + conversions
 │  └─ openai_realtime.py        # Realtime client wrapper
 ├─ app_agents/                  # Specialized agents (triage/info/catalog/admission/party/order)
 ├─ db/
-│  ├─ queries_supabase.py       # All Supabase tool functions
-│  ├─ database.py               # Supabase REST wrapper with logging
-│  └─ playfunia_schema.sql      # Schema reference
+│  ├─ queries_supabase.py       # Supabase tool functions
+│  ├─ database.py               # REST wrapper with logging
+│  ├─ playfunia_schema.sql      # Schema reference
+│  ├─ queries.py / queries_supabase.py
+│  └─ schema.py                 # Supabase models
 ├─ memory/                      # Session/memory utilities
 ├─ agents.py                    # Agent base & tool decorator
 ├─ voice.py                     # Legacy/aux voice helpers
@@ -72,63 +88,22 @@ playfunia_agentic_chatbot2/
 ```
 
 ## Operational notes
-- Greeting and capability prompt are enforced in `app_agents/triage_agent.py`.
-- Booking/order tools guard required inputs and surface Supabase errors so the agent can re-ask users.
-- All timestamps are ISO8601; conflict checks are URL-encoded to avoid `+` → space issues in Supabase filters.
-- Latest fixes: removed nonexistent `notes` column from party bookings; added error-body logging; added `_parse_datetime` for `Z`; added `_format_request_error` to drive voice re-prompts.
+- Greeting/capability prompt enforced in `app_agents/triage_agent.py`.
+- Datetimes accept `YYYY-MM-DDTHH:MM:SS` with optional `Z`; conflict checks URL-encode `+00:00`.
+- Call logs include tool calls and conversion flags; indexes added on conversion and tools_used.
+- Dashboard uses Basic Auth (`admin` / `kids4fun123`).
 
-## Support commands
+## Quick checks
 - Tail logs: `pm2 logs callsphere-webhook --lines 200 --nostream`
-- Check schema quickly: `python - <<'PY'
-from db import queries_supabase as q
-print(q.db._make_request('GET','resources')[:2])
-print(q.db._make_request('GET','party_packages')[:2])
-PY`
+- Hit metrics API: `curl -u admin:kids4fun123 http://localhost:4001/dashboard/api/metrics`
+- Export CSV: `curl -u admin:kids4fun123 "http://localhost:4001/dashboard/export/csv?range=7d" -o metrics.csv`
 
-## Contact & location
-- Venue: Kids4Fun, Poughkeepsie Galleria Mall, 2001 South Rd Unit A108, Poughkeepsie, NY.
-- Voice entrypoint: https://webhook.callsphere.tech (proxied to Twilio number configured in console).
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+## License
 
-## 📝 License
+MIT License - see [LICENSE](LICENSE).
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## Support
 
-## 🆘 Support
+- Open an issue in this repo
+- Contact the dev team
 
-For support and questions:
-- Create an issue in the GitHub repository
-- Contact the development team
-- Check the documentation in the `/docs` folder
-
-## 🔮 Roadmap
-
-### Upcoming Features
-- [ ] Multi-language support
-- [ ] Advanced analytics dashboard
-- [ ] Mobile app integration
-- [ ] AI-powered product recommendations
-- [ ] Integration with payment gateways
-- [ ] Voice biometric authentication
-- [ ] Inventory management automation
-- [ ] Customer sentiment analysis
-
-### Version History
-- **v1.0.0**: Initial release with basic voice agent functionality
-- **v1.1.0**: Added dashboard and real-time updates
-- **v1.2.0**: Enhanced memory and conversation management
-- **v2.0.0**: Full MERN stack integration (Planned)
-
-## 📊 Project Statistics
-
-- **Total Commits**: 150+
-- **Contributors**: 5
-- **Languages**: Python, JavaScript, SQL
-- **Lines of Code**: 10,000+
-- **Test Coverage**: 85%
-
----
-
-**Built with ❤️ for e-commerce innovation**
