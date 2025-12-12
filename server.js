@@ -173,12 +173,12 @@ function computeWordStats(row) {
   const entries = Array.isArray(row.transcript_json)
     ? row.transcript_json
     : (row.transcript || "").split("\n").map((line) => {
-        const [rawRole, ...rest] = line.split(":");
-        return {
-          role: (rawRole || "").toLowerCase().includes("assistant") ? "assistant" : "user",
-          content: rest.join(":").trim(),
-        };
-      });
+      const [rawRole, ...rest] = line.split(":");
+      return {
+        role: (rawRole || "").toLowerCase().includes("assistant") ? "assistant" : "user",
+        content: rest.join(":").trim(),
+      };
+    });
 
   let userWords = 0;
   let assistantWords = 0;
@@ -592,7 +592,7 @@ let pythonProcess = null;
 // Start the Python SIP integration server
 function startPythonServer() {
   console.log("Starting Python SIP integration server...");
-  
+
   pythonProcess = spawn("python3", ["-m", "sip_integration.server"], {
     cwd: CHATBOT_DIR,
     stdio: ["inherit", "pipe", "pipe"],
@@ -642,7 +642,7 @@ setTimeout(() => {
 // --- PROXY FUNCTION ---
 function proxyToPython(req, res) {
   console.log(`Proxying ${req.method} ${req.originalUrl} to Python server`);
-  
+
   const options = {
     hostname: "127.0.0.1",
     port: PYTHON_SERVER_PORT,
@@ -653,13 +653,13 @@ function proxyToPython(req, res) {
       host: `127.0.0.1:${PYTHON_SERVER_PORT}`
     }
   };
-  
+
   const proxyReq = http.request(options, (proxyRes) => {
     console.log(`Python server responded with status: ${proxyRes.statusCode}`);
     res.writeHead(proxyRes.statusCode, proxyRes.headers);
     proxyRes.pipe(res);
   });
-  
+
   proxyReq.on("error", (err) => {
     console.error("Proxy error:", err);
     res.status(503).set("Content-Type", "text/xml").send(`
@@ -668,7 +668,7 @@ function proxyToPython(req, res) {
 </Response>
 `);
   });
-  
+
   req.pipe(proxyReq);
 }
 
@@ -733,15 +733,15 @@ app.get("/dashboard", requireDashboardAuth, async (req, res) => {
 
   const recentRows = metrics.tables.recentCalls.length
     ? metrics.tables.recentCalls
-        .map((call) => {
-          const sentimentLower = (call.sentiment || "").toLowerCase();
-          const sentimentClass = sentimentLower.includes("positive")
-            ? "positive"
-            : sentimentLower.includes("negative")
+      .map((call) => {
+        const sentimentLower = (call.sentiment || "").toLowerCase();
+        const sentimentClass = sentimentLower.includes("positive")
+          ? "positive"
+          : sentimentLower.includes("negative")
             ? "negative"
             : "neutral";
-          const talkPct = talkBadge(call.talkRatio);
-          return `
+        const talkPct = talkBadge(call.talkRatio);
+        return `
             <tr>
               <td>${escapeHtml((call.id || "").slice(0, 12))}…</td>
               <td>${escapeHtml(call.caller)}</td>
@@ -753,13 +753,13 @@ app.get("/dashboard", requireDashboardAuth, async (req, res) => {
               <td><a class="btn" href="/dashboard/call/${encodeURIComponent(call.id)}">Details</a></td>
             </tr>
           `;
-        })
-        .join("")
+      })
+      .join("")
     : '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:18px;">No call logs yet.</td></tr>';
 
   const topCallerRows = metrics.tables.topCallers.length
     ? metrics.tables.topCallers
-        .map((entry) => `
+      .map((entry) => `
           <tr>
             <td>${escapeHtml(entry.caller)}</td>
             <td>${entry.count}</td>
@@ -769,12 +769,12 @@ app.get("/dashboard", requireDashboardAuth, async (req, res) => {
             <td>${formatTime(entry.lastCall)}</td>
           </tr>
         `)
-        .join("")
+      .join("")
     : '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:18px;">No callers yet.</td></tr>';
 
   const followUpRows = metrics.tables.followUps.length
     ? metrics.tables.followUps
-        .map((call) => `
+      .map((call) => `
           <tr>
             <td>${escapeHtml(call.caller)}</td>
             <td>${escapeHtml(call.intent)}</td>
@@ -783,12 +783,12 @@ app.get("/dashboard", requireDashboardAuth, async (req, res) => {
             <td><a class="btn ghost" href="/dashboard/call/${encodeURIComponent(call.id)}">Open</a></td>
           </tr>
         `)
-        .join("")
+      .join("")
     : '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:18px;">All caught up!</td></tr>';
 
   const qualityRows = metrics.tables.qualityAlerts.length
     ? metrics.tables.qualityAlerts
-        .map((call) => `
+      .map((call) => `
           <tr>
             <td>${escapeHtml(call.caller)}</td>
             <td>${escapeHtml(call.flags.join(", "))}</td>
@@ -797,7 +797,7 @@ app.get("/dashboard", requireDashboardAuth, async (req, res) => {
             <td><a class="btn ghost" href="/dashboard/call/${encodeURIComponent(call.id)}">Inspect</a></td>
           </tr>
         `)
-        .join("")
+      .join("")
     : '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:18px;">No alerts 🎉</td></tr>';
 
   const insightsHtml = metrics.insights.length
@@ -1464,7 +1464,7 @@ const server = app.listen(PORT, () => {
 // WebSocket upgrade handling for media-stream
 server.on("upgrade", (req, socket, head) => {
   console.log(`WebSocket upgrade request: ${req.url}`);
-  
+
   if (req.url.startsWith("/media-stream")) {
     const options = {
       hostname: "127.0.0.1",
@@ -1473,14 +1473,14 @@ server.on("upgrade", (req, socket, head) => {
       method: "GET",
       headers: req.headers
     };
-    
+
     const proxyReq = http.request(options);
     proxyReq.on("upgrade", (proxyRes, proxySocket, proxyHead) => {
       socket.write("HTTP/1.1 101 Switching Protocols\r\n" +
-                   "Upgrade: websocket\r\n" +
-                   "Connection: Upgrade\r\n" +
-                   `Sec-WebSocket-Accept: ${proxyRes.headers["sec-websocket-accept"]}\r\n` +
-                   "\r\n");
+        "Upgrade: websocket\r\n" +
+        "Connection: Upgrade\r\n" +
+        `Sec-WebSocket-Accept: ${proxyRes.headers["sec-websocket-accept"]}\r\n` +
+        "\r\n");
       proxySocket.pipe(socket);
       socket.pipe(proxySocket);
     });
