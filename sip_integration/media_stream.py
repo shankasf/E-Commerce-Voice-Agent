@@ -85,6 +85,7 @@ class MediaStreamHandler:
         self.openai_connection.set_audio_callback(self._on_openai_audio)
         self.openai_connection.set_text_callback(self._on_openai_text)
         self.openai_connection.set_function_callback(self._on_openai_function)
+        self.openai_connection.set_interrupt_callback(self._on_user_interrupt)
         
         # Connect
         connected = await self.openai_connection.connect(self.session.session_id)
@@ -182,6 +183,28 @@ class MediaStreamHandler:
         
         except Exception as e:
             logger.error(f"Error sending audio to Twilio: {e}")
+    
+    async def _clear_twilio_audio(self) -> None:
+        """Clear Twilio's audio buffer to stop playback immediately (for interruptions)."""
+        if not self.stream_sid:
+            return
+        
+        try:
+            # Send clear message to Twilio to stop audio playback
+            message = {
+                "event": "clear",
+                "streamSid": self.stream_sid
+            }
+            await self.websocket.send_text(json.dumps(message))
+            logger.info("Sent clear to Twilio to stop audio playback")
+        except Exception as e:
+            logger.error(f"Error clearing Twilio audio: {e}")
+    
+    def _on_user_interrupt(self) -> None:
+        """Callback when user interrupts the AI (detected by VAD)."""
+        logger.info("User interrupted - clearing Twilio audio buffer")
+        # Schedule the async clear operation
+        asyncio.create_task(self._clear_twilio_audio())
     
     def _on_openai_text(self, role: str, text: str) -> None:
         """Callback when text/transcription is received from OpenAI or user transcript."""

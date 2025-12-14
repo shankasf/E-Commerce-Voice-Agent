@@ -743,7 +743,7 @@ def create_order_with_item(
     item_type: str,
     reference_id: int,
     quantity: int = 1,
-    order_type: str = "Sale",
+    order_type: str = "Retail",
     location_id: Optional[int] = None,
     notes: str = "",
     customer_id: Optional[int] = None,
@@ -818,6 +818,14 @@ def create_order_with_item(
             item_name = package.get("name", "")
 
         subtotal = unit_price * quantity
+        
+        # Auto-determine order_type based on item_type if not explicitly set
+        if order_type == "Retail":
+            if normalized_type == "Ticket":
+                order_type = "Admission"
+            elif normalized_type == "Party":
+                order_type = "Party"
+            # else keep as Retail for Product
         
         # Create order
         order_data = {
