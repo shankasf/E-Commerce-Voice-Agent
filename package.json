@@ -1,26 +1,35 @@
 {
-  "name": "webhook",
-  "version": "1.0.0",
-  "main": "server.js",
+  "name": "playfunia-voice-agent",
+  "version": "2.0.0",
+  "description": "Multi-agent voice assistant for Kids4Fun using OpenAI Agents SDK",
+  "type": "module",
+  "main": "src/server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js",
-    "start:forever": "pm2 start server.js --name callsphere-gateway",
-    "stop": "pm2 stop callsphere-gateway",
-    "restart": "pm2 restart callsphere-gateway",
-    "logs": "pm2 logs callsphere-gateway",
-    "status": "pm2 status"
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "dashboard": "node src/dashboard/server.js",
+    "test": "vitest",
+    "build": "tsc --noEmit"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
   "dependencies": {
-    "body-parser": "^2.2.1",
+    "@openai/agents": "^0.0.14",
+    "@openai/agents-realtime": "^0.0.14",
+    "@supabase/supabase-js": "^2.45.0",
+    "chart.js": "^4.4.0",
     "dotenv": "^16.6.1",
-    "express": "^5.2.1",
-    "http-proxy-middleware": "^3.0.5",
+    "express": "^5.0.0",
     "twilio": "^5.10.7",
-    "ws": "^8.18.3"
+    "ws": "^8.18.3",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.10",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=22.0.0"
   }
 }

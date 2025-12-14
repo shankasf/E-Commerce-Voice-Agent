@@ -1,109 +1,441 @@
-# Playfunia Voice Agent (Kids4Fun)
+# Playfunia Voice Agent
 
-Production voice assistant for Kids4Fun at Poughkeepsie Galleria Mall. Twilio calls hit a Node gateway on port 4001, which proxies media to a Python FastAPI SIP server on port 8080 that drives an OpenAI Realtime multi-agent stack. All business data (catalog, tickets, parties, orders, payments, refunds, staff, promos, waivers, FAQs) is served from Supabase. A full analytics dashboard is served from the same Node process and managed by PM2 as `callsphere-webhook` behind nginx at `https://webhook.callsphere.tech`.
+A production-ready multi-agent voice system for Kids4Fun (Playfunia) built with **OpenAI Realtime API** and **Twilio** for real-time voice interactions with **robust interruption handling** and **barge-in support**.
 
-## Tech stack
-- Node.js (Express) gateway + analytics dashboard (Chart.js)
-- Python FastAPI SIP integration (Twilio Webhook + media WebSocket)
-- OpenAI Realtime API (`gpt-4o-realtime-preview-2024-12-17`, voice `alloy`, server VAD)
-- Supabase (PostgreSQL + REST) for all business data and call logs
-- PM2 for process supervision; nginx for TLS/frontend
+## ✨ Key Features
 
-## End-to-end call flow
-1) **Twilio → Node**: Twilio webhook hits `server.js` on port 4001; Node upgrades to media WebSocket and proxies to Python on 8080.
-2) **Node → Python**: Media is forwarded to `sip_integration/webhook_server.py` (`/media-stream/{session}`); TwiML is served from `/twilio`.
-3) **Python → OpenAI**: `media_stream.py` streams audio to OpenAI Realtime; function calls are relayed to the agent adapter.
-4) **Agent adapter**: `sip_integration/agent_adapter.py` registers 25+ Supabase-backed tools and lazy-loads specialist agents from `app_agents/` (triage/info/catalog/admission/party/order).
-5) **Data layer**: `db/queries_supabase.py` and `db/database.py` perform Supabase REST calls with logging and error surfacing.
-6) **Voice memory**: `memory/` holds lightweight session state (with optional local SQLite).
-7) **Persistence + analytics**: `server.js` records call logs to Supabase, derives 50+ metrics, and renders the dashboard with time-range filters and export endpoints.
+- **🎙️ Real-time Voice Conversations** - Sub-second latency using OpenAI Realtime WebSocket API
+- **🛑 Interruption Handling (Barge-in)** - Users can interrupt the agent mid-speech
+- **🤖 Multi-Agent System** - Triage agent routes to 5 specialist agents
+- **🛠️ 47 Database Tools** - Full CRUD operations via Supabase
+- **📊 Analytics Dashboard** - Call metrics, sentiment analysis, lead scoring
+- **🔊 Server VAD** - Voice Activity Detection for natural turn-taking
+- **📝 Transcript Capture** - Full conversation logging for analytics
+- **⚡ Audio Truncation** - Aligns server state with what user actually heard
 
-## Greeting and behavior
-- Initial greeting (triage): “Welcome to kids for fun Poughkeepsie Galleria Mall: 2001 South Rd Unit A108, Poughkeepsie, NY. How can I help? I can share store info, toy catalog, admissions/policies, party planning, orders/status, payments, and refunds.”
-- Party and order agents must collect all required customer/contact fields before any write. Supabase errors are surfaced so the agent re-asks with corrected formats.
+## 🏗️ Architecture
 
-## Key tools (Supabase-backed)
-- **Customer:** `create_customer_profile`, `list_customer_orders`
-- **Party:** `list_party_packages`, `get_party_availability`, `create_party_booking`, `update_party_booking`
-- **Orders:** `create_order_with_item`, `add_order_item`, `update_order_status`, `get_order_details`, `record_payment`, `create_refund`
-- **Catalog & info:** `search_products`, `get_product_details`, `get_ticket_pricing`, `get_store_policies`, `list_faqs`, `list_staff`, `list_testimonials`, `list_promotions`, `list_waivers`, `list_payments`, `list_refunds`, `get_locations`, `get_knowledge_base_article`
-
-## Dashboard highlights (Node `/dashboard`)
-- 50+ derived KPIs: volume, sentiment, lead quality, conversions, tool usage, follow-ups, escalations, silence/talk ratios, repeat callers, new vs returning, and more.
-- Charts: volume trend, funnel, sentiment pulse, lead score trend, intent mix, hourly load, lead grade bands.
-- Heatmap of engagement, insights panel, recent calls, top callers, follow-up queue, quality alerts.
-- Time-range filters: `?range=today|7d|30d|90d|all` with UI buttons.
-- Exports: `/dashboard/export/json` and `/dashboard/export/csv` (honors `?range=`). API JSON: `/dashboard/api/metrics`.
-
-## Environment (required)
 ```
-OPENAI_API_KEY=...
-SUPABASE_URL=https://<project>.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=...
-WEBHOOK_BASE_URL=https://webhook.callsphere.tech
-TWILIO_AUTH_TOKEN=  # blank in dev if bypassing signature
+                         ┌──────────────────┐
+                         │   Phone Call     │
+                         │   (User)         │
+                         └────────┬─────────┘
+                                  │
+                         ┌────────▼─────────┐
+                         │     Twilio       │
+                         │  Media Streams   │
+                         └────────┬─────────┘
+                                  │ WebSocket (G.711 μ-law)
+                                  │
+┌─────────────────────────────────▼─────────────────────────────────┐
+│                     Express + WebSocket Server                     │
+│  ┌─────────────────────────────────────────────────────────────┐  │
+│  │                    VoiceSession Manager                      │  │
+│  │  • Audio position tracking    • Interruption debouncing     │  │
+│  │  • Mark queue management      • Transcript collection       │  │
+│  │  • Response state tracking    • Sentiment analysis          │  │
+│  └─────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────┬─────────────────────────────────┘
+                                  │ WebSocket
+                         ┌────────▼─────────┐
+                         │  OpenAI Realtime │
+                         │       API        │
+                         │  (gpt-4o-realtime│
+                         │   -2025-08-28)   │
+                         └────────┬─────────┘
+                                  │
+              ┌───────────────────▼───────────────────┐
+              │           TRIAGE AGENT                │
+              │  Routes conversations by user intent  │
+              └───────────────────┬───────────────────┘
+                                  │
+     ┌───────────┬────────────────┼────────────────┬───────────┐
+     ▼           ▼                ▼                ▼           ▼
+┌─────────┐ ┌─────────┐    ┌───────────┐    ┌─────────┐ ┌─────────┐
+│  INFO   │ │ CATALOG │    │ ADMISSION │    │  PARTY  │ │  ORDER  │
+│  AGENT  │ │  AGENT  │    │   AGENT   │    │  AGENT  │ │  AGENT  │
+│ 7 tools │ │ 5 tools │    │  6 tools  │    │10 tools │ │13 tools │
+└────┬────┘ └────┬────┘    └─────┬─────┘    └────┬────┘ └────┬────┘
+     │           │               │               │           │
+     └───────────┴───────────────┼───────────────┴───────────┘
+                                 │
+                        ┌────────▼─────────┐
+                        │     Supabase     │
+                        │   (PostgreSQL)   │
+                        │   25+ tables     │
+                        └──────────────────┘
 ```
 
-## Local run (voice + dashboard)
+## 📁 Project Structure
+
+```
+src/
+├── server.js               # Main Express + WebSocket server
+│                           # - VoiceSession class for state management
+│                           # - Interruption handling logic
+│                           # - OpenAI Realtime event handlers
+│                           # - Twilio media stream handlers
+│                           # - Admin API endpoints
+├── agents/                 # Multi-agent system
+│   ├── index.js            # Agent exports
+│   ├── triage.agent.js     # Main router agent with handoffs
+│   ├── info.agent.js       # FAQ, policies, locations, staff
+│   ├── catalog.agent.js    # Products, inventory management
+│   ├── admission.agent.js  # Tickets, waivers, check-ins
+│   ├── party.agent.js      # Party bookings, packages, guests
+│   └── order.agent.js      # Orders, payments, refunds
+├── tools/                  # Supabase-backed tools (47 total)
+│   ├── index.js            # Tool exports
+│   ├── info.tools.js       # 7 info tools
+│   ├── catalog.tools.js    # 5 catalog tools
+│   ├── admission.tools.js  # 6 admission tools
+│   ├── party.tools.js      # 10 party tools
+│   ├── order.tools.js      # 13 order tools
+│   └── customer.tools.js   # 6 customer tools
+├── db/
+│   └── supabase.js         # Supabase client wrapper
+├── metrics/
+│   └── call-logs.js        # Call logging & metrics computation
+└── dashboard/
+    ├── index.js            # Dashboard exports
+    └── routes.js           # Dashboard UI (Chart.js) & API
+```
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- **Node.js** >= 22.0.0
+- **OpenAI API key** with Realtime API access
+- **Supabase** project with the Playfunia schema
+- **Twilio** account (for phone calls)
+- **ngrok** or similar (for local development)
+
+### Installation
+
 ```bash
-cd /root/webhook/playfunia_agentic_chatbot2
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r sip_integration/requirements.txt
-python main.py  # FastAPI SIP server on :8080
+# Install dependencies
+npm install
 
-# In another shell (root of repo)
-node server.js  # Node gateway + dashboard on :4001
+# Configure environment
+cp .env.example .env
+# Edit .env with your API keys
 
-# Open dashboard
-curl -u admin:kids4fun123 http://localhost:4001/dashboard
+# Start development server (with auto-reload)
+npm run dev
+
+# Or start production server
+npm start
 ```
 
-## PM2 (production)
-- Process: `callsphere-webhook`
-- Restart: `pm2 restart callsphere-webhook --update-env`
-- Logs: `pm2 logs callsphere-webhook --lines 200`
+### Twilio Setup
 
-## Repository map (voice + gateway)
-```
-playfunia_agentic_chatbot2/
-├─ main.py                      # Starts FastAPI SIP server
-├─ server.js (root)             # Node proxy on :4001 → Python :8080 + dashboard
-├─ sip_integration/
-│  ├─ webhook_server.py         # FastAPI routes for Twilio + WS
-│  ├─ media_stream.py           # WS audio bridge to OpenAI Realtime
-│  ├─ agent_adapter.py          # Registers tools/agents
-│  ├─ session_manager.py        # Persists call log + tool calls + conversions
-│  └─ openai_realtime.py        # Realtime client wrapper
-├─ app_agents/                  # Specialized agents (triage/info/catalog/admission/party/order)
-├─ db/
-│  ├─ queries_supabase.py       # Supabase tool functions
-│  ├─ database.py               # REST wrapper with logging
-│  ├─ playfunia_schema.sql      # Schema reference
-│  ├─ queries.py / queries_supabase.py
-│  └─ schema.py                 # Supabase models
-├─ memory/                      # Session/memory utilities
-├─ agents.py                    # Agent base & tool decorator
-├─ voice.py                     # Legacy/aux voice helpers
-└─ README.md                    # This file
+1. Create a TwiML App in Twilio Console
+2. Set the **Voice Request URL** to: `https://your-domain.com/twilio/incoming`
+3. Set the **Status Callback URL** to: `https://your-domain.com/twilio/status`
+4. Point your Twilio phone number to this TwiML App
+
+### Local Development with ngrok
+
+```bash
+# Start server
+npm run dev
+
+# In another terminal, expose with ngrok
+ngrok http 3000
+
+# Use the ngrok HTTPS URL for Twilio webhooks
 ```
 
-## Operational notes
-- Greeting/capability prompt enforced in `app_agents/triage_agent.py`.
-- Datetimes accept `YYYY-MM-DDTHH:MM:SS` with optional `Z`; conflict checks URL-encode `+00:00`.
-- Call logs include tool calls and conversion flags; indexes added on conversion and tools_used.
-- Dashboard uses Basic Auth (`admin` / `kids4fun123`).
+## 🎙️ OpenAI Realtime API Integration
 
-## Quick checks
-- Tail logs: `pm2 logs callsphere-webhook --lines 200 --nostream`
-- Hit metrics API: `curl -u admin:kids4fun123 http://localhost:4001/dashboard/api/metrics`
-- Export CSV: `curl -u admin:kids4fun123 "http://localhost:4001/dashboard/export/csv?range=7d" -o metrics.csv`
+### Client Events Sent
 
-## License
+| Event | Purpose |
+|-------|---------|
+| `session.update` | Configure voice, VAD, tools, instructions |
+| `input_audio_buffer.append` | Stream audio from Twilio to OpenAI |
+| `input_audio_buffer.commit` | Commit audio buffer (manual mode) |
+| `input_audio_buffer.clear` | Discard buffered audio |
+| `conversation.item.create` | Add messages/tool results to conversation |
+| `conversation.item.truncate` | Truncate assistant audio on interruption |
+| `conversation.item.delete` | Remove items from conversation |
+| `response.create` | Trigger model response |
+| `response.cancel` | Cancel in-progress response |
 
-MIT License - see [LICENSE](LICENSE).
+### Server Events Handled
 
-## Support
+| Event | Handler Action |
+|-------|----------------|
+| `session.created` | Log session ID |
+| `session.updated` | Send initial greeting |
+| `input_audio_buffer.committed` | Track user audio item |
+| `input_audio_buffer.speech_started` | **Trigger interruption handler** |
+| `input_audio_buffer.speech_stopped` | Log speech end |
+| `conversation.item.created` | Track conversation items |
+| `conversation.item.truncated` | Log truncation |
+| `conversation.item.input_audio_transcription.completed` | Capture user transcript |
+| `response.created` | Mark response in progress |
+| `response.done` | Reset response state, handle cancelled/failed |
+| `response.audio.delta` | Forward audio to Twilio, track position |
+| `response.audio_transcript.done` | Capture assistant transcript |
+| `response.function_call_arguments.done` | Execute tool, send result |
+| `rate_limits.updated` | Log rate limit info |
+| `error` | Handle session_expired, rate_limit_exceeded |
 
-- Open an issue in this repo
-- Contact the dev team
+## 🛑 Interruption Handling (Barge-in)
+
+When a user starts speaking while the agent is talking:
+
+```
+1. VAD detects speech → input_audio_buffer.speech_started
+                              ↓
+2. handleInterruption() called (debounced 100ms)
+                              ↓
+3. Send response.cancel to stop generation
+                              ↓
+4. Send Twilio "clear" event to stop playback
+                              ↓
+5. Calculate played audio duration from marks
+                              ↓
+6. Send conversation.item.truncate to align state
+                              ↓
+7. Reset audio tracking, ready for user input
+```
+
+### Configuration
+
+```javascript
+const VOICE_CONFIG = {
+    voice: 'alloy',              // alloy, echo, fable, onyx, nova, shimmer
+    vadThreshold: 0.5,           // Speech detection sensitivity (0-1)
+    vadPrefixPaddingMs: 300,     // Audio to keep before speech start
+    vadSilenceDurationMs: 500,   // Silence duration to end turn
+    interruptionDebounceMs: 100, // Prevent rapid interruption triggers
+};
+```
+
+## 📊 Dashboard
+
+Access at `http://localhost:3000/dashboard`
+
+**Default credentials:** `admin` / `kids4fun123`
+
+### Metrics Displayed
+
+| Metric | Description |
+|--------|-------------|
+| Total Calls | Number of calls in selected range |
+| Avg Duration | Average call length |
+| Avg Lead Score | 0-100 based on engagement |
+| Conversion Rate | Percentage of successful conversions |
+| Follow-up Rate | Calls requiring follow-up |
+| Escalation Rate | Calls escalated to human |
+| Sentiment Breakdown | Positive/Neutral/Negative pie chart |
+| Lead Score Bands | Hot (70+) / Warm (40-69) / Cold (<40) |
+| Hourly Distribution | Call volume by hour |
+| Daily Volume | Call trend over time |
+| Tool Usage | Most used tools bar chart |
+| Top Callers | Frequent caller numbers |
+| Recent Calls | Latest call details |
+
+### Time Filters
+
+- Today
+- 7 Days
+- 30 Days
+- 90 Days
+- All Time
+
+## 📝 API Endpoints
+
+### Core Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/health` | Health check with timestamp |
+| POST | `/twilio/incoming` | Twilio incoming call webhook (returns TwiML) |
+| POST | `/twilio/status` | Twilio call status callback |
+| WS | `/media-stream` | Twilio media stream WebSocket |
+
+### Dashboard Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/dashboard` | Metrics dashboard UI |
+| GET | `/dashboard/api/metrics?range=7d` | Metrics JSON API |
+| GET | `/dashboard/export/json?range=7d` | Export logs as JSON |
+| GET | `/dashboard/export/csv?range=7d` | Export logs as CSV |
+
+### Session Management API (Admin)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/sessions` | List all active call sessions |
+| GET | `/api/sessions/:callSid` | Get session details + transcripts |
+| POST | `/api/sessions/:callSid/cancel` | Force cancel current response |
+| POST | `/api/sessions/:callSid/inject` | Inject text message into conversation |
+| POST | `/api/sessions/:callSid/update` | Update session config (instructions/tools) |
+
+#### Example: Inject Message
+
+```bash
+curl -X POST http://localhost:3000/api/sessions/CA123.../inject \
+  -H "Content-Type: application/json" \
+  -d '{"text": "What are your party packages?", "triggerResponse": true}'
+```
+
+## 🛠️ Tools (47 Total)
+
+### Info Tools (7)
+| Tool | Description |
+|------|-------------|
+| `listFaqs` | Get frequently asked questions |
+| `getStorePolicies` | Retrieve store policies |
+| `listStoreLocations` | Get location details |
+| `listStaff` | Get staff directory |
+| `listTestimonials` | Get customer testimonials |
+| `getCompanyInfo` | Get company details |
+| `listResources` | Get resources/assets |
+
+### Catalog Tools (5)
+| Tool | Description |
+|------|-------------|
+| `searchProducts` | Search product catalog |
+| `getProductDetails` | Get product by ID |
+| `checkInventory` | Check stock levels |
+| `getInventoryMovements` | Get inventory history |
+| `recordInventoryMovement` | Record stock change |
+
+### Admission Tools (6)
+| Tool | Description |
+|------|-------------|
+| `getTicketPricing` | Get ticket types/prices |
+| `listWaivers` | List customer waivers |
+| `createWaiver` | Create liability waiver |
+| `createAdmission` | Create admission entry |
+| `checkInAdmission` | Check in visitor |
+| `listAdmissions` | List admissions |
+
+### Party Tools (10)
+| Tool | Description |
+|------|-------------|
+| `listPartyPackages` | Get party packages |
+| `getPackageInclusions` | Get package details |
+| `getPartyAvailability` | Check date availability |
+| `createPartyBooking` | Book a party |
+| `updatePartyBooking` | Update booking |
+| `getBookingDetails` | Get booking info |
+| `rescheduleParty` | Reschedule party |
+| `addPartyGuest` | Add guest to party |
+| `listPartyGuests` | List party guests |
+| `addPartyAddon` | Add party addon |
+
+### Order Tools (13)
+| Tool | Description |
+|------|-------------|
+| `createOrder` | Create new order |
+| `getOrderDetails` | Get order by ID |
+| `searchOrders` | Search orders |
+| `updateOrderStatus` | Update order status |
+| `addOrderItem` | Add item to order |
+| `listOrderItems` | List order items |
+| `recordPayment` | Record payment |
+| `listPayments` | List payments |
+| `createRefund` | Create refund |
+| `updateRefundStatus` | Update refund status |
+| `listRefunds` | List refunds |
+| `listPromotions` | Get active promotions |
+| `applyPromotion` | Apply promo to order |
+
+### Customer Tools (6)
+| Tool | Description |
+|------|-------------|
+| `createCustomerProfile` | Create customer |
+| `searchCustomers` | Search customers |
+| `getCustomerDetails` | Get customer by ID |
+| `updateCustomerProfile` | Update customer |
+| `listCustomerOrders` | Get customer orders |
+| `listCustomerBookings` | Get customer bookings |
+
+## 🔄 Agent Handoffs
+
+The **Triage Agent** analyzes user intent and routes to specialists:
+
+| User Intent | Routed To | Example Phrases |
+|-------------|-----------|-----------------|
+| FAQ, hours, locations | Info Agent | "What are your hours?", "Where are you located?" |
+| Products, prices, inventory | Catalog Agent | "What do you sell?", "Do you have toys?" |
+| Tickets, admission, waivers | Admission Agent | "How much is admission?", "I need to sign a waiver" |
+| Party bookings, packages | Party Agent | "I want to book a birthday party", "What packages do you have?" |
+| Orders, payments, refunds | Order Agent | "I want to check my order", "I need a refund" |
+
+## 🔐 Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `OPENAI_API_KEY` | ✅ | OpenAI API key with Realtime access |
+| `SUPABASE_URL` | ✅ | Supabase project URL |
+| `SUPABASE_ANON_KEY` | ✅ | Supabase anonymous key |
+| `TWILIO_ACCOUNT_SID` | ❌ | Twilio account SID |
+| `TWILIO_AUTH_TOKEN` | ❌ | Twilio auth token |
+| `TWILIO_PHONE_NUMBER` | ❌ | Twilio phone number |
+| `PORT` | ❌ | Server port (default: 3000) |
+| `DASH_USER` | ❌ | Dashboard username (default: admin) |
+| `DASH_PASS` | ❌ | Dashboard password (default: kids4fun123) |
+
+## 📈 Analytics & Metrics
+
+### Sentiment Analysis
+
+Simple keyword-based sentiment detection:
+- **Positive:** great, awesome, perfect, thanks, love, excellent, wonderful, amazing
+- **Negative:** bad, terrible, awful, hate, angry, frustrated, problem, complaint
+
+### Lead Scoring (0-100)
+
+| Factor | Points |
+|--------|--------|
+| Base score | 50 |
+| Each tool used | +5 |
+| High-value tool used | +10 |
+| Conversation messages | +2 each (max +20) |
+
+**High-value tools:** `createPartyBooking`, `createAdmission`, `createOrder`, `getTicketPricing`, `listPartyPackages`
+
+### Lead Bands
+
+| Band | Score Range | Color |
+|------|-------------|-------|
+| 🔥 Hot | 70-100 | Red |
+| 🌡️ Warm | 40-69 | Yellow |
+| ❄️ Cold | 0-39 | Blue |
+
+## 🧪 Development
+
+```bash
+# Run development server with auto-reload
+npm run dev
+
+# Run production server
+npm start
+
+# Test Supabase connection
+node -e "import('./src/db/supabase.js').then(m => m.default.query('company').then(console.log))"
+```
+
+## 📦 Dependencies
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `express` | ^5.0.0 | HTTP server |
+| `ws` | ^8.18.3 | WebSocket client/server |
+| `@supabase/supabase-js` | ^2.45.0 | Supabase client |
+| `dotenv` | ^16.6.1 | Environment variables |
+| `twilio` | ^5.10.7 | Twilio SDK (optional) |
+| `zod` | ^3.23.0 | Schema validation |
+
+## 📜 License
+
+MIT
 
