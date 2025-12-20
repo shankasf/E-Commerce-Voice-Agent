@@ -1,109 +1,352 @@
-# Playfunia Voice Agent (Kids4Fun)
+# U Rack IT - AI-Powered IT Support System
 
-Production voice assistant for Kids4Fun at Poughkeepsie Galleria Mall. Twilio calls hit a Node gateway on port 4001, which proxies media to a Python FastAPI SIP server on port 8080 that drives an OpenAI Realtime multi-agent stack. All business data (catalog, tickets, parties, orders, payments, refunds, staff, promos, waivers, FAQs) is served from Supabase. A full analytics dashboard is served from the same Node process and managed by PM2 as `callsphere-webhook` behind nginx at `https://webhook.callsphere.tech`.
+Enterprise-grade IT support platform combining **Voice AI** and **Chat AI** agents to provide 24/7 automated support with seamless human handoff. Built for managed service providers (MSPs) serving multiple client organizations.
 
-## Tech stack
-- Node.js (Express) gateway + analytics dashboard (Chart.js)
-- Python FastAPI SIP integration (Twilio Webhook + media WebSocket)
-- OpenAI Realtime API (`gpt-4o-realtime-preview-2024-12-17`, voice `alloy`, server VAD)
-- Supabase (PostgreSQL + REST) for all business data and call logs
-- PM2 for process supervision; nginx for TLS/frontend
+## 🎯 Overview
 
-## End-to-end call flow
-1) **Twilio → Node**: Twilio webhook hits `server.js` on port 4001; Node upgrades to media WebSocket and proxies to Python on 8080.
-2) **Node → Python**: Media is forwarded to `sip_integration/webhook_server.py` (`/media-stream/{session}`); TwiML is served from `/twilio`.
-3) **Python → OpenAI**: `media_stream.py` streams audio to OpenAI Realtime; function calls are relayed to the agent adapter.
-4) **Agent adapter**: `sip_integration/agent_adapter.py` registers 25+ Supabase-backed tools and lazy-loads specialist agents from `app_agents/` (triage/info/catalog/admission/party/order).
-5) **Data layer**: `db/queries_supabase.py` and `db/database.py` perform Supabase REST calls with logging and error surfacing.
-6) **Voice memory**: `memory/` holds lightweight session state (with optional local SQLite).
-7) **Persistence + analytics**: `server.js` records call logs to Supabase, derives 50+ metrics, and renders the dashboard with time-range filters and export endpoints.
+U Rack IT is a comprehensive IT support system with two AI-powered channels:
 
-## Greeting and behavior
-- Initial greeting (triage): “Welcome to kids for fun Poughkeepsie Galleria Mall: 2001 South Rd Unit A108, Poughkeepsie, NY. How can I help? I can share store info, toy catalog, admissions/policies, party planning, orders/status, payments, and refunds.”
-- Party and order agents must collect all required customer/contact fields before any write. Supabase errors are surfaced so the agent re-asks with corrected formats.
+| Channel | Technology | Port | Purpose |
+|---------|------------|------|---------|
+| **Voice AI** | Twilio + OpenAI Realtime | 8080 | Phone support with natural voice conversations |
+| **Chat AI** | Next.js + OpenAI Responses API | 3001 | Web-based ticket support with chat interface |
 
-## Key tools (Supabase-backed)
-- **Customer:** `create_customer_profile`, `list_customer_orders`
-- **Party:** `list_party_packages`, `get_party_availability`, `create_party_booking`, `update_party_booking`
-- **Orders:** `create_order_with_item`, `add_order_item`, `update_order_status`, `get_order_details`, `record_payment`, `create_refund`
-- **Catalog & info:** `search_products`, `get_product_details`, `get_ticket_pricing`, `get_store_policies`, `list_faqs`, `list_staff`, `list_testimonials`, `list_promotions`, `list_waivers`, `list_payments`, `list_refunds`, `get_locations`, `get_knowledge_base_article`
+Both channels share the same **Supabase** database, multi-agent system, and tool infrastructure - ensuring consistent support regardless of how customers reach out.
 
-## Dashboard highlights (Node `/dashboard`)
-- 50+ derived KPIs: volume, sentiment, lead quality, conversions, tool usage, follow-ups, escalations, silence/talk ratios, repeat callers, new vs returning, and more.
-- Charts: volume trend, funnel, sentiment pulse, lead score trend, intent mix, hourly load, lead grade bands.
-- Heatmap of engagement, insights panel, recent calls, top callers, follow-up queue, quality alerts.
-- Time-range filters: `?range=today|7d|30d|90d|all` with UI buttons.
-- Exports: `/dashboard/export/json` and `/dashboard/export/csv` (honors `?range=`). API JSON: `/dashboard/api/metrics`.
+---
 
-## Environment (required)
-```
-OPENAI_API_KEY=...
-SUPABASE_URL=https://<project>.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=...
-WEBHOOK_BASE_URL=https://webhook.callsphere.tech
-TWILIO_AUTH_TOKEN=  # blank in dev if bypassing signature
-```
+## 🤖 AI Agents Architecture
 
-## Local run (voice + dashboard)
-```bash
-cd /root/webhook/playfunia_agentic_chatbot2
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r sip_integration/requirements.txt
-python main.py  # FastAPI SIP server on :8080
+### Multi-Agent System
 
-# In another shell (root of repo)
-node server.js  # Node gateway + dashboard on :4001
+The system uses a **specialist agent architecture** where a triage agent routes conversations to domain experts:
 
-# Open dashboard
-curl -u admin:kids4fun123 http://localhost:4001/dashboard
-```
+\`\`\`
+Customer → Triage Agent → Specialist Agent(s) → Resolution/Handoff
+\`\`\`
 
-## PM2 (production)
-- Process: `callsphere-webhook`
-- Restart: `pm2 restart callsphere-webhook --update-env`
-- Logs: `pm2 logs callsphere-webhook --lines 200`
+| Agent | Role | Key Capabilities |
+|-------|------|------------------|
+| **Triage Agent** | First responder, routes to specialists | Classify issues, greet customers, detect urgency |
+| **Info Agent** | Company/location information | Hours, addresses, contact details, policies |
+| **Catalog Agent** | Product/service catalog | Search products, pricing, availability |
+| **Admission Agent** | Ticket creation & policies | Create tickets, explain support tiers |
+| **Order Agent** | Order management | Track orders, status updates, history |
+| **Party Agent** | Booking & scheduling | Reservations, availability, confirmations |
 
-## Repository map (voice + gateway)
-```
-playfunia_agentic_chatbot2/
-├─ main.py                      # Starts FastAPI SIP server
-├─ server.js (root)             # Node proxy on :4001 → Python :8080 + dashboard
-├─ sip_integration/
-│  ├─ webhook_server.py         # FastAPI routes for Twilio + WS
-│  ├─ media_stream.py           # WS audio bridge to OpenAI Realtime
-│  ├─ agent_adapter.py          # Registers tools/agents
-│  ├─ session_manager.py        # Persists call log + tool calls + conversions
-│  └─ openai_realtime.py        # Realtime client wrapper
-├─ app_agents/                  # Specialized agents (triage/info/catalog/admission/party/order)
-├─ db/
-│  ├─ queries_supabase.py       # Supabase tool functions
-│  ├─ database.py               # REST wrapper with logging
-│  ├─ playfunia_schema.sql      # Schema reference
-│  ├─ queries.py / queries_supabase.py
-│  └─ schema.py                 # Supabase models
-├─ memory/                      # Session/memory utilities
-├─ agents.py                    # Agent base & tool decorator
-├─ voice.py                     # Legacy/aux voice helpers
-└─ README.md                    # This file
-```
+### AI Models Used
 
-## Operational notes
-- Greeting/capability prompt enforced in `app_agents/triage_agent.py`.
-- Datetimes accept `YYYY-MM-DDTHH:MM:SS` with optional `Z`; conflict checks URL-encode `+00:00`.
-- Call logs include tool calls and conversion flags; indexes added on conversion and tools_used.
-- Dashboard uses Basic Auth (`admin` / `kids4fun123`).
+- **Voice Channel**: \`gpt-4o-realtime-preview-2024-12-17\` (OpenAI Realtime API)
+- **Chat Channel**: \`gpt-5.2\` (OpenAI Responses API)
 
-## Quick checks
-- Tail logs: `pm2 logs callsphere-webhook --lines 200 --nostream`
-- Hit metrics API: `curl -u admin:kids4fun123 http://localhost:4001/dashboard/api/metrics`
-- Export CSV: `curl -u admin:kids4fun123 "http://localhost:4001/dashboard/export/csv?range=7d" -o metrics.csv`
+---
 
-## License
+## 📞 Voice AI System
 
-MIT License - see [LICENSE](LICENSE).
+### How It Works
 
-## Support
+\`\`\`
+Phone Call → Twilio → Node.js Gateway → FastAPI Server → OpenAI Realtime
+                         (4001)              (8080)         (Voice AI)
+\`\`\`
 
-- Open an issue in this repo
-- Contact the dev team
+1. **Twilio Webhook** - Receives incoming calls at Node.js gateway
+2. **Media WebSocket** - Streams audio to Python FastAPI server
+3. **OpenAI Realtime** - Natural voice conversation with multi-agent system
+4. **Tool Execution** - Agents call 25+ Supabase-backed functions
 
+### Voice Greeting
+
+> "Welcome to U Rack IT Support. I'm your AI assistant and I can help you with IT support, troubleshooting, ticket status, and connecting you with a human technician. How can I help you today?"
+
+### Key Voice Features
+
+- **Natural Conversation** - Real-time voice with \`alloy\` voice
+- **Server VAD** - Automatic speech detection
+- **Live Handoff** - Transfer to human agents mid-call
+- **Call Logging** - Full conversation history stored in Supabase
+- **Analytics Dashboard** - 50+ KPIs with visualizations
+
+### Voice File Structure
+
+\`\`\`
+sip_integration/
+├── webhook_server.py      # FastAPI routes for Twilio
+├── media_stream.py        # WebSocket audio bridge to OpenAI
+├── agent_adapter.py       # Registers tools & agents
+├── session_manager.py     # Call logging & persistence
+└── openai_realtime.py     # Realtime API client
+\`\`\`
+
+---
+
+## 💬 Chat AI System (Ticket Console)
+
+### How It Works
+
+\`\`\`
+Web Browser → Next.js App → OpenAI Responses API → Resolution
+              (3001)             (gpt-5.2)         or Human Handoff
+\`\`\`
+
+1. **Requester creates ticket** - AI bot auto-assigned
+2. **AI processes message** - Multi-agent routing and response
+3. **Step-by-step guidance** - AI asks for confirmation before actions
+4. **Human handoff** - Seamless transfer when needed
+
+### Chat Features
+
+| Feature | Description |
+|---------|-------------|
+| **AI Auto-Assignment** | New tickets automatically get AI bot |
+| **"AI is thinking..."** | Spinner indicator during processing |
+| **Markdown Responses** | Bold text and structured formatting |
+| **Human Handoff** | "I'd like to talk to a human" detection |
+| **Confirmation Flow** | AI asks before closing tickets |
+| **Data Center Priority** | Tickets from data centers go to humans |
+
+### Human Handoff Triggers
+
+The AI detects these patterns and offers human transfer:
+
+- "talk to a human" / "speak to someone"
+- "real person" / "representative"
+- "escalate" / "supervisor"
+- "this is urgent" / "emergency"
+
+### Chat Roles
+
+| Role | Access |
+|------|--------|
+| **Requester** | Own tickets, create tickets, chat with AI/agents |
+| **Agent** | Assigned tickets, claim escalated tickets, resolve |
+| **Admin** | All tickets, manage org/contacts/agents, AI metrics |
+
+### AI Metrics Dashboard
+
+Admins can view comprehensive AI performance metrics:
+
+- **AI Resolution Rate** - % of tickets resolved by AI
+- **Time Saved** - Hours saved vs human resolution
+- **Cost Savings** - Estimated $ saved at $25/hr rate
+- **Response Speed** - AI (seconds) vs Human (minutes)
+- **30-Day Trend** - Daily AI vs Human resolutions chart
+- **Organization Preference** - Which orgs need more human help
+- **Priority Breakdown** - AI vs Human by ticket priority
+
+---
+
+## 🗄️ Database (Supabase)
+
+Both voice and chat share the same PostgreSQL database:
+
+### Core Tables
+
+| Table | Purpose |
+|-------|---------|
+| \`organizations\` | Client companies with U&E codes |
+| \`contacts\` | End users linked to organizations |
+| \`locations\` | Sites (Headquarters, Data Center, etc.) |
+| \`support_tickets\` | Tickets with status/priority/assignment |
+| \`ticket_messages\` | Full conversation history |
+| \`ticket_assignments\` | Agent-to-ticket mappings |
+| \`support_agents\` | Bot and Human agents |
+| \`devices\` | Managed IT assets |
+
+### Key Fields
+
+- \`requires_human_agent\` - Flag for human-only tickets
+- \`location_type\` - 'Data Center' triggers human assignment
+- \`agent_type\` - 'Bot' or 'Human'
+
+---
+
+## 🛠️ AI Tools (Supabase-Backed)
+
+The AI agents have access to 25+ tools:
+
+### Customer & Contact
+- \`create_customer_profile\` - Create new contacts
+- \`get_customer_details\` - Lookup customer info
+- \`list_customer_orders\` - Order history
+
+### Tickets
+- \`create_support_ticket\` - Open new tickets
+- \`get_ticket_status\` - Check ticket status
+- \`update_ticket_status\` - Change status
+- \`escalate_ticket\` - Route to human
+
+### Devices & Assets
+- \`list_devices\` - Managed device inventory
+- \`get_device_status\` - Online/offline status
+- \`search_knowledge_base\` - IT articles & guides
+
+### Orders & Payments
+- \`create_order\` - New orders
+- \`get_order_details\` - Order lookup
+- \`record_payment\` - Payment processing
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Node.js 18+
+- Python 3.10+
+- PM2 (process manager)
+- Supabase project
+
+### Environment Variables
+
+\`\`\`bash
+# .env.local (both systems)
+OPENAI_API_KEY=sk-...
+NEXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY=eyJ...
+\`\`\`
+
+### Start Voice AI
+
+\`\`\`bash
+# Terminal 1 - Python SIP Server
+cd /root/webhook
+source .venv/bin/activate
+python main.py  # Port 8080
+
+# Terminal 2 - Node Gateway
+node server.js  # Port 4001
+\`\`\`
+
+### Start Chat Console
+
+\`\`\`bash
+cd /root/webhook/ticket-console
+npm run build
+npm run start  # Port 3001
+\`\`\`
+
+### Production (PM2)
+
+\`\`\`bash
+# Voice AI
+pm2 start main.py --name urackit-voice --interpreter python3
+
+# Chat Console
+pm2 start npm --name tms-console -- start
+
+# View logs
+pm2 logs urackit-voice
+pm2 logs tms-console
+\`\`\`
+
+---
+
+## 📊 Dashboards
+
+### Voice Analytics Dashboard
+- URL: \`https://webhook.callsphere.tech/dashboard\`
+- Auth: Basic Auth (admin/password)
+- Features: Call volume, sentiment, conversions, tool usage
+
+### Chat Admin Panel
+- URL: \`https://urackit.callsphere.tech/tms/dashboard/admin\`
+- Features: All tickets, agent management, AI metrics
+
+---
+
+## 🔄 Human Handoff Flow
+
+### Voice Channel
+1. Customer says "I need to speak to someone"
+2. AI: "I'll transfer you to a human technician now"
+3. Call routes to available human agent
+4. Full context passed to agent
+
+### Chat Channel
+1. Customer types "can I talk to a human?"
+2. AI: "Would you like me to transfer you to a human technician?"
+3. Customer confirms: "yes"
+4. AI: "I'm transferring you now. Alex Martinez has been assigned."
+5. Human agent sees full conversation history
+
+---
+
+## 📁 Project Structure
+
+\`\`\`
+/root/webhook/
+├── main.py                    # Voice AI entry point
+├── server.js                  # Node gateway + voice dashboard
+├── agents.py                  # Base agent definitions
+├── voice.py                   # Voice helpers
+│
+├── app_agents/                # Specialist AI agents
+│   ├── triage_agent.py
+│   ├── info_agent.py
+│   ├── catalog_agent.py
+│   ├── admission_agent.py
+│   ├── order_agent.py
+│   └── party_agent.py
+│
+├── sip_integration/           # Twilio/Voice integration
+│   ├── webhook_server.py
+│   ├── media_stream.py
+│   ├── agent_adapter.py
+│   └── session_manager.py
+│
+├── db/                        # Database layer
+│   ├── queries_supabase.py
+│   ├── database.py
+│   └── schema.py
+│
+├── memory/                    # Session state
+│   ├── memory.py
+│   └── knowledge_base.py
+│
+└── ticket-console/            # Chat AI (Next.js)
+    ├── src/
+    │   ├── app/
+    │   │   ├── api/
+    │   │   │   ├── ai-resolve/     # Chat AI endpoint
+    │   │   │   └── ai-metrics/     # Metrics API
+    │   │   └── dashboard/
+    │   │       ├── admin/
+    │   │       ├── agent/
+    │   │       └── requester/
+    │   ├── lib/
+    │   │   ├── ai-agents/          # Modular agent definitions
+    │   │   ├── api.ts              # Role-based data access
+    │   │   └── supabase.ts         # DB client
+    │   └── components/
+    │       ├── ChatUI.tsx
+    │       └── AIMetricsModal.tsx
+    └── README.md
+\`\`\`
+
+---
+
+## 🎯 Key Benefits
+
+| Benefit | Impact |
+|---------|--------|
+| **24/7 Availability** | AI never sleeps, instant responses anytime |
+| **Scalable Support** | Handle unlimited tickets simultaneously |
+| **Cost Reduction** | Up to 70% reduction in support costs |
+| **Consistent Quality** | Same accurate responses every time |
+| **Human When Needed** | Seamless handoff preserves context |
+| **Full Analytics** | Track AI performance and optimize |
+
+---
+
+## 📝 License
+
+Proprietary - U Rack IT / CallSphere Technologies
+
+---
+
+## 🆘 Support
+
+For technical issues:
+- Check PM2 logs: \`pm2 logs --lines 200\`
+- Supabase dashboard for data issues
+- OpenAI usage dashboard for API issues

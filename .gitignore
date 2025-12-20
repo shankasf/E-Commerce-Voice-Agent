@@ -1,3 +1,13 @@
 .env
 __pycache__/
 test_openai_ws.py
+node_modules/
+.next/
+*.pyc
+.venv/
+venv/
+.env.local
+
+# Large binary files
+*.so
+*.node
