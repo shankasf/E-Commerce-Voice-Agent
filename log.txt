@@ -1,0 +1,131 @@
+4|urackit-voice  | 2025-12-17 06:21:15: 2025-12-17 06:21:15,338 - sip_integration.media_stream - INFO -    ✅ Human agent call initiated
+4|urackit-voice  | 2025-12-17 06:21:15: 2025-12-17 06:21:15,338 - sip_integration.media_stream - INFO -    📞 Human agent Call SID: CAb6e6aaa8d832672eb24151e5fb38c525
+4|urackit-voice  | 2025-12-17 06:21:15: 2025-12-17 06:21:15,338 - sip_integration.media_stream - INFO -    ℹ️  Human agent will hear: 'Incoming support call...'
+4|urackit-voice  | 2025-12-17 06:21:15: 2025-12-17 06:21:15,338 - sip_integration.media_stream - INFO -    ⏱️  Call timeout: 30 seconds
+4|urackit-voice  | 2025-12-17 06:21:15: 2025-12-17 06:21:15,338 - sip_integration.media_stream - INFO - ----------------------------------------
+4|urackit-voice  | 2025-12-17 06:21:15: 2025-12-17 06:21:15,338 - sip_integration.media_stream - INFO - 📢 STEP 5: Adding AI to Conference
+4|urackit-voice  | 2025-12-17 06:21:15: 2025-12-17 06:21:15,338 - sip_integration.media_stream - INFO - ----------------------------------------
+4|urackit-voice  | 2025-12-17 06:21:15: 2025-12-17 06:21:15,338 - sip_integration.media_stream - INFO -    ⏳ Waiting 3 seconds for conference to be fully established...
+4|urackit-voice  | 2025-12-17 06:21:18: 2025-12-17 06:21:18,338 - sip_integration.media_stream - INFO -    🔍 Looking up conference SID...
+4|urackit-voice  | 2025-12-17 06:21:18: 2025-12-17 06:21:18,338 - twilio.http_client - INFO - -- BEGIN Twilio API Request --
+4|urackit-voice  | 2025-12-17 06:21:18: 2025-12-17 06:21:18,338 - twilio.http_client - INFO - GET Request: https://api.twilio.com/2010-04-01/Accounts/ACc81ec95c6343717aed57c8a72466fd3b/Conferences.json?FriendlyName=support-d0590b45&Status=in-progress&PageSize=1
+4|urackit-voice  | 2025-12-17 06:21:18: 2025-12-17 06:21:18,338 - twilio.http_client - INFO - Query Params: {'FriendlyName': 'support-d0590b45', 'Status': 'in-progress', 'PageSize': 1}
+4|urackit-voice  | 2025-12-17 06:21:18: 2025-12-17 06:21:18,338 - twilio.http_client - INFO - Headers:
+4|urackit-voice  | 2025-12-17 06:21:18: 2025-12-17 06:21:18,338 - twilio.http_client - INFO - Content-Type : application/x-www-form-urlencoded
+4|urackit-voice  | 2025-12-17 06:21:18: 2025-12-17 06:21:18,338 - twilio.http_client - INFO - Accept : application/json
+4|urackit-voice  | 2025-12-17 06:21:18: 2025-12-17 06:21:18,338 - twilio.http_client - INFO - User-Agent : twilio-python/9.8.8 (Linux x86_64) Python/3.12.3
+4|urackit-voice  | 2025-12-17 06:21:18: 2025-12-17 06:21:18,338 - twilio.http_client - INFO - X-Twilio-Client : python-9.8.8
+4|urackit-voice  | 2025-12-17 06:21:18: 2025-12-17 06:21:18,338 - twilio.http_client - INFO - Accept-Charset : utf-8
+4|urackit-voice  | 2025-12-17 06:21:18: 2025-12-17 06:21:18,338 - twilio.http_client - INFO - -- END Twilio API Request --
+4|urackit-voice  | 2025-12-17 06:21:18: 2025-12-17 06:21:18,390 - twilio.http_client - INFO - Response Status Code: 200
+4|urackit-voice  | 2025-12-17 06:21:18: 2025-12-17 06:21:18,390 - twilio.http_client - INFO - Response Headers: {'Content-Type': 'application/json;charset=utf-8', 'Content-Length': '227', 'Connection': 'keep-alive', 'Date': 'Wed, 17 Dec 2025 06:21:18 GMT', 'Content-Encoding': 'gzip', 'Twilio-Concurrent-Requests': '1', 'Twilio-Request-Id': 'RQ221441a8018663f0c8e011539154f0c7', 'Twilio-Request-Duration': '0.032', 'X-Home-Region': 'us1', 'X-API-Domain': 'api.twilio.com', 'Strict-Transport-Security': 'max-age=31536000', 'Vary': 'Accept-Encoding, Origin', 'X-Cache': 'Miss from cloudfront', 'Via': '1.1 53af2b28467538a2cf4d1a59d3a8b864.cloudfront.net (CloudFront)', 'X-Amz-Cf-Pop': 'JFK50-P14', 'X-Amz-Cf-Id': '6iDWk4emvCu_aeRqZjaQiWXgHzAeIvPRifYXzQqpZfctLw9waPV_ag==', 'X-Powered-By': 'AT-5000', 'X-Shenanigans': 'none'}
+4|urackit-voice  | 2025-12-17 06:21:18: 2025-12-17 06:21:18,390 - sip_integration.media_stream - WARNING -    ⚠️  Conference support-d0590b45 not found!
+4|urackit-voice  | 2025-12-17 06:21:18: 2025-12-17 06:21:18,391 - sip_integration.media_stream - WARNING -    ⚠️  This may happen if the conference hasn't started yet
+4|urackit-voice  | 2025-12-17 06:21:18: 2025-12-17 06:21:18,391 - sip_integration.media_stream - INFO - ============================================================
+4|urackit-voice  | 2025-12-17 06:21:18: 2025-12-17 06:21:18,391 - sip_integration.media_stream - INFO - ✅ TRANSFER SETUP COMPLETE
+4|urackit-voice  | 2025-12-17 06:21:18: 2025-12-17 06:21:18,391 - sip_integration.media_stream - INFO - ============================================================
+4|urackit-voice  | 2025-12-17 06:21:18: 2025-12-17 06:21:18,391 - sip_integration.media_stream - INFO -    ⏱️  Setup time: 6.32 seconds
+4|urackit-voice  | 2025-12-17 06:21:18: 2025-12-17 06:21:18,391 - sip_integration.media_stream - INFO -    📛 Conference: support-d0590b45
+4|urackit-voice  | 2025-12-17 06:21:18: 2025-12-17 06:21:18,391 - sip_integration.media_stream - INFO -    👤 Caller: In conference (Call SID: CA8fa9ad2c6b94e6b36379fb67d0590b45)
+4|urackit-voice  | 2025-12-17 06:21:18: 2025-12-17 06:21:18,391 - sip_integration.media_stream - INFO -    👨‍💼 Human Agent: Ringing (Call SID: CAb6e6aaa8d832672eb24151e5fb38c525)
+4|urackit-voice  | 2025-12-17 06:21:18: 2025-12-17 06:21:18,391 - sip_integration.media_stream - INFO -    🤖 AI: Listening in silent mode
+4|urackit-voice  | 2025-12-17 06:21:18: 2025-12-17 06:21:18,391 - sip_integration.media_stream - INFO -    ℹ️  Caller can say 'AI agent' to get AI assistance
+4|urackit-voice  | 2025-12-17 06:21:18: 2025-12-17 06:21:18,391 - sip_integration.media_stream - INFO - ============================================================
+4|urackit-voice  | 2025-12-17 06:21:19: 2025-12-17 06:21:19,738 - sip_integration.webhook_server - INFO - ==================================================
+4|urackit-voice  | 2025-12-17 06:21:19: 2025-12-17 06:21:19,739 - sip_integration.webhook_server - INFO - 📞 CONFERENCE EVENT: PARTICIPANT-JOIN
+4|urackit-voice  | 2025-12-17 06:21:19: 2025-12-17 06:21:19,739 - sip_integration.webhook_server - INFO - ==================================================
+4|urackit-voice  | 2025-12-17 06:21:19: 2025-12-17 06:21:19,739 - sip_integration.webhook_server - INFO -    🆔 Session ID: voice-8bddf090f97b
+4|urackit-voice  | 2025-12-17 06:21:19: 2025-12-17 06:21:19,739 - sip_integration.webhook_server - INFO -    📛 Conference: support-d0590b45
+4|urackit-voice  | 2025-12-17 06:21:19: 2025-12-17 06:21:19,739 - sip_integration.webhook_server - INFO -    🔑 Conference SID: CFf7deb044be7448ef5ca973248da70cef
+4|urackit-voice  | 2025-12-17 06:21:19: 2025-12-17 06:21:19,739 - sip_integration.webhook_server - INFO -    🟢 Participant JOINED
+4|urackit-voice  | 2025-12-17 06:21:19: 2025-12-17 06:21:19,739 - sip_integration.webhook_server - INFO -    👤 Type: 👤 Caller
+4|urackit-voice  | 2025-12-17 06:21:19: 2025-12-17 06:21:19,739 - sip_integration.webhook_server - INFO -    📞 Call SID: CA8fa9ad2c6b94e6b36379fb67d0590b45
+4|urackit-voice  | 2025-12-17 06:21:19: 2025-12-17 06:21:19,739 - sip_integration.webhook_server - INFO -    🔇 Muted: false
+4|urackit-voice  | 2025-12-17 06:21:19: 2025-12-17 06:21:19,739 - sip_integration.webhook_server - INFO -    ⏸️  On Hold: false
+4|urackit-voice  | 2025-12-17 06:21:19: 2025-12-17 06:21:19,739 - sip_integration.webhook_server - INFO -    📊 Expected participants: Caller, Human Agent (dialing)
+4|urackit-voice  | 2025-12-17 06:21:19: 2025-12-17 06:21:19,739 - sip_integration.webhook_server - INFO - ==================================================
+4|urackit-voice  | 2025-12-17 06:21:19: INFO:     52.70.61.27:0 - "POST /conference-status/voice-8bddf090f97b HTTP/1.1" 200 OK
+4|urackit-voice  | 2025-12-17 06:21:28: 2025-12-17 06:21:28,771 - sip_integration.webhook_server - INFO - ==================================================
+4|urackit-voice  | 2025-12-17 06:21:28: 2025-12-17 06:21:28,772 - sip_integration.webhook_server - INFO - 📞 CONFERENCE EVENT: CONFERENCE-START
+4|urackit-voice  | 2025-12-17 06:21:28: 2025-12-17 06:21:28,772 - sip_integration.webhook_server - INFO - ==================================================
+4|urackit-voice  | 2025-12-17 06:21:28: 2025-12-17 06:21:28,772 - sip_integration.webhook_server - INFO -    🆔 Session ID: voice-8bddf090f97b
+4|urackit-voice  | 2025-12-17 06:21:28: 2025-12-17 06:21:28,772 - sip_integration.webhook_server - INFO -    📛 Conference: support-d0590b45
+4|urackit-voice  | 2025-12-17 06:21:28: 2025-12-17 06:21:28,772 - sip_integration.webhook_server - INFO -    🔑 Conference SID: CFf7deb044be7448ef5ca973248da70cef
+4|urackit-voice  | 2025-12-17 06:21:28: 2025-12-17 06:21:28,772 - sip_integration.webhook_server - INFO -    🟢 Conference started
+4|urackit-voice  | 2025-12-17 06:21:28: 2025-12-17 06:21:28,772 - sip_integration.webhook_server - INFO -    ℹ️  Recording will begin automatically
+4|urackit-voice  | 2025-12-17 06:21:28: 2025-12-17 06:21:28,772 - sip_integration.webhook_server - INFO - ==================================================
+4|urackit-voice  | 2025-12-17 06:21:28: INFO:     18.234.38.203:0 - "POST /conference-status/voice-8bddf090f97b HTTP/1.1" 200 OK
+4|urackit-voice  | 2025-12-17 06:21:28: 2025-12-17 06:21:28,775 - sip_integration.webhook_server - INFO - ==================================================
+4|urackit-voice  | 2025-12-17 06:21:28: 2025-12-17 06:21:28,775 - sip_integration.webhook_server - INFO - 📞 CONFERENCE EVENT: PARTICIPANT-JOIN
+4|urackit-voice  | 2025-12-17 06:21:28: 2025-12-17 06:21:28,776 - sip_integration.webhook_server - INFO - ==================================================
+4|urackit-voice  | 2025-12-17 06:21:28: 2025-12-17 06:21:28,776 - sip_integration.webhook_server - INFO -    🆔 Session ID: voice-8bddf090f97b
+4|urackit-voice  | 2025-12-17 06:21:28: 2025-12-17 06:21:28,776 - sip_integration.webhook_server - INFO -    📛 Conference: support-d0590b45
+4|urackit-voice  | 2025-12-17 06:21:28: 2025-12-17 06:21:28,776 - sip_integration.webhook_server - INFO -    🔑 Conference SID: CFf7deb044be7448ef5ca973248da70cef
+4|urackit-voice  | 2025-12-17 06:21:28: 2025-12-17 06:21:28,776 - sip_integration.webhook_server - INFO -    🟢 Participant JOINED
+4|urackit-voice  | 2025-12-17 06:21:28: 2025-12-17 06:21:28,776 - sip_integration.webhook_server - INFO -    👤 Type: 👨‍💼 Human Agent
+4|urackit-voice  | 2025-12-17 06:21:28: 2025-12-17 06:21:28,776 - sip_integration.webhook_server - INFO -    📞 Call SID: CAb6e6aaa8d832672eb24151e5fb38c525
+4|urackit-voice  | 2025-12-17 06:21:28: 2025-12-17 06:21:28,776 - sip_integration.webhook_server - INFO -    🔇 Muted: false
+4|urackit-voice  | 2025-12-17 06:21:28: 2025-12-17 06:21:28,776 - sip_integration.webhook_server - INFO -    ⏸️  On Hold: false
+4|urackit-voice  | 2025-12-17 06:21:28: 2025-12-17 06:21:28,776 - sip_integration.webhook_server - INFO -    📊 Expected participants: Caller, Human Agent (dialing)
+4|urackit-voice  | 2025-12-17 06:21:28: 2025-12-17 06:21:28,776 - sip_integration.webhook_server - INFO - ==================================================
+4|urackit-voice  | 2025-12-17 06:21:28: INFO:     34.230.11.199:0 - "POST /conference-status/voice-8bddf090f97b HTTP/1.1" 200 OK
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,397 - sip_integration.webhook_server - INFO - ==================================================
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,397 - sip_integration.webhook_server - INFO - 📞 CONFERENCE EVENT: PARTICIPANT-LEAVE
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,397 - sip_integration.webhook_server - INFO - ==================================================
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,397 - sip_integration.webhook_server - INFO -    🆔 Session ID: voice-8bddf090f97b
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,397 - sip_integration.webhook_server - INFO -    📛 Conference: support-d0590b45
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,397 - sip_integration.webhook_server - INFO -    🔑 Conference SID: CFf7deb044be7448ef5ca973248da70cef
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,397 - sip_integration.webhook_server - INFO -    🔴 Participant LEFT
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,397 - sip_integration.webhook_server - INFO -    👤 Type: 👨‍💼 Human Agent
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,397 - sip_integration.webhook_server - INFO -    📞 Call SID: CAb6e6aaa8d832672eb24151e5fb38c525
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,397 - sip_integration.webhook_server - INFO -    ℹ️  Human agent left - AI may resume normal mode
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,397 - sip_integration.webhook_server - INFO - ==================================================
+4|urackit-voice  | 2025-12-17 06:21:52: INFO:     18.234.38.203:0 - "POST /conference-status/voice-8bddf090f97b HTTP/1.1" 200 OK
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,401 - sip_integration.webhook_server - INFO - ==================================================
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,401 - sip_integration.webhook_server - INFO - 📞 CONFERENCE EVENT: PARTICIPANT-LEAVE
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,401 - sip_integration.webhook_server - INFO - ==================================================
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,401 - sip_integration.webhook_server - INFO -    🆔 Session ID: voice-8bddf090f97b
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,401 - sip_integration.webhook_server - INFO -    📛 Conference: support-d0590b45
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,401 - sip_integration.webhook_server - INFO -    🔑 Conference SID: CFf7deb044be7448ef5ca973248da70cef
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,401 - sip_integration.webhook_server - INFO -    🔴 Participant LEFT
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,401 - sip_integration.webhook_server - INFO -    👤 Type: 👤 Caller
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,401 - sip_integration.webhook_server - INFO -    📞 Call SID: CA8fa9ad2c6b94e6b36379fb67d0590b45
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,401 - sip_integration.webhook_server - INFO -    ⚠️  Caller left - conference should end
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,401 - sip_integration.webhook_server - INFO - ==================================================
+4|urackit-voice  | 2025-12-17 06:21:52: INFO:     54.211.92.96:0 - "POST /conference-status/voice-8bddf090f97b HTTP/1.1" 200 OK
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,419 - sip_integration.webhook_server - INFO - ==================================================
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,419 - sip_integration.webhook_server - INFO - 📞 CONFERENCE EVENT: CONFERENCE-END
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,419 - sip_integration.webhook_server - INFO - ==================================================
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,419 - sip_integration.webhook_server - INFO -    🆔 Session ID: voice-8bddf090f97b
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,419 - sip_integration.webhook_server - INFO -    📛 Conference: support-d0590b45
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,420 - sip_integration.webhook_server - INFO -    🔑 Conference SID: CFf7deb044be7448ef5ca973248da70cef
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,420 - sip_integration.webhook_server - INFO -    🔴 Conference ended
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,420 - sip_integration.webhook_server - INFO -    ℹ️  No recording available
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,420 - sip_integration.webhook_server - INFO - ==================================================
+4|urackit-voice  | 2025-12-17 06:21:52: INFO:     98.93.89.58:0 - "POST /conference-status/voice-8bddf090f97b HTTP/1.1" 200 OK
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,543 - sip_integration.webhook_server - INFO - ==================================================
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,543 - sip_integration.webhook_server - INFO - 👨‍💼 HUMAN AGENT CALL STATUS: COMPLETED
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,543 - sip_integration.webhook_server - INFO - ==================================================
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,543 - sip_integration.webhook_server - INFO -    🆔 Session ID: voice-8bddf090f97b
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,543 - sip_integration.webhook_server - INFO -    📞 Call SID: CAb6e6aaa8d832672eb24151e5fb38c525
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,543 - sip_integration.webhook_server - INFO -    📱 From: +16508552762
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,543 - sip_integration.webhook_server - INFO -    📱 To: +917277534021
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,543 - sip_integration.webhook_server - INFO -    📊 Status: completed
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,543 - sip_integration.webhook_server - INFO -    ✅ Human agent call completed successfully
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,543 - sip_integration.webhook_server - INFO -    ⏱️  Duration: 29 seconds
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,543 - sip_integration.webhook_server - INFO -    ℹ️  Call info saved to session
+4|urackit-voice  | 2025-12-17 06:21:52: 2025-12-17 06:21:52,543 - sip_integration.webhook_server - INFO - ==================================================
+4|urackit-voice  | 2025-12-17 06:21:52: INFO:     54.89.192.143:0 - "POST /call-status/voice-8bddf090f97b HTTP/1.1" 200 OK
+4|urackit-voice  | 2025-12-17 06:21:56: 2025-12-17 06:21:56,915 - sip_integration.webhook_server - INFO - ==================================================
+4|urackit-voice  | 2025-12-17 06:21:56: 2025-12-17 06:21:56,915 - sip_integration.webhook_server - INFO - 🎙️  RECORDING STATUS: COMPLETED
+4|urackit-voice  | 2025-12-17 06:21:56: 2025-12-17 06:21:56,916 - sip_integration.webhook_server - INFO - ==================================================
+4|urackit-voice  | 2025-12-17 06:21:56: 2025-12-17 06:21:56,916 - sip_integration.webhook_server - INFO -    🆔 Session ID: voice-8bddf090f97b
+4|urackit-voice  | 2025-12-17 06:21:56: 2025-12-17 06:21:56,916 - sip_integration.webhook_server - INFO -    📼 Recording SID: RE1592127638683dd2a879d0b5fe03ced5
+4|urackit-voice  | 2025-12-17 06:21:56: 2025-12-17 06:21:56,916 - sip_integration.webhook_server - INFO -    📊 Status: completed
+4|urackit-voice  | 2025-12-17 06:21:56: 2025-12-17 06:21:56,916 - sip_integration.webhook_server - INFO -    ✅ Recording completed
+4|urackit-voice  | 2025-12-17 06:21:56: 2025-12-17 06:21:56,916 - sip_integration.webhook_server - INFO -    ⏱️  Duration: 23 seconds
+4|urackit-voice  | 2025-12-17 06:21:56: 2025-12-17 06:21:56,916 - sip_integration.webhook_server - INFO -    🔗 URL: https://api.twilio.com/2010-04-01/Accounts/ACc81ec95c6343717aed57c8a72466fd3b/Recordings/RE1592127638683dd2a879d0b5fe03ced5
+4|urackit-voice  | 2025-12-17 06:21:56: 2025-12-17 06:21:56,916 - sip_integration.webhook_server - INFO -    🔊 Channels: 1
+4|urackit-voice  | 2025-12-17 06:21:56: 2025-12-17 06:21:56,916 - sip_integration.webhook_server - INFO -    ✅ Recording stored in session
+4|urackit-voice  | 2025-12-17 06:21:56: 2025-12-17 06:21:56,916 - sip_integration.webhook_server - INFO - ==================================================
+4|urackit-voice  | 2025-12-17 06:21:56: INFO:     3.92.184.221:0 - "POST /recording-status/voice-8bddf090f97b HTTP/1.1" 200 OK

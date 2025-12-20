@@ -1,0 +1,20 @@
+{
+  "name": "urackit-voice",
+  "version": "1.0.0",
+  "description": "U Rack IT / U Talk.tel - AI Voice Support System",
+  "scripts": {
+    "start": "python -m sip_integration.server",
+    "dev": "uvicorn sip_integration.server:app --host 0.0.0.0 --port 8080 --reload",
+    "demo": "streamlit run main.py",
+    "install": "pip install -r sip_integration/requirements.txt"
+  },
+  "keywords": [
+    "voice",
+    "ai",
+    "support",
+    "twilio",
+    "openai"
+  ],
+  "author": "U Rack IT",
+  "license": "proprietary"
+}
