@@ -13,9 +13,11 @@ import {
   LogOut,
   ChevronRight,
   RefreshCw,
-  CheckCircle2
+  CheckCircle2,
+  Bot
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { ChatAgentWidget } from '@/components/ChatAgentWidget';
 
 const priorityColors: Record<string, string> = {
   Low: 'bg-gray-100 text-gray-700',
@@ -175,6 +177,13 @@ export default function AgentDashboard() {
             <p className="text-sm text-green-200">Welcome, {profile?.full_name || user.name}</p>
           </div>
           <div className="flex items-center gap-4">
+            <button
+              onClick={() => window.location.href = '/tms/dashboard/agent/chat-agent'}
+              className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-400 rounded-lg text-sm font-medium"
+            >
+              <Bot className="w-4 h-4" />
+              AI Agent
+            </button>
             <button
               onClick={handleAvailabilityToggle}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium ${isAvailable
@@ -356,6 +365,9 @@ export default function AgentDashboard() {
           )}
         </div>
       </main>
+
+      {/* Chat Widget - Bottom Right */}
+      <ChatAgentWidget />
     </div>
   );
 }
