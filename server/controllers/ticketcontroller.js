@@ -71,6 +71,7 @@ exports.getMyTickets = async (req, res) => {
                 subject,
                 description,
                 created_at,
+                requires_human_agent,
                 ticket_statuses (name),
                 ticket_priorities (name),
                 devices (asset_name, model_id, device_models(name))
@@ -86,6 +87,7 @@ exports.getMyTickets = async (req, res) => {
             subject: ticket.subject,
             status: ticket.ticket_statuses?.name || 'Unknown',
             priority: ticket.ticket_priorities?.name || 'Unknown',
+            requires_human_agent: ticket.requires_human_agent,
             device: ticket.devices?.asset_name || 'No Device',
             model: ticket.devices?.device_models?.name || '',
             created_at: ticket.created_at

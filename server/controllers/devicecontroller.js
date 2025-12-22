@@ -2,46 +2,53 @@
 const supabase = require('../config/supabaseclient');
 
 exports.getMyDevices = async (req, res) => {
-    try {
-        const userId = req.user.id; // Got this from the middleware!
+    const { id } = req.user;
+    const showHistory = req.query.history === 'true'; // Check for ?history=true
 
-        // Query: "Find all devices assigned to THIS user that are NOT unassigned"
-        // We use Supabase nested select to join tables
-        const { data, error } = await supabase
+    try {
+        let query = supabase
             .from('contact_devices')
             .select(`
+                device_id,
                 assigned_at,
+                unassigned_at,
                 devices (
                     device_id,
                     asset_name,
+                    model_id,
                     status,
-                    os_version,
                     device_models (
                         name,
                         device_manufacturers (name)
-                    ),
-                    operating_systems (name)
+                    ) 
                 )
             `)
-            .eq('contact_id', userId)
-            .is('unassigned_at', null); // Only active devices
+            .eq('contact_id', id);
+
+        // GAP FIX: Only filter out unassigned devices if we are NOT showing history
+        if (!showHistory) {
+            query = query.is('unassigned_at', null);
+        }
+
+        const { data, error } = await query;
 
         if (error) throw error;
 
-        // Transform data to a cleaner format for the Frontend
-        const formattedDevices = data.map(item => ({
-            id: item.devices.device_id,
-            name: item.devices.asset_name,
-            status: item.devices.status,
-            model: `${item.devices.device_models.device_manufacturers.name} ${item.devices.device_models.name}`,
-            os: `${item.devices.operating_systems.name} (${item.devices.os_version})`,
-            assigned_at: item.assigned_at
+        // Flatten the structure for the frontend
+        const devices = data.map(row => ({
+            id: row.devices.device_id,
+            name: row.devices.asset_name, // Using Asset Name as name
+            model: row.devices.device_models ? `${row.devices.device_models.device_manufacturers.name} ${row.devices.device_models.name}` : 'Unknown Model',
+            status: row.unassigned_at ? 'RETURNED' : row.devices.status, // Tag returned devices
+            os: 'Windows 11', // Placeholder or fetch from specs
+            assigned_at: row.assigned_at,
+            unassigned_at: row.unassigned_at
         }));
 
-        res.json(formattedDevices);
+        res.json(devices);
 
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Server error fetching devices' });
+        console.error('Fetch Devices Error:', err);
+        res.status(500).json({ error: 'Failed to fetch devices' });
     }
 };

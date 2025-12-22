@@ -1,134 +1,209 @@
 import { useEffect, useState, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/authcontext';
 import api from '../services/api';
-import Navbar from '../components/Navbar';
-import { Laptop, Smartphone, AlertCircle, CheckCircle, Clock } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-//import ChatBubble from '../components/ChatBubble';
+import Layout from '../components/Layout';
+import FloatingChatBot from '../components/FloatingChatBot';
+import {
+    Laptop, AlertTriangle, CheckCircle2, Clock,
+    ArrowUpRight, Plus
+} from 'lucide-react';
+import {
+    AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell
+} from 'recharts';
+import { motion } from 'framer-motion';
+
+const StatCard = ({ title, value, icon: Icon, color, trend }) => (
+    <motion.div
+        whileHover={{ y: -5 }}
+        className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden"
+    >
+        <div className={`absolute top-0 right-0 w-24 h-24 bg-${color}-50 rounded-bl-full -mr-4 -mt-4 opacity-50`} />
+        <div className="flex justify-between items-start mb-4 relative z-10">
+            <div className={`p-3 rounded-xl bg-${color}-50 text-${color}-600`}>
+                <Icon size={24} />
+            </div>
+            {trend && (
+                <div className="flex items-center text-green-500 text-xs font-bold bg-green-50 px-2 py-1 rounded-full">
+                    <ArrowUpRight size={14} className="mr-1" />
+                    {trend}
+                </div>
+            )}
+        </div>
+        <h3 className="text-3xl font-bold text-gray-800 mb-1">{value}</h3>
+        <p className="text-sm text-gray-500 font-medium">{title}</p>
+    </motion.div>
+);
 
 const Dashboard = () => {
     const { user } = useContext(AuthContext);
     const navigate = useNavigate();
-    const [devices, setDevices] = useState([]);
+    const [stats, setStats] = useState({ total: 0, open: 0, critical: 0, devices: 0 });
     const [tickets, setTickets] = useState([]);
     const [loading, setLoading] = useState(true);
+
+    // Mock Data for Charts (You can replace with real API data later)
+    const chartData = [
+        { name: 'Mon', tickets: 2 },
+        { name: 'Tue', tickets: 5 },
+        { name: 'Wed', tickets: 3 },
+        { name: 'Thu', tickets: 8 },
+        { name: 'Fri', tickets: 4 },
+        { name: 'Sat', tickets: 1 },
+        { name: 'Sun', tickets: 2 },
+    ];
+
+    const pieData = [
+        { name: 'Open', value: 4, color: '#3B82F6' },
+        { name: 'Closed', value: 8, color: '#10B981' },
+        { name: 'Critical', value: 2, color: '#EF4444' },
+    ];
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                // Fetch Devices and Tickets in parallel
-                const [deviceRes, ticketRes] = await Promise.all([
+                const [dRes, tRes] = await Promise.all([
                     api.get('/devices/my-devices'),
                     api.get('/tickets')
                 ]);
 
-                setDevices(deviceRes.data);
-                setTickets(ticketRes.data);
-            } catch (error) {
-                console.error("Failed to load dashboard data", error);
+                const tList = tRes.data;
+                setTickets(tList.slice(0, 5)); // Just top 5
+                setStats({
+                    total: tList.length,
+                    open: tList.filter(t => t.status === 'Open').length,
+                    critical: tList.filter(t => t.priority === 'Critical').length,
+                    devices: dRes.data.length
+                });
+            } catch (err) {
+                console.error(err);
             } finally {
                 setLoading(false);
             }
         };
-
         fetchData();
     }, []);
 
-    const getStatusColor = (status) => {
-        return status === 'ONLINE' ? 'text-green-600' : 'text-gray-400';
-    };
-
-    if (loading) return <div className="min-h-screen bg-gray-50 flex items-center justify-center">Loading...</div>;
+    if (loading) return <div className="flex h-screen items-center justify-center bg-gray-50">Loading...</div>; // Replace with Skeleton later
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <Navbar />
+        <Layout>
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <StatCard title="Total Tickets" value={stats.total} icon={Clock} color="blue" trend="+12%" />
+                <StatCard title="Open Issues" value={stats.open} icon={AlertTriangle} color="yellow" />
+                <StatCard title="Critical" value={stats.critical} icon={AlertTriangle} color="red" />
+                <StatCard title="Active Assets" value={stats.devices} icon={Laptop} color="purple" />
+            </div>
 
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-
-                {/* SECTION 1: MY DEVICES */}
-                <div className="mb-10">
-                    <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
-                        <Laptop className="mr-2" /> My Workspace
-                    </h2>
-
-                    {devices.length === 0 ? (
-                        <p className="text-gray-500 italic">No devices assigned.</p>
-                    ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {devices.map((device) => (
-                                <div key={device.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className={`p-3 rounded-lg ${device.name.toLowerCase().includes('phone') ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}`}>
-                                            {device.name.toLowerCase().includes('phone') ? <Smartphone size={24} /> : <Laptop size={24} />}
-                                        </div>
-                                        <span className={`text-xs font-bold px-2 py-1 rounded-full ${device.status === 'ONLINE' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                                            {device.status}
-                                        </span>
-                                    </div>
-                                    <h3 className="font-bold text-lg text-gray-800">{device.model}</h3>
-                                    <p className="text-sm text-gray-500 mb-2">{device.name}</p>
-                                    <div className="text-xs text-gray-400 border-t pt-3 mt-3">
-                                        OS: {device.os}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+                {/* Chart Section */}
+                <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                    <h3 className="text-lg font-bold text-gray-800 mb-6">Weekly Activity</h3>
+                    <div className="h-64">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={chartData}>
+                                <defs>
+                                    <linearGradient id="colorTickets" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3} />
+                                        <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 12 }} />
+                                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 12 }} />
+                                <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                                <Area type="monotone" dataKey="tickets" stroke="#3B82F6" strokeWidth={3} fillOpacity={1} fill="url(#colorTickets)" />
+                            </AreaChart>
+                        </ResponsiveContainer>
+                    </div>
                 </div>
 
-                {/* SECTION 2: RECENT TICKETS */}
-                <div>
-                    <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-2xl font-bold text-gray-800 flex items-center">
-                            <AlertCircle className="mr-2" /> Recent Tickets
-                        </h2>
-                        <button onClick={() => navigate('/new-ticket')} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm">
-                            + New Ticket
-                        </button>
-                    </div>
-
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                        {tickets.length === 0 ? (
-                            <div className="p-8 text-center text-gray-500">You have no open tickets. Great!</div>
-                        ) : (
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                    {tickets.map((ticket) => (
-                                        <tr key={ticket.id} onClick={() => navigate(`/ticket/${ticket.id}`)} className="hover:bg-gray-50 transition-colors">
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="text-sm font-medium text-gray-900">{ticket.subject}</div>
-                                                <div className="text-xs text-gray-500">{ticket.device}</div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                                    {ticket.status}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                {ticket.priority}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                {new Date(ticket.created_at).toLocaleDateString()}
-                                            </td>
-                                        </tr>
+                {/* Quick Actions / Pie Chart */}
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center">
+                    <h3 className="text-lg font-bold text-gray-800 mb-4 w-full text-left">Status Distribution</h3>
+                    <div className="w-48 h-48">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie
+                                    data={pieData}
+                                    innerRadius={60}
+                                    outerRadius={80}
+                                    paddingAngle={5}
+                                    dataKey="value"
+                                >
+                                    {pieData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={entry.color} />
                                     ))}
-                                </tbody>
-                            </table>
-                        )}
+                                </Pie>
+                                <Tooltip />
+                            </PieChart>
+                        </ResponsiveContainer>
                     </div>
+                    <button
+                        onClick={() => navigate('/new-ticket')}
+                        className="mt-6 w-full bg-gray-900 hover:bg-gray-800 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center transition-all transform hover:scale-[1.02]"
+                    >
+                        <Plus size={20} className="mr-2" /> Create New Ticket
+                    </button>
                 </div>
+            </div>
 
-            </main>
-        </div>
+            {/* Recent Tickets Table */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+                    <h3 className="text-lg font-bold text-gray-800">Recent Tickets</h3>
+                    <button className="text-sm text-blue-600 font-medium hover:underline">View All</button>
+                </div>
+                <table className="w-full">
+                    <thead className="bg-gray-50/50">
+                        <tr>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Subject</th>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Priority</th>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
+                            <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                        {tickets.map((ticket) => (
+                            <tr
+                                key={ticket.id}
+                                onClick={() => navigate(`/tickets/${ticket.id}`)}
+                                className="hover:bg-gray-50/80 transition-colors cursor-pointer group"
+                            >
+                                <td className="px-6 py-4">
+                                    <div className="text-sm font-bold text-gray-900">{ticket.subject}</div>
+                                    <div className="text-xs text-gray-500">{ticket.device}</div>
+                                </td>
+                                <td className="px-6 py-4">
+                                    <span className={`px-3 py-1 text-xs font-bold rounded-full ${ticket.status === 'Open' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'
+                                        }`}>
+                                        {ticket.status}
+                                    </span>
+                                </td>
+                                <td className="px-6 py-4">
+                                    <div className="flex items-center">
+                                        <div className={`w-2 h-2 rounded-full mr-2 ${ticket.priority === 'Critical' ? 'bg-red-500' :
+                                            ticket.priority === 'High' ? 'bg-orange-500' : 'bg-blue-400'
+                                            }`}></div>
+                                        <span className="text-sm text-gray-600 font-medium">{ticket.priority}</span>
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4 text-sm text-gray-500">
+                                    {new Date(ticket.created_at).toLocaleDateString()}
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                    <span className="text-blue-600 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">View Details &rarr;</span>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
+            <FloatingChatBot />
+        </Layout>
     );
 };
 

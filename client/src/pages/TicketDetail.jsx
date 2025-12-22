@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import Navbar from '../components/Navbar';
 import ChatBubble from '../components/ChatBubble';
-import { ArrowLeft, Send, Loader2 } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, User } from 'lucide-react';
 
 const TicketDetail = () => {
     const { id } = useParams(); // Get ticket ID from URL
@@ -59,7 +59,11 @@ const TicketDetail = () => {
         }
     }, [messages]);
 
-    // 2. Send Message (Talk to AI)
+
+
+
+
+    // 3. Send Message (Talk to AI)
     const handleSend = async (e) => {
         e.preventDefault();
         if (!newMessage.trim()) return;
@@ -97,6 +101,14 @@ const TicketDetail = () => {
     return (
         <div className="flex flex-col h-screen bg-gray-50">
             <Navbar />
+
+            {/* GAP FIX: Human Handoff Banner */}
+            {ticket.requires_human_agent && (
+                <div className="bg-indigo-600 text-white px-4 py-3 shadow-md flex items-center justify-center animate-pulse">
+                    <User size={20} className="mr-2" />
+                    <span className="font-bold">A Human Agent has been requested and will join shortly.</span>
+                </div>
+            )}
 
             {/* Header Area */}
             <div className="bg-white shadow-sm border-b px-4 py-4 flex items-center justify-between">
