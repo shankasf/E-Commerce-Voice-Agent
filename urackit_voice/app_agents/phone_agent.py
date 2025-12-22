@@ -7,7 +7,6 @@ Handles phone system issues, voicemail problems, and call quality issues.
 from agents import Agent
 from db.queries import (
     create_ticket,
-    search_knowledge_base,
     lookup_ticket,
     escalate_ticket,
     add_ticket_message,
@@ -73,10 +72,10 @@ IMPORTANT:
 """,
     tools=[
         create_ticket,
-        search_knowledge_base,
         lookup_ticket,
         escalate_ticket,
         add_ticket_message,
         transfer_to_human,
     ],
+    handoffs=[],
 )

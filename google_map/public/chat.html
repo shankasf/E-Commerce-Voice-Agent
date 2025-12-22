@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CallSphere Maps - Find Any Place Anywhere</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    * {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    
+    body {
+      background-color: #212121;
+      color: #ececec;
+    }
+    
+    .sidebar {
+      background-color: #171717;
+      width: 260px;
+      transition: transform 0.3s ease;
+    }
+    
+    .sidebar-hidden {
+      transform: translateX(-100%);
+    }
+    
+    .main-content {
+      background-color: #212121;
+    }
+    
+    .message-user {
+      background-color: #2f2f2f;
+    }
+    
+    .message-assistant {
+      background-color: transparent;
+    }
+    
+    .input-container {
+      background-color: #2f2f2f;
+      border: 1px solid #424242;
+      border-radius: 24px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    
+    .input-container:focus-within {
+      border-color: #565656;
+      box-shadow: 0 0 0 2px rgba(255,255,255,0.05);
+    }
+    
+    .chat-input {
+      background: transparent;
+      resize: none;
+      max-height: 200px;
+      scrollbar-width: none;
+    }
+    
+    .chat-input::-webkit-scrollbar {
+      display: none;
+    }
+    
+    .send-button {
+      background-color: #fff;
+      color: #000;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    
+    .send-button:disabled {
+      background-color: #676767;
+      color: #a0a0a0;
+    }
+    
+    .send-button:not(:disabled):hover {
+      opacity: 0.9;
+    }
+    
+    .send-button:not(:disabled):active {
+      transform: scale(0.95);
+    }
+    
+    .suggestion-btn {
+      background-color: #2f2f2f;
+      border: 1px solid #424242;
+      transition: background-color 0.2s, border-color 0.2s;
+    }
+    
+    .suggestion-btn:hover {
+      background-color: #3a3a3a;
+      border-color: #565656;
+    }
+    
+    .new-chat-btn {
+      background-color: transparent;
+      border: 1px solid #424242;
+      transition: background-color 0.2s;
+    }
+    
+    .new-chat-btn:hover {
+      background-color: #2f2f2f;
+    }
+    
+    .markdown-content h1, .markdown-content h2, .markdown-content h3 {
+      font-weight: 600;
+      margin-top: 1rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .markdown-content ul, .markdown-content ol {
+      margin-left: 1.25rem;
+      margin-top: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .markdown-content li {
+      margin-bottom: 0.25rem;
+    }
+    
+    .markdown-content p {
+      margin-bottom: 0.75rem;
+      line-height: 1.7;
+    }
+    
+    .markdown-content p:last-child {
+      margin-bottom: 0;
+    }
+    
+    .markdown-content strong {
+      font-weight: 600;
+    }
+    
+    .markdown-content a {
+      color: #7dd3fc;
+      text-decoration: underline;
+    }
+    
+    .markdown-content a:hover {
+      color: #bae6fd;
+    }
+    
+    .markdown-content code {
+      background-color: #3a3a3a;
+      padding: 0.125rem 0.375rem;
+      border-radius: 4px;
+      font-size: 0.875rem;
+    }
+    
+    .markdown-content pre {
+      background-color: #1a1a1a;
+      padding: 1rem;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 0.75rem 0;
+    }
+    
+    .typing-dot {
+      animation: typingBounce 1.4s infinite ease-in-out;
+    }
+    
+    .typing-dot:nth-child(1) { animation-delay: 0s; }
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+    
+    @keyframes typingBounce {
+      0%, 80%, 100% { 
+        transform: scale(1);
+        opacity: 0.5;
+      }
+      40% { 
+        transform: scale(1.2);
+        opacity: 1;
+      }
+    }
+    
+    .fade-in {
+      animation: fadeIn 0.3s ease-out;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .scrollbar-thin::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    .scrollbar-thin::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    
+    .scrollbar-thin::-webkit-scrollbar-thumb {
+      background: #424242;
+      border-radius: 3px;
+    }
+    
+    .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+      background: #565656;
+    }
+    
+    .tool-chip {
+      background-color: rgba(16, 185, 129, 0.15);
+      color: #10b981;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    
+    .glow-effect {
+      box-shadow: 0 0 60px rgba(16, 185, 129, 0.1);
+    }
+    
+    @media (max-width: 768px) {
+      .sidebar {
+        position: fixed;
+        z-index: 50;
+        height: 100%;
+      }
+    }
+  </style>
+</head>
+<body class="h-screen overflow-hidden">
+  <div class="flex h-full">
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar flex flex-col h-full shrink-0">
+      <!-- New Chat Button -->
+      <div class="p-3">
+        <button onclick="startNewChat()" class="new-chat-btn w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium">
+          <i class="fas fa-plus"></i>
+          <span>New chat</span>
+        </button>
+      </div>
+      
+      <!-- Chat History -->
+      <div class="flex-1 overflow-y-auto px-3 scrollbar-thin">
+        <div class="text-xs text-gray-500 px-3 py-2 font-medium">Today</div>
+        <div id="chatHistory" class="space-y-1">
+          <!-- Chat history items will be added here -->
+        </div>
+      </div>
+      
+      <!-- Sidebar Footer -->
+      <div class="p-3 border-t border-gray-800">
+        <div class="flex items-center gap-3 px-3 py-2 text-sm text-gray-400">
+          <div class="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+            <i class="fas fa-map-location-dot text-white text-xs"></i>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="font-medium text-gray-200 truncate">CallSphere Maps</div>
+            <div class="text-xs text-gray-500">Powered by Google Maps</div>
+          </div>
+        </div>
+        
+        <!-- Export Menu -->
+        <div class="relative mt-2">
+          <button id="exportBtn" class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-400 hover:bg-gray-800 transition-colors">
+            <i class="fas fa-download"></i>
+            <span>Export chat</span>
+          </button>
+          <div id="exportDropdown" class="hidden absolute bottom-full left-0 right-0 mb-1 bg-[#2f2f2f] rounded-lg shadow-xl border border-gray-700 overflow-hidden">
+            <button onclick="exportChat('txt')" class="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-700 text-sm text-left text-gray-300">
+              <i class="fas fa-file-alt text-gray-400"></i>
+              <span>Export as TXT</span>
+            </button>
+            <button onclick="exportChat('pdf')" class="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-700 text-sm text-left text-gray-300">
+              <i class="fas fa-file-pdf text-red-400"></i>
+              <span>Export as PDF</span>
+            </button>
+            <button onclick="exportChat('docx')" class="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-700 text-sm text-left text-gray-300">
+              <i class="fas fa-file-word text-blue-400"></i>
+              <span>Export as DOCX</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </aside>
+    
+    <!-- Main Content -->
+    <main class="main-content flex-1 flex flex-col h-full min-w-0">
+      <!-- Top Bar (Mobile) -->
+      <div class="md:hidden flex items-center justify-between p-3 border-b border-gray-800">
+        <button onclick="toggleSidebar()" class="p-2 hover:bg-gray-800 rounded-lg">
+          <i class="fas fa-bars text-gray-400"></i>
+        </button>
+        <span class="font-medium">CallSphere Maps</span>
+        <button onclick="startNewChat()" class="p-2 hover:bg-gray-800 rounded-lg">
+          <i class="fas fa-plus text-gray-400"></i>
+        </button>
+      </div>
+      
+      <!-- Messages Area -->
+      <div id="messagesContainer" class="flex-1 overflow-y-auto scrollbar-thin">
+        <div id="messages" class="max-w-3xl mx-auto px-4 py-6">
+          <!-- Welcome Screen -->
+          <div id="welcomeScreen" class="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
+            <div class="glow-effect w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center mb-6">
+              <i class="fas fa-map-location-dot text-3xl text-white"></i>
+            </div>
+            <h1 class="text-2xl font-semibold mb-2">What can I help you find?</h1>
+            <p class="text-gray-400 mb-8 max-w-md">Find NYC businesses for your voice agent sales outreach. Search restaurants, retail stores, service providers, and more.</p>
+            
+            <!-- Suggestions -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-xl">
+              <button onclick="sendSuggestion('Find restaurants in Manhattan that might need a voice ordering system')" class="suggestion-btn p-4 rounded-xl text-left">
+                <div class="flex items-start gap-3">
+                  <span class="text-xl">🍽️</span>
+                  <div>
+                    <div class="font-medium text-sm">NYC Restaurants</div>
+                    <div class="text-xs text-gray-500 mt-1">Voice ordering prospects</div>
+                  </div>
+                </div>
+              </button>
+              
+              <button onclick="sendSuggestion('Show me dental clinics in Brooklyn for appointment scheduling automation')" class="suggestion-btn p-4 rounded-xl text-left">
+                <div class="flex items-start gap-3">
+                  <span class="text-xl">🦷</span>
+                  <div>
+                    <div class="font-medium text-sm">Brooklyn Dental Clinics</div>
+                    <div class="text-xs text-gray-500 mt-1">Appointment scheduling leads</div>
+                  </div>
+                </div>
+              </button>
+              
+              <button onclick="sendSuggestion('Find auto repair shops in Queens that could use AI phone answering')" class="suggestion-btn p-4 rounded-xl text-left">
+                <div class="flex items-start gap-3">
+                  <span class="text-xl">🔧</span>
+                  <div>
+                    <div class="font-medium text-sm">Queens Auto Shops</div>
+                    <div class="text-xs text-gray-500 mt-1">AI phone answering leads</div>
+                  </div>
+                </div>
+              </button>
+              
+              <button onclick="sendSuggestion('List real estate agencies in NYC for lead qualification voice agent')" class="suggestion-btn p-4 rounded-xl text-left">
+                <div class="flex items-start gap-3">
+                  <span class="text-xl">🏠</span>
+                  <div>
+                    <div class="font-medium text-sm">NYC Real Estate Agencies</div>
+                    <div class="text-xs text-gray-500 mt-1">Lead qualification prospects</div>
+                  </div>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Input Area -->
+      <div class="shrink-0 px-4 pb-4 pt-2">
+        <div class="max-w-3xl mx-auto">
+          <form id="chatForm" class="input-container flex items-end gap-2 p-2">
+            <textarea 
+              id="messageInput" 
+              placeholder="Ask about any place, anywhere..." 
+              class="chat-input flex-1 px-3 py-2 text-[15px] text-white placeholder-gray-500 focus:outline-none"
+              rows="1"
+              autocomplete="off"
+            ></textarea>
+            <button 
+              type="submit" 
+              id="sendBtn"
+              disabled
+              class="send-button w-9 h-9 rounded-full flex items-center justify-center shrink-0"
+            >
+              <i class="fas fa-arrow-up text-sm"></i>
+            </button>
+          </form>
+          <p class="text-center text-xs text-gray-500 mt-3">
+            CallSphere Maps can search places worldwide using Google Maps data
+          </p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const API_BASE = '/google_map/api';
+    let sessionId = null;
+    let isLoading = false;
+    let chatHistoryList = [];
+
+    const STORAGE_SESSIONS_KEY = 'maps_gpt.chatHistoryList.v1';
+    const STORAGE_ACTIVE_SESSION_KEY = 'maps_gpt.activeSessionId.v1';
+
+    function loadChatHistoryList() {
+      try {
+        const raw = localStorage.getItem(STORAGE_SESSIONS_KEY);
+        chatHistoryList = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(chatHistoryList)) chatHistoryList = [];
+      } catch {
+        chatHistoryList = [];
+      }
+    }
+
+    function saveChatHistoryList() {
+      try {
+        localStorage.setItem(STORAGE_SESSIONS_KEY, JSON.stringify(chatHistoryList));
+      } catch {}
+    }
+
+    function getActiveSessionId() {
+      try {
+        return localStorage.getItem(STORAGE_ACTIVE_SESSION_KEY);
+      } catch {
+        return null;
+      }
+    }
+
+    function setActiveSessionId(id) {
+      try {
+        localStorage.setItem(STORAGE_ACTIVE_SESSION_KEY, id);
+      } catch {}
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', initChat);
+
+    async function initChat() {
+      loadChatHistoryList();
+
+      const existing = getActiveSessionId();
+      if (existing) {
+        sessionId = existing;
+        renderChatHistory();
+        await loadAndRenderSession(sessionId);
+      } else {
+        await createSession();
+        setActiveSessionId(sessionId);
+        renderChatHistory();
+      }
+
+      setupTextarea();
+    }
+
+    async function loadAndRenderSession(id) {
+      const messagesDiv = document.getElementById('messages');
+      messagesDiv.innerHTML = '';
+
+      try {
+        const resp = await fetch(`${API_BASE}/chat/history/${id}`);
+        const data = await resp.json();
+
+        if (!data.success) throw new Error(data.error || 'Failed to load history');
+
+        const history = data.data?.history || [];
+        if (!history.length) {
+          // show welcome screen if empty
+          showWelcomeScreen();
+          return;
+        }
+
+        hideWelcomeScreen();
+        for (const msg of history) {
+          addMessage(msg.role, msg.content, msg.toolCalls || null);
+        }
+      } catch (e) {
+        // Session may not exist on server (after restart), create new one
+        console.warn('Could not load session, creating new one:', e);
+        await createSession();
+        setActiveSessionId(sessionId);
+        showWelcomeScreen();
+      }
+    }
+
+    function showWelcomeScreen() {
+      const messagesDiv = document.getElementById('messages');
+      messagesDiv.innerHTML = `
+        <div id="welcomeScreen" class="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
+          <div class="glow-effect w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center mb-6">
+            <i class="fas fa-map-location-dot text-3xl text-white"></i>
+          </div>
+          <h1 class="text-2xl font-semibold mb-2">What can I help you find?</h1>
+          <p class="text-gray-400 mb-8 max-w-md">Find NYC businesses for your voice agent sales outreach. Search restaurants, retail stores, service providers, and more.</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-xl">
+            <button onclick="sendSuggestion('Find restaurants in Manhattan that might need a voice ordering system')" class="suggestion-btn p-4 rounded-xl text-left">
+              <div class="flex items-start gap-3">
+                <span class="text-xl">🍽️</span>
+                <div>
+                  <div class="font-medium text-sm">NYC Restaurants</div>
+                  <div class="text-xs text-gray-500 mt-1">Voice ordering prospects</div>
+                </div>
+              </div>
+            </button>
+            <button onclick="sendSuggestion('Show me dental clinics in Brooklyn for appointment scheduling automation')" class="suggestion-btn p-4 rounded-xl text-left">
+              <div class="flex items-start gap-3">
+                <span class="text-xl">🦷</span>
+                <div>
+                  <div class="font-medium text-sm">Brooklyn Dental Clinics</div>
+                  <div class="text-xs text-gray-500 mt-1">Appointment scheduling leads</div>
+                </div>
+              </div>
+            </button>
+            <button onclick="sendSuggestion('Find auto repair shops in Queens that could use AI phone answering')" class="suggestion-btn p-4 rounded-xl text-left">
+              <div class="flex items-start gap-3">
+                <span class="text-xl">🔧</span>
+                <div>
+                  <div class="font-medium text-sm">Queens Auto Shops</div>
+                  <div class="text-xs text-gray-500 mt-1">AI phone answering leads</div>
+                </div>
+              </div>
+            </button>
+            <button onclick="sendSuggestion('List real estate agencies in NYC for lead qualification voice agent')" class="suggestion-btn p-4 rounded-xl text-left">
+              <div class="flex items-start gap-3">
+                <span class="text-xl">🏠</span>
+                <div>
+                  <div class="font-medium text-sm">NYC Real Estate Agencies</div>
+                  <div class="text-xs text-gray-500 mt-1">Lead qualification prospects</div>
+                </div>
+              </div>
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    async function selectChat(id) {
+      if (!id || id === sessionId) return;
+      if (isLoading) return;
+
+      sessionId = id;
+      setActiveSessionId(sessionId);
+      renderChatHistory();
+      await loadAndRenderSession(sessionId);
+    }
+
+    async function createSession() {
+      try {
+        const response = await fetch(`${API_BASE}/chat/session`, { method: 'POST' });
+        const data = await response.json();
+        if (data.success) {
+          sessionId = data.data.sessionId;
+          console.log('Chat session created:', sessionId);
+        }
+      } catch (error) {
+        console.error('Failed to create session:', error);
+        showError('Failed to initialize. Please refresh the page.');
+      }
+    }
+
+    function setupTextarea() {
+      const textarea = document.getElementById('messageInput');
+      const sendBtn = document.getElementById('sendBtn');
+      
+      textarea.addEventListener('input', () => {
+        // Auto-resize
+        textarea.style.height = 'auto';
+        textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
+        
+        // Enable/disable send button
+        sendBtn.disabled = !textarea.value.trim();
+      });
+      
+      // Enter to send, Shift+Enter for new line
+      textarea.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          if (textarea.value.trim() && !isLoading) {
+            document.getElementById('chatForm').dispatchEvent(new Event('submit'));
+          }
+        }
+      });
+    }
+
+    // Export dropdown
+    document.getElementById('exportBtn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.getElementById('exportDropdown').classList.toggle('hidden');
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#exportBtn') && !e.target.closest('#exportDropdown')) {
+        document.getElementById('exportDropdown').classList.add('hidden');
+      }
+    });
+
+    // Form submission
+    document.getElementById('chatForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const input = document.getElementById('messageInput');
+      const message = input.value.trim();
+      
+      if (!message || isLoading) return;
+      
+      hideWelcomeScreen();
+      addMessage('user', message);
+      input.value = '';
+      input.style.height = 'auto';
+      document.getElementById('sendBtn').disabled = true;
+      
+      await sendMessage(message);
+    });
+
+    function sendSuggestion(text) {
+      const input = document.getElementById('messageInput');
+      input.value = text;
+      input.dispatchEvent(new Event('input'));
+      document.getElementById('chatForm').dispatchEvent(new Event('submit'));
+    }
+
+    function hideWelcomeScreen() {
+      const welcome = document.getElementById('welcomeScreen');
+      if (welcome) welcome.style.display = 'none';
+    }
+
+    async function sendMessage(message) {
+      if (!sessionId) {
+        showError('Session not initialized. Please refresh.');
+        return;
+      }
+
+      isLoading = true;
+      const streamUI = addStreamingAssistantMessage();
+
+      try {
+        const response = await fetch(`${API_BASE}/chat/message?stream=1`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
+          body: JSON.stringify({ sessionId, message })
+        });
+
+        if (!response.ok) {
+          let err = 'Failed to get response';
+          try {
+            const data = await response.json();
+            err = data.error || err;
+          } catch {
+            // ignore
+          }
+          streamUI.remove();
+          showError(err);
+          return;
+        }
+
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('text/event-stream') || !response.body) {
+          // Fallback to non-streaming JSON
+          const data = await response.json();
+          streamUI.remove();
+          if (data.success) {
+            const msg = data.data.message;
+            addMessage('assistant', msg.content, msg.toolCalls);
+            updateChatHistory(message);
+          } else {
+            showError(data.error || 'Failed to get response');
+          }
+          return;
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let doneReceived = false;
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const parts = buffer.split('\n\n');
+          buffer = parts.pop() || '';
+
+          for (const part of parts) {
+            const lines = part.split('\n');
+            let eventName = 'message';
+            let dataLine = '';
+            for (const line of lines) {
+              if (line.startsWith('event:')) eventName = line.slice(6).trim();
+              if (line.startsWith('data:')) dataLine += line.slice(5).trim();
+            }
+            if (!dataLine) continue;
+
+            if (eventName === 'delta') {
+              try {
+                const payload = JSON.parse(dataLine);
+                if (payload?.delta) streamUI.append(payload.delta);
+              } catch {
+                // ignore
+              }
+            }
+
+            if (eventName === 'done') {
+              try {
+                const payload = JSON.parse(dataLine);
+                const msg = payload?.data?.message;
+                if (msg) {
+                  streamUI.finalize(msg.content || streamUI.getContent(), msg.toolCalls || null);
+                  updateChatHistory(message);
+                }
+              } catch {
+                // ignore
+              }
+              doneReceived = true;
+            }
+          }
+
+          if (doneReceived) break;
+        }
+      } catch (error) {
+        console.error('Send message error:', error);
+        streamUI.remove();
+        showError('Network error. Please try again.');
+      } finally {
+        isLoading = false;
+      }
+    }
+
+    function addStreamingAssistantMessage() {
+      const messagesDiv = document.getElementById('messages');
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'py-5 fade-in message-assistant';
+
+      const container = document.createElement('div');
+      container.className = 'flex gap-4 max-w-3xl mx-auto px-4';
+
+      const avatar = document.createElement('div');
+      avatar.className = 'w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-gradient-to-br from-emerald-500 to-teal-600';
+      avatar.innerHTML = '<i class="fas fa-map-location-dot text-white text-xs"></i>';
+
+      const contentDiv = document.createElement('div');
+      contentDiv.className = 'flex-1 min-w-0';
+
+      const roleLabel = document.createElement('div');
+      roleLabel.className = 'font-semibold text-sm mb-1';
+      roleLabel.textContent = 'CallSphere Maps';
+      contentDiv.appendChild(roleLabel);
+
+      const textDiv = document.createElement('div');
+      textDiv.className = 'markdown-content text-[15px] leading-relaxed';
+      contentDiv.appendChild(textDiv);
+
+      container.appendChild(avatar);
+      container.appendChild(contentDiv);
+      wrapper.appendChild(container);
+      messagesDiv.appendChild(wrapper);
+      scrollToBottom();
+
+      let content = '';
+      let renderTimer = null;
+
+      const render = () => {
+        textDiv.innerHTML = marked.parse(content || '');
+        scrollToBottom();
+      };
+
+      const scheduleRender = () => {
+        if (renderTimer) return;
+        renderTimer = setTimeout(() => {
+          renderTimer = null;
+          render();
+        }, 50);
+      };
+
+      const appendToolChips = (toolCalls) => {
+        if (!toolCalls || !toolCalls.length) return;
+        const toolsDiv = document.createElement('div');
+        toolsDiv.className = 'flex flex-wrap gap-2 mt-4';
+        for (const tool of toolCalls) {
+          const chip = document.createElement('span');
+          chip.className = 'tool-chip px-3 py-1 rounded-full text-xs font-medium inline-flex items-center gap-1.5';
+          chip.innerHTML = `${getToolIcon(tool.toolName)} ${formatToolName(tool.toolName)}`;
+          toolsDiv.appendChild(chip);
+        }
+        textDiv.appendChild(toolsDiv);
+      };
+
+      return {
+        append: (delta) => {
+          content += delta;
+          scheduleRender();
+        },
+        finalize: (finalContent, toolCalls) => {
+          if (finalContent != null) content = finalContent;
+          if (renderTimer) {
+            clearTimeout(renderTimer);
+            renderTimer = null;
+          }
+          render();
+          appendToolChips(toolCalls);
+        },
+        remove: () => {
+          if (renderTimer) clearTimeout(renderTimer);
+          wrapper.remove();
+        },
+        getContent: () => content,
+      };
+    }
+
+    function addMessage(role, content, toolCalls = null) {
+      const messagesDiv = document.getElementById('messages');
+      const isUser = role === 'user';
+      
+      const wrapper = document.createElement('div');
+      wrapper.className = `py-5 fade-in ${isUser ? 'message-user' : 'message-assistant'}`;
+      
+      const container = document.createElement('div');
+      container.className = 'flex gap-4 max-w-3xl mx-auto px-4';
+      
+      // Avatar
+      const avatar = document.createElement('div');
+      avatar.className = `w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+        isUser 
+          ? 'bg-gradient-to-br from-violet-500 to-purple-600' 
+          : 'bg-gradient-to-br from-emerald-500 to-teal-600'
+      }`;
+      avatar.innerHTML = `<i class="fas ${isUser ? 'fa-user' : 'fa-map-location-dot'} text-white text-xs"></i>`;
+      
+      // Content
+      const contentDiv = document.createElement('div');
+      contentDiv.className = 'flex-1 min-w-0';
+      
+      // Role label
+      const roleLabel = document.createElement('div');
+      roleLabel.className = 'font-semibold text-sm mb-1';
+      roleLabel.textContent = isUser ? 'You' : 'CallSphere Maps';
+      contentDiv.appendChild(roleLabel);
+      
+      // Message text
+      const textDiv = document.createElement('div');
+      if (isUser) {
+        textDiv.className = 'text-[15px] leading-relaxed';
+        textDiv.textContent = content;
+      } else {
+        textDiv.className = 'markdown-content text-[15px] leading-relaxed';
+        textDiv.innerHTML = marked.parse(content || '');
+        
+        // Tool chips
+        if (toolCalls && toolCalls.length > 0) {
+          const toolsDiv = document.createElement('div');
+          toolsDiv.className = 'flex flex-wrap gap-2 mt-4';
+          
+          for (const tool of toolCalls) {
+            const chip = document.createElement('span');
+            chip.className = 'tool-chip px-3 py-1 rounded-full text-xs font-medium inline-flex items-center gap-1.5';
+            chip.innerHTML = `${getToolIcon(tool.toolName)} ${formatToolName(tool.toolName)}`;
+            toolsDiv.appendChild(chip);
+          }
+          textDiv.appendChild(toolsDiv);
+        }
+      }
+      contentDiv.appendChild(textDiv);
+      
+      container.appendChild(avatar);
+      container.appendChild(contentDiv);
+      wrapper.appendChild(container);
+      messagesDiv.appendChild(wrapper);
+      
+      scrollToBottom();
+    }
+
+    function getToolIcon(toolName) {
+      const icons = {
+        'search_places': '📍',
+        'lookup_weather': '🌤️',
+        'compute_routes': '🛣️'
+      };
+      return icons[toolName] || '⚙️';
+    }
+
+    function formatToolName(toolName) {
+      return toolName.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    }
+
+    function showTypingIndicator() {
+      const messagesDiv = document.getElementById('messages');
+      
+      const wrapper = document.createElement('div');
+      wrapper.id = 'typingIndicator';
+      wrapper.className = 'py-5 fade-in';
+      
+      const container = document.createElement('div');
+      container.className = 'flex gap-4 max-w-3xl mx-auto px-4';
+      
+      container.innerHTML = `
+        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shrink-0">
+          <i class="fas fa-map-location-dot text-white text-xs"></i>
+        </div>
+        <div class="flex-1">
+          <div class="font-semibold text-sm mb-2">CallSphere Maps</div>
+          <div class="flex gap-1">
+            <span class="typing-dot w-2 h-2 bg-gray-400 rounded-full"></span>
+            <span class="typing-dot w-2 h-2 bg-gray-400 rounded-full"></span>
+            <span class="typing-dot w-2 h-2 bg-gray-400 rounded-full"></span>
+          </div>
+        </div>
+      `;
+      
+      wrapper.appendChild(container);
+      messagesDiv.appendChild(wrapper);
+      scrollToBottom();
+    }
+
+    function hideTypingIndicator() {
+      const indicator = document.getElementById('typingIndicator');
+      if (indicator) indicator.remove();
+    }
+
+    function showError(message) {
+      const messagesDiv = document.getElementById('messages');
+      
+      const wrapper = document.createElement('div');
+      wrapper.className = 'py-3 fade-in';
+      
+      const container = document.createElement('div');
+      container.className = 'max-w-3xl mx-auto px-4';
+      container.innerHTML = `
+        <div class="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
+          <i class="fas fa-exclamation-circle"></i>
+          <span>${escapeHtml(message)}</span>
+        </div>
+      `;
+      
+      wrapper.appendChild(container);
+      messagesDiv.appendChild(wrapper);
+      scrollToBottom();
+    }
+
+    function scrollToBottom() {
+      const container = document.getElementById('messagesContainer');
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function updateChatHistory(firstMessage) {
+      const title = firstMessage.substring(0, 30) + (firstMessage.length > 30 ? '...' : '');
+
+      const existingIndex = chatHistoryList.findIndex(c => c.sessionId === sessionId);
+      if (existingIndex === -1) {
+        chatHistoryList.unshift({ sessionId, title });
+      } else if (!chatHistoryList[existingIndex].title) {
+        chatHistoryList[existingIndex].title = title;
+      }
+
+      saveChatHistoryList();
+      renderChatHistory();
+    }
+
+    function renderChatHistory() {
+      const container = document.getElementById('chatHistory');
+      container.innerHTML = chatHistoryList.map(chat => `
+        <button onclick="selectChat('${chat.sessionId}')" class="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-gray-800 truncate transition-colors ${chat.sessionId === sessionId ? 'bg-gray-800' : ''}">
+          <i class="fas fa-message text-gray-500 mr-2"></i>${escapeHtml(chat.title)}
+        </button>
+      `).join('');
+    }
+
+    async function startNewChat() {
+      // Clear UI
+      const messages = document.getElementById('messages');
+      messages.innerHTML = '';
+      
+      // Show welcome screen
+      messages.innerHTML = `
+        <div id="welcomeScreen" class="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
+          <div class="glow-effect w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center mb-6">
+            <i class="fas fa-map-location-dot text-3xl text-white"></i>
+          </div>
+          <h1 class="text-2xl font-semibold mb-2">What can I help you find?</h1>
+          <p class="text-gray-400 mb-8 max-w-md">Search for any place anywhere in the world. Ask about restaurants, hotels, attractions, routes, and more.</p>
+          
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-xl">
+            <button onclick="sendSuggestion('Find the best ramen restaurants in Tokyo')" class="suggestion-btn p-4 rounded-xl text-left">
+              <div class="flex items-start gap-3">
+                <span class="text-xl">🍜</span>
+                <div>
+                  <div class="font-medium text-sm">Best ramen in Tokyo</div>
+                  <div class="text-xs text-gray-500 mt-1">Explore top-rated spots</div>
+                </div>
+              </div>
+            </button>
+            
+            <button onclick="sendSuggestion('What are the must-visit places in Paris?')" class="suggestion-btn p-4 rounded-xl text-left">
+              <div class="flex items-start gap-3">
+                <span class="text-xl">🗼</span>
+                <div>
+                  <div class="font-medium text-sm">Must-visit in Paris</div>
+                  <div class="text-xs text-gray-500 mt-1">Top attractions & landmarks</div>
+                </div>
+              </div>
+            </button>
+            
+            <button onclick="sendSuggestion('How far is it from Los Angeles to San Francisco?')" class="suggestion-btn p-4 rounded-xl text-left">
+              <div class="flex items-start gap-3">
+                <span class="text-xl">🚗</span>
+                <div>
+                  <div class="font-medium text-sm">LA to San Francisco</div>
+                  <div class="text-xs text-gray-500 mt-1">Distance & travel time</div>
+                </div>
+              </div>
+            </button>
+            
+            <button onclick="sendSuggestion('Find coffee shops near Times Square, New York')" class="suggestion-btn p-4 rounded-xl text-left">
+              <div class="flex items-start gap-3">
+                <span class="text-xl">☕</span>
+                <div>
+                  <div class="font-medium text-sm">Coffee near Times Square</div>
+                  <div class="text-xs text-gray-500 mt-1">Nearby cafés & shops</div>
+                </div>
+              </div>
+            </button>
+          </div>
+        </div>
+      `;
+      
+      // Create new session
+      await createSession();
+      setActiveSessionId(sessionId);
+      saveChatHistoryList();
+      renderChatHistory();
+      
+      // Clear input
+      const input = document.getElementById('messageInput');
+      input.value = '';
+      input.style.height = 'auto';
+      document.getElementById('sendBtn').disabled = true;
+    }
+
+    async function exportChat(format) {
+      if (!sessionId) {
+        alert('No active chat session');
+        return;
+      }
+
+      document.getElementById('exportDropdown').classList.add('hidden');
+
+      try {
+        const response = await fetch(`${API_BASE}/chat/export/${sessionId}/${format}`);
+        
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Export failed');
+        }
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `maps-gpt-chat.${format}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch (error) {
+        alert('Export failed: ' + error.message);
+      }
+    }
+
+    function toggleSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      sidebar.classList.toggle('sidebar-hidden');
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>

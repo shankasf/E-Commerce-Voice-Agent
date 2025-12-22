@@ -17,7 +17,7 @@ class SIPConfig:
     # OpenAI Settings
     openai_api_key: str = field(default_factory=lambda: os.getenv("OPENAI_API_KEY", ""))
     openai_project_id: str = field(default_factory=lambda: os.getenv("OPENAI_PROJECT_ID", ""))
-    openai_realtime_model: str = "gpt-4o-realtime-preview-2024-12-17"
+    openai_realtime_model: str = "gpt-realtime-2025-08-28"
     openai_realtime_url: str = "wss://api.openai.com/v1/realtime"
     
     # Twilio Settings

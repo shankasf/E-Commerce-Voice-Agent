@@ -13,7 +13,9 @@ import {
   LogOut,
   ChevronRight,
   RefreshCw,
-  CheckCircle2
+  CheckCircle2,
+  UserCircle,
+  ChevronDown
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -36,7 +38,7 @@ const statusColors: Record<string, string> = {
 type Tab = 'assigned' | 'escalated' | 'human-required';
 
 export default function AgentDashboard() {
-  const { user, logout, isLoading } = useAuth();
+  const { user, logout, isLoading, switchAgent } = useAuth();
 
   const [activeTab, setActiveTab] = useState<Tab>('assigned');
   const [stats, setStats] = useState<any>(null);
@@ -44,17 +46,21 @@ export default function AgentDashboard() {
   const [profile, setProfile] = useState<SupportAgent | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAvailable, setIsAvailable] = useState(true);
+  const [allAgents, setAllAgents] = useState<SupportAgent[]>([]);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
 
   // Memoized load functions
   const loadDashboardData = useCallback(async () => {
     if (!user?.id) return;
     try {
-      const [statsData, profileData] = await Promise.all([
+      const [statsData, profileData, agentsData] = await Promise.all([
         agentAPI.getDashboardStats(user.id),
         agentAPI.getMyProfile(user.id),
+        agentAPI.getAllHumanAgents(),
       ]);
       setStats(statsData);
       setProfile(profileData);
+      setAllAgents(agentsData);
       if (profileData) {
         setIsAvailable(profileData.is_available);
       }
@@ -151,6 +157,15 @@ export default function AgentDashboard() {
     window.location.href = '/tms';
   };
 
+  const handleSwitchProfile = (agent: SupportAgent) => {
+    if (switchAgent) {
+      switchAgent(agent.support_agent_id, agent.full_name);
+      setShowProfileMenu(false);
+      // Reload page to refresh data for new agent
+      window.location.reload();
+    }
+  };
+
   const navigateToTicket = (ticketId: number) => {
     window.location.href = `/tms/dashboard/agent/ticket/${ticketId}`;
   };
@@ -175,6 +190,35 @@ export default function AgentDashboard() {
             <p className="text-sm text-green-200">Welcome, {profile?.full_name || user.name}</p>
           </div>
           <div className="flex items-center gap-4">
+            {/* Profile Switcher */}
+            <div className="relative">
+              <button
+                onClick={() => setShowProfileMenu(!showProfileMenu)}
+                className="flex items-center gap-2 px-3 py-2 bg-green-500 hover:bg-green-400 rounded-lg text-sm font-medium"
+              >
+                <UserCircle className="w-4 h-4" />
+                <span>{profile?.full_name || 'Switch Profile'}</span>
+                <ChevronDown className="w-4 h-4" />
+              </button>
+              {showProfileMenu && (
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg py-2 z-50">
+                  <div className="px-3 py-2 text-xs text-gray-500 border-b">Switch Profile</div>
+                  {allAgents.map((agent) => (
+                    <button
+                      key={agent.support_agent_id}
+                      onClick={() => handleSwitchProfile(agent)}
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 flex items-center justify-between ${agent.support_agent_id === user?.id ? 'bg-green-50 text-green-700' : 'text-gray-700'
+                        }`}
+                    >
+                      <span>{agent.full_name}</span>
+                      {agent.support_agent_id === user?.id && (
+                        <CheckCircle2 className="w-4 h-4 text-green-600" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <button
               onClick={handleAvailabilityToggle}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium ${isAvailable

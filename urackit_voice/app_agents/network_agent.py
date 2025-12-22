@@ -7,13 +7,9 @@ Handles network connectivity, Wi-Fi, VPN, and remote desktop issues.
 from agents import Agent
 from db.queries import (
     create_ticket,
-    search_knowledge_base,
     lookup_ticket,
     escalate_ticket,
     add_ticket_message,
-    get_tickets_by_contact,
-    find_contact_by_phone,
-    get_organization_locations,
     transfer_to_human,
 )
 
@@ -75,11 +71,10 @@ IMPORTANT:
 """,
     tools=[
         create_ticket,
-        search_knowledge_base,
         lookup_ticket,
         escalate_ticket,
         add_ticket_message,
-        get_organization_locations,
         transfer_to_human,
     ],
+    handoffs=[],
 )

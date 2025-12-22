@@ -92,9 +92,9 @@ class OpenAIRealtimeConnection(IRealtimeConnection):
                 },
                 "turn_detection": {
                     "type": "server_vad",
-                    "threshold": 0.5,
-                    "prefix_padding_ms": 300,
-                    "silence_duration_ms": 500
+                    "threshold": 0.7,
+                    "prefix_padding_ms": 500,
+                    "silence_duration_ms": 700
                 },
             }
         }
@@ -226,8 +226,8 @@ Remember: You are a background assistant. The human technician is leading the ca
         
         self._greeting_sent = True
         
-        # If we have the caller's phone, inject it as a system message
-        # so the AI can immediately look them up
+        # If we have the caller's phone, we DO NOT use it for authentication.
+        # Caller must provide U&E code for organization verification.
         if caller_phone:
             context_event = {
                 "type": "conversation.item.create",
@@ -237,7 +237,7 @@ Remember: You are a background assistant. The human technician is leading the ca
                     "content": [
                         {
                             "type": "input_text",
-                            "text": f"[SYSTEM: Incoming call from phone number: {caller_phone}. Use find_contact_by_phone to check if this is a returning caller before greeting.]"
+                            "text": f"[SYSTEM: Incoming call from phone number: {caller_phone}. Do NOT attempt phone-based lookup. Ask for the caller's U E code and verify the organization using the U&E code only.]"
                         }
                     ]
                 }

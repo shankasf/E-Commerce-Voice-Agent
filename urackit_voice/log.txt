@@ -1,69 +1,57 @@
-4|urackit-voice  | 2025-12-17 18:51:14: INFO:     connection open
-4|urackit-voice  | 2025-12-17 18:51:14: 2025-12-17 18:51:14,868 - sip_integration.openai_realtime - INFO - Connected to OpenAI Realtime API for session voice-75ecd664c6d3
-4|urackit-voice  | 2025-12-17 18:51:14: 2025-12-17 18:51:14,868 - sip_integration.media_stream - INFO - OpenAI Realtime connected for session voice-75ecd664c6d3
-4|urackit-voice  | 2025-12-17 18:51:14: 2025-12-17 18:51:14,868 - sip_integration.media_stream - INFO - Twilio media stream connected
-4|urackit-voice  | 2025-12-17 18:51:14: 2025-12-17 18:51:14,868 - sip_integration.session_manager - INFO - Session voice-75ecd664c6d3 state updated to connected
-4|urackit-voice  | 2025-12-17 18:51:14: 2025-12-17 18:51:14,868 - sip_integration.media_stream - INFO - Media stream started (main): MZ58becb6213a38cdc0c675775128d03bb
-4|urackit-voice  | 2025-12-17 18:51:14: 2025-12-17 18:51:14,927 - sip_integration.openai_realtime - INFO - OpenAI session created
-4|urackit-voice  | 2025-12-17 18:51:14: 2025-12-17 18:51:14,958 - sip_integration.openai_realtime - INFO - OpenAI session updated
-4|urackit-voice  | 2025-12-17 18:51:14: 2025-12-17 18:51:14,958 - sip_integration.openai_realtime - INFO - Triggered initial greeting with caller phone: +15512474097
-4|urackit-voice  | 2025-12-17 18:51:15: 2025-12-17 18:51:15,535 - sip_integration.media_stream - INFO - Function call: find_contact_by_phone({'phone': '+15512474097'})
-4|urackit-voice  | 2025-12-17 18:51:16: 2025-12-17 18:51:16,381 - sip_integration.agent_adapter - INFO - Executed tool find_contact_by_phone: success
-4|urackit-voice  | 2025-12-17 18:51:17: 2025-12-17 18:51:17,782 - sip_integration.media_stream - INFO - [assistant]: Hi there! Thanks for calling U Rack IT support. May I have your name, please?...
-4|urackit-voice  | 2025-12-17 18:51:23: 2025-12-17 18:51:23,069 - sip_integration.openai_realtime - INFO - VAD detected user speech starting
-4|urackit-voice  | 2025-12-17 18:51:23: 2025-12-17 18:51:23,069 - sip_integration.media_stream - INFO - User interruption detected
-4|urackit-voice  | 2025-12-17 18:51:23: 2025-12-17 18:51:23,069 - sip_integration.openai_realtime - INFO - Sent response.cancel to OpenAI
-4|urackit-voice  | 2025-12-17 18:51:23: 2025-12-17 18:51:23,069 - sip_integration.media_stream - INFO - Sent clear to Twilio to stop audio playback
-4|urackit-voice  | 2025-12-17 18:51:25: 2025-12-17 18:51:25,931 - sip_integration.media_stream - INFO - [user]: Hi, my name is Sai....
-4|urackit-voice  | 2025-12-17 18:51:26: 2025-12-17 18:51:26,556 - sip_integration.media_stream - INFO - [assistant]: Nice to meet you, Sai. Could you please provide your company name?...
-4|urackit-voice  | 2025-12-17 18:51:31: 2025-12-17 18:51:31,514 - sip_integration.openai_realtime - INFO - VAD detected user speech starting
-4|urackit-voice  | 2025-12-17 18:51:31: 2025-12-17 18:51:31,514 - sip_integration.media_stream - INFO - User interruption detected
-4|urackit-voice  | 2025-12-17 18:51:31: 2025-12-17 18:51:31,514 - sip_integration.openai_realtime - INFO - Sent response.cancel to OpenAI
-4|urackit-voice  | 2025-12-17 18:51:31: 2025-12-17 18:51:31,514 - sip_integration.media_stream - INFO - Sent clear to Twilio to stop audio playback
-4|urackit-voice  | 2025-12-17 18:51:35: 2025-12-17 18:51:35,159 - sip_integration.media_stream - INFO - [user]: My company name is ABC Solutions....
-4|urackit-voice  | 2025-12-17 18:51:35: 2025-12-17 18:51:35,654 - sip_integration.media_stream - INFO - [assistant]: Got it. And lastly, can I have your phone number, just to confirm?...
-4|urackit-voice  | 2025-12-17 18:51:40: 2025-12-17 18:51:40,694 - sip_integration.openai_realtime - INFO - VAD detected user speech starting
-4|urackit-voice  | 2025-12-17 18:51:40: 2025-12-17 18:51:40,694 - sip_integration.media_stream - INFO - User interruption detected
-4|urackit-voice  | 2025-12-17 18:51:40: 2025-12-17 18:51:40,695 - sip_integration.openai_realtime - INFO - Sent response.cancel to OpenAI
-4|urackit-voice  | 2025-12-17 18:51:40: 2025-12-17 18:51:40,695 - sip_integration.media_stream - INFO - Sent clear to Twilio to stop audio playback
-4|urackit-voice  | 2025-12-17 18:51:46: 2025-12-17 18:51:46,811 - sip_integration.media_stream - INFO - [user]: My phone number is 5 5 1 2 4 7 4 0 9 7...
-4|urackit-voice  | 2025-12-17 18:51:47: 2025-12-17 18:51:47,028 - sip_integration.media_stream - INFO - [assistant]: Thanks, Sai. Let's get started. How can I assist you today?...
-4|urackit-voice  | 2025-12-17 18:51:51: 2025-12-17 18:51:51,954 - sip_integration.openai_realtime - INFO - VAD detected user speech starting
-4|urackit-voice  | 2025-12-17 18:51:51: 2025-12-17 18:51:51,954 - sip_integration.media_stream - INFO - User interruption detected
-4|urackit-voice  | 2025-12-17 18:51:51: 2025-12-17 18:51:51,955 - sip_integration.openai_realtime - INFO - Sent response.cancel to OpenAI
-4|urackit-voice  | 2025-12-17 18:51:51: 2025-12-17 18:51:51,955 - sip_integration.media_stream - INFO - Sent clear to Twilio to stop audio playback
-4|urackit-voice  | 2025-12-17 18:51:58: 2025-12-17 18:51:58,915 - sip_integration.media_stream - INFO - [user]: I want to raise a ticket for my Wi-Fi not getting connected....
-4|urackit-voice  | 2025-12-17 18:51:59: 2025-12-17 18:51:59,797 - sip_integration.media_stream - INFO - [assistant]: I'll help you with that. Can you describe the issue in more detail, and let me know if any other dev...
-4|urackit-voice  | 2025-12-17 18:52:08: 2025-12-17 18:52:08,535 - sip_integration.openai_realtime - INFO - VAD detected user speech starting
-4|urackit-voice  | 2025-12-17 18:52:08: 2025-12-17 18:52:08,535 - sip_integration.media_stream - INFO - User interruption detected
-4|urackit-voice  | 2025-12-17 18:52:08: 2025-12-17 18:52:08,535 - sip_integration.openai_realtime - INFO - Sent response.cancel to OpenAI
-4|urackit-voice  | 2025-12-17 18:52:08: 2025-12-17 18:52:08,535 - sip_integration.media_stream - INFO - Sent clear to Twilio to stop audio playback
-4|urackit-voice  | 2025-12-17 18:52:16: 2025-12-17 18:52:16,391 - sip_integration.media_stream - INFO - [user]: No, it's just my laptop. I've been trying to connect to the Wi-Fi for a bit now and it's not getting...
-4|urackit-voice  | 2025-12-17 18:52:17: 2025-12-17 18:52:17,116 - sip_integration.media_stream - INFO - [assistant]: Thanks for the details. I'll create a support ticket for you now. Could you tell me how urgent this ...
-4|urackit-voice  | 2025-12-17 18:52:23: 2025-12-17 18:52:23,311 - sip_integration.openai_realtime - INFO - VAD detected user speech starting
-4|urackit-voice  | 2025-12-17 18:52:23: 2025-12-17 18:52:23,311 - sip_integration.media_stream - INFO - User interruption detected
-4|urackit-voice  | 2025-12-17 18:52:23: 2025-12-17 18:52:23,311 - sip_integration.openai_realtime - INFO - Sent response.cancel to OpenAI
-4|urackit-voice  | 2025-12-17 18:52:23: 2025-12-17 18:52:23,311 - sip_integration.media_stream - INFO - Sent clear to Twilio to stop audio playback
-4|urackit-voice  | 2025-12-17 18:52:27: 2025-12-17 18:52:27,734 - sip_integration.openai_realtime - INFO - VAD detected user speech starting
-4|urackit-voice  | 2025-12-17 18:52:27: 2025-12-17 18:52:27,734 - sip_integration.media_stream - INFO - User interruption detected
-4|urackit-voice  | 2025-12-17 18:52:27: 2025-12-17 18:52:27,734 - sip_integration.openai_realtime - INFO - Sent response.cancel to OpenAI
-4|urackit-voice  | 2025-12-17 18:52:27: 2025-12-17 18:52:27,734 - sip_integration.media_stream - INFO - Sent clear to Twilio to stop audio playback
-4|urackit-voice  | 2025-12-17 18:52:29: 2025-12-17 18:52:29,083 - sip_integration.media_stream - INFO - [user]: I couldn't get my work done without the Wi-Fi, so......
-4|urackit-voice  | 2025-12-17 18:52:29: 2025-12-17 18:52:29,985 - sip_integration.media_stream - INFO - [user]: I can say this is pretty urgent....
-4|urackit-voice  | 2025-12-17 18:52:31: 2025-12-17 18:52:31,716 - sip_integration.media_stream - INFO - [assistant]: Got it. I'll mark it as high priority. Let me create the ticket for your Wi-Fi connectivity issue no...
-4|urackit-voice  | 2025-12-17 18:52:32: 2025-12-17 18:52:32,557 - sip_integration.media_stream - INFO - Function call: create_ticket({'subject': 'Wi-Fi not connecting on laptop', 'description': 'User Sai from ABC Solutions reports that their laptop is unable to connect to Wi-Fi. This issue is urgent as it affects their work.', 'category': 'Network & Connectivity', 'priority': 'High'})
-4|urackit-voice  | 2025-12-17 18:52:33: 2025-12-17 18:52:33,167 - sip_integration.agent_adapter - INFO - Executed tool create_ticket: success
-4|urackit-voice  | 2025-12-17 18:52:35: 2025-12-17 18:52:35,926 - sip_integration.media_stream - INFO - [assistant]: Your ticket has been created. The ticket ID is 21. A technician will review it shortly. Is there any...
-4|urackit-voice  | 2025-12-17 18:52:48: 2025-12-17 18:52:48,850 - sip_integration.openai_realtime - INFO - VAD detected user speech starting
-4|urackit-voice  | 2025-12-17 18:52:48: 2025-12-17 18:52:48,850 - sip_integration.media_stream - INFO - User interruption detected
-4|urackit-voice  | 2025-12-17 18:52:48: 2025-12-17 18:52:48,850 - sip_integration.openai_realtime - INFO - Sent response.cancel to OpenAI
-4|urackit-voice  | 2025-12-17 18:52:48: 2025-12-17 18:52:48,850 - sip_integration.media_stream - INFO - Sent clear to Twilio to stop audio playback
-4|urackit-voice  | 2025-12-17 18:52:53: 2025-12-17 18:52:53,714 - sip_integration.media_stream - INFO - [user]: No, that sounds good. I have my ticket number, so I'm good....
-4|urackit-voice  | 2025-12-17 18:52:55: 2025-12-17 18:52:55,016 - sip_integration.media_stream - INFO - [assistant]: Great! If you need any further assistance, feel free to reach out. Have a good day!...
-4|urackit-voice  | 2025-12-17 18:53:02: 2025-12-17 18:53:02,232 - sip_integration.openai_realtime - INFO - VAD detected user speech starting
-4|urackit-voice  | 2025-12-17 18:53:02: 2025-12-17 18:53:02,232 - sip_integration.media_stream - INFO - User interruption detected
-4|urackit-voice  | 2025-12-17 18:53:02: 2025-12-17 18:53:02,232 - sip_integration.openai_realtime - INFO - Sent response.cancel to OpenAI
-4|urackit-voice  | 2025-12-17 18:53:02: 2025-12-17 18:53:02,232 - sip_integration.media_stream - INFO - Sent clear to Twilio to stop audio playback
-4|urackit-voice  | 2025-12-17 18:53:03: 2025-12-17 18:53:03,377 - sip_integration.media_stream - INFO - [user]: Thank you....
-4|urackit-voice  | 2025-12-17 18:53:03: 2025-12-17 18:53:03,780 - sip_integration.media_stream - INFO - [assistant]: You're welcome! Goodbye....
-4|urackit-voice  | 2025-12-17 18:53:10: 2025-12-17 18:53:10,858 - sip_integration.media_stream - INFO - Twilio media stream stopped
+2|urackit-voice  | 2025-12-20 22:07:08: 2025-12-20 22:07:08,527 - sip_integration.openai_realtime - INFO - VAD detected user speech starting
+2|urackit-voice  | 2025-12-20 22:07:08: 2025-12-20 22:07:08,527 - sip_integration.media_stream - INFO - User interruption detected
+2|urackit-voice  | 2025-12-20 22:07:08: 2025-12-20 22:07:08,527 - sip_integration.openai_realtime - INFO - Sent response.cancel to OpenAI
+2|urackit-voice  | 2025-12-20 22:07:08: 2025-12-20 22:07:08,527 - sip_integration.media_stream - INFO - Sent clear to Twilio to stop audio playback
+2|urackit-voice  | 2025-12-20 22:07:11: 2025-12-20 22:07:11,257 - sip_integration.media_stream - INFO - [user]: It's one three nine two...
+2|urackit-voice  | 2025-12-20 22:07:13: 2025-12-20 22:07:13,143 - sip_integration.media_stream - INFO - [assistant]: I heard 1, 3, 9, 2. Is that correct?...
+2|urackit-voice  | 2025-12-20 22:07:45: 2025-12-20 22:07:45,190 - sip_integration.openai_realtime - INFO - VAD detected user speech starting
+2|urackit-voice  | 2025-12-20 22:07:45: 2025-12-20 22:07:45,190 - sip_integration.media_stream - INFO - User interruption detected
+2|urackit-voice  | 2025-12-20 22:07:45: 2025-12-20 22:07:45,190 - sip_integration.openai_realtime - INFO - Sent response.cancel to OpenAI
+2|urackit-voice  | 2025-12-20 22:07:45: 2025-12-20 22:07:45,190 - sip_integration.media_stream - INFO - Sent clear to Twilio to stop audio playback
+2|urackit-voice  | 2025-12-20 22:07:46: 2025-12-20 22:07:46,907 - sip_integration.media_stream - INFO - [user]: Hey, how you doing?...
+2|urackit-voice  | 2025-12-20 22:07:47: 2025-12-20 22:07:47,373 - sip_integration.media_stream - INFO - Function call: find_organization_by_ue_code({'u_e_code': 1392})
+2|urackit-voice  | 2025-12-20 22:07:47: 2025-12-20 22:07:47,940 - sip_integration.agent_adapter - INFO - Executed tool find_organization_by_ue_code: success
+2|urackit-voice  | 2025-12-20 22:07:51: 2025-12-20 22:07:51,006 - sip_integration.media_stream - INFO - [assistant]: Thank you! I've verified your organization: ALerner CPA. Your account manager is Adam Lerner. May I ...
+2|urackit-voice  | 2025-12-20 22:08:00: 2025-12-20 22:08:00,286 - sip_integration.openai_realtime - INFO - VAD detected user speech starting
+2|urackit-voice  | 2025-12-20 22:08:00: 2025-12-20 22:08:00,286 - sip_integration.media_stream - INFO - User interruption detected
+2|urackit-voice  | 2025-12-20 22:08:00: 2025-12-20 22:08:00,286 - sip_integration.openai_realtime - INFO - Sent response.cancel to OpenAI
+2|urackit-voice  | 2025-12-20 22:08:00: 2025-12-20 22:08:00,286 - sip_integration.media_stream - INFO - Sent clear to Twilio to stop audio playback
+2|urackit-voice  | 2025-12-20 22:08:02: 2025-12-20 22:08:02,371 - sip_integration.media_stream - INFO - [user]: Venerao....
+2|urackit-voice  | 2025-12-20 22:08:03: 2025-12-20 22:08:03,016 - sip_integration.media_stream - INFO - [assistant]: I heard Glen Herro. Is that correct?...
+2|urackit-voice  | 2025-12-20 22:08:06: 2025-12-20 22:08:06,349 - sip_integration.openai_realtime - INFO - VAD detected user speech starting
+2|urackit-voice  | 2025-12-20 22:08:06: 2025-12-20 22:08:06,349 - sip_integration.media_stream - INFO - User interruption detected
+2|urackit-voice  | 2025-12-20 22:08:06: 2025-12-20 22:08:06,349 - sip_integration.openai_realtime - INFO - Sent response.cancel to OpenAI
+2|urackit-voice  | 2025-12-20 22:08:06: 2025-12-20 22:08:06,349 - sip_integration.media_stream - INFO - Sent clear to Twilio to stop audio playback
+2|urackit-voice  | 2025-12-20 22:08:09: 2025-12-20 22:08:09,592 - sip_integration.media_stream - INFO - [user]: No, it's Vinay Rao....
+2|urackit-voice  | 2025-12-20 22:08:10: 2025-12-20 22:08:10,289 - sip_integration.media_stream - INFO - [assistant]: Thank you for clarifying. I heard Vinay Rao. Is that correct?...
+2|urackit-voice  | 2025-12-20 22:08:15: 2025-12-20 22:08:15,304 - sip_integration.openai_realtime - INFO - VAD detected user speech starting
+2|urackit-voice  | 2025-12-20 22:08:15: 2025-12-20 22:08:15,304 - sip_integration.media_stream - INFO - User interruption detected
+2|urackit-voice  | 2025-12-20 22:08:15: 2025-12-20 22:08:15,304 - sip_integration.openai_realtime - INFO - Sent response.cancel to OpenAI
+2|urackit-voice  | 2025-12-20 22:08:15: 2025-12-20 22:08:15,304 - sip_integration.media_stream - INFO - Sent clear to Twilio to stop audio playback
+2|urackit-voice  | 2025-12-20 22:08:16: 2025-12-20 22:08:16,715 - sip_integration.media_stream - INFO - [user]: Yes....
+2|urackit-voice  | 2025-12-20 22:08:18: 2025-12-20 22:08:18,157 - sip_integration.media_stream - INFO - Function call: create_contact({'full_name': 'Vinay Rao', 'phone': '+18453884267', 'organization_name': 'ALerner CPA'})
+2|urackit-voice  | 2025-12-20 22:08:18: 2025-12-20 22:08:18,748 - sip_integration.agent_adapter - INFO - Executed tool create_contact: success
+2|urackit-voice  | 2025-12-20 22:08:21: 2025-12-20 22:08:21,407 - sip_integration.media_stream - INFO - [assistant]: It seems we already have your contact information. How can I help you today?...
+2|urackit-voice  | 2025-12-20 22:08:31: 2025-12-20 22:08:31,115 - sip_integration.openai_realtime - INFO - VAD detected user speech starting
+2|urackit-voice  | 2025-12-20 22:08:31: 2025-12-20 22:08:31,115 - sip_integration.media_stream - INFO - User interruption detected
+2|urackit-voice  | 2025-12-20 22:08:31: 2025-12-20 22:08:31,115 - sip_integration.openai_realtime - INFO - Sent response.cancel to OpenAI
+2|urackit-voice  | 2025-12-20 22:08:31: 2025-12-20 22:08:31,116 - sip_integration.media_stream - INFO - Sent clear to Twilio to stop audio playback
+2|urackit-voice  | 2025-12-20 22:08:34: 2025-12-20 22:08:34,674 - sip_integration.media_stream - INFO - [user]: what are the devices attached to my organization....
+2|urackit-voice  | 2025-12-20 22:08:35: 2025-12-20 22:08:35,688 - sip_integration.media_stream - INFO - Function call: lookup_organization_data({'organization_id': 2, 'query_type': 'devices'})
+2|urackit-voice  | 2025-12-20 22:08:35: 2025-12-20 22:08:35,910 - sip_integration.agent_adapter - INFO - Executed tool lookup_organization_data: success
+2|urackit-voice  | 2025-12-20 22:08:39: 2025-12-20 22:08:39,933 - sip_integration.media_stream - INFO - [assistant]: I apologize, but I'm experiencing a technical issue retrieving the device information for your organ...
+2|urackit-voice  | 2025-12-20 22:08:52: 2025-12-20 22:08:52,891 - sip_integration.openai_realtime - INFO - VAD detected user speech starting
+2|urackit-voice  | 2025-12-20 22:08:52: 2025-12-20 22:08:52,892 - sip_integration.media_stream - INFO - User interruption detected
+2|urackit-voice  | 2025-12-20 22:08:52: 2025-12-20 22:08:52,892 - sip_integration.openai_realtime - INFO - Sent response.cancel to OpenAI
+2|urackit-voice  | 2025-12-20 22:08:52: 2025-12-20 22:08:52,892 - sip_integration.media_stream - INFO - Sent clear to Twilio to stop audio playback
+2|urackit-voice  | 2025-12-20 22:08:54: 2025-12-20 22:08:54,995 - sip_integration.media_stream - INFO - [user]: Yes, try again....
+2|urackit-voice  | 2025-12-20 22:08:56: 2025-12-20 22:08:56,257 - sip_integration.media_stream - INFO - Function call: lookup_organization_data({'organization_id': 2, 'query_type': 'devices'})
+2|urackit-voice  | 2025-12-20 22:08:56: 2025-12-20 22:08:56,472 - sip_integration.agent_adapter - INFO - Executed tool lookup_organization_data: success
+2|urackit-voice  | 2025-12-20 22:08:59: 2025-12-20 22:08:59,899 - sip_integration.media_stream - INFO - [assistant]: I'm still encountering a technical issue retrieving the device information. Would you like me to esc...
+2|urackit-voice  | 2025-12-20 22:09:09: 2025-12-20 22:09:09,514 - sip_integration.media_stream - INFO - Twilio media stream stopped
+2|urackit-voice  | 2025-12-20 22:09:10: INFO:     connection closed
+2|urackit-voice  | 2025-12-20 22:09:10: 2025-12-20 22:09:10,568 - sip_integration.openai_realtime - INFO - Disconnected from OpenAI Realtime API for session voice-838beab02590
+2|urackit-voice  | 2025-12-20 22:09:10: 2025-12-20 22:09:10,568 - sip_integration.media_stream - INFO - Cleaned up session voice-838beab02590
+2|urackit-voice  | 2025-12-20 22:09:10: 2025-12-20 22:09:10,751 - sip_integration.session_manager - ERROR - Failed to save call log for session voice-838beab02590: 404 Client Error: Not Found for url: https://wwdzxovkandfyohsfybm.supabase.co/rest/v1/call_logs
+2|urackit-voice  | 2025-12-20 22:09:10: 2025-12-20 22:09:10,752 - sip_integration.openai_realtime - INFO - Disconnected from OpenAI Realtime API for session voice-838beab02590
+2|urackit-voice  | 2025-12-20 22:09:10: 2025-12-20 22:09:10,752 - sip_integration.session_manager - INFO - Ended session voice-838beab02590, duration: 140.4s

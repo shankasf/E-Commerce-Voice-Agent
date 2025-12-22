@@ -8,6 +8,16 @@ node_modules/
 venv/
 .env.local
 
+# Runtime artifacts
+*.log
+*.db
+*.sqlite
+*.sqlite3
+logs/
+
+# Python virtualenvs
+urackit_voice/venv/
+
 # Large binary files
 *.so
 *.node

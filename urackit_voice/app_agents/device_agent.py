@@ -6,16 +6,10 @@ Handles device lookups, status checks, and asset management.
 
 from agents import Agent
 from db.queries import (
-    create_ticket,
-    search_knowledge_base,
-    lookup_ticket,
-    escalate_ticket,
-    add_ticket_message,
-    get_tickets_by_contact,
-    find_contact_by_phone,
     find_device_by_name,
     get_device_status,
     get_contact_devices,
+    get_device_details,
 )
 
 
@@ -49,10 +43,7 @@ IMPORTANT RULES:
         find_device_by_name,
         get_device_status,
         get_contact_devices,
-        create_ticket,
-        lookup_ticket,
-        escalate_ticket,
-        add_ticket_message,
-        search_knowledge_base,
+        get_device_details,
     ],
+    handoffs=[],  # Returns to triage after device lookup
 )

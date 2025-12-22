@@ -7,13 +7,9 @@ Handles email issues, Outlook problems, password resets, and mailbox issues.
 from agents import Agent
 from db.queries import (
     create_ticket,
-    search_knowledge_base,
     lookup_ticket,
     escalate_ticket,
     add_ticket_message,
-    get_tickets_by_contact,
-    find_contact_by_phone,
-    get_ticket_history,
     transfer_to_human,
 )
 
@@ -30,14 +26,12 @@ Your responsibilities:
 - Handle email sync issues on phones
 
 WORKFLOW:
-1. First, ask clarifying questions to understand the issue:
-   - What email application are they using?
-   - When did the problem start?
-   - What device type (Windows 11, Mac, phone)?
+1. Ask clarifying questions:
+   - What email app? (Outlook, webmail, phone)
+   - When did it start?
+   - Device type? (Windows, Mac, phone)
 
-2. Use search_knowledge_base to find troubleshooting steps.
-
-3. Walk the caller through the solution step by step.
+2. Walk through troubleshooting step by step (see guides below).
 
 4. If the issue requires IT intervention (password reset, account unlock):
    - Create a ticket using create_ticket
@@ -60,13 +54,10 @@ Common issues and quick tips:
 """,
     tools=[
         create_ticket,
-        search_knowledge_base,
         lookup_ticket,
         escalate_ticket,
         add_ticket_message,
-        get_tickets_by_contact,
-        find_contact_by_phone,
-        get_ticket_history,
         transfer_to_human,
     ],
+    handoffs=[],
 )

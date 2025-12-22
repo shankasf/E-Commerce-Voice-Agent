@@ -45,9 +45,9 @@ class URackITAgentAdapter(IAgentAdapter):
         
         # Import all core database tools from queries.py
         from db.queries import (
+            find_organization_by_ue_code,
             find_organization_by_name,
             create_organization,
-            find_contact_by_phone,
             create_contact,
             get_contact_devices,
             find_device_by_name,
@@ -64,19 +64,46 @@ class URackITAgentAdapter(IAgentAdapter):
             get_available_agents,
             get_organization_locations,
             transfer_to_human,
-            search_knowledge_base,
             get_ticket_statuses,
             get_ticket_priorities,
             get_account_manager,
             get_ticket_history,
+            # Organization-scoped lookup tools (CRITICAL for device/contact queries)
+            lookup_organization_data,
+            get_organization_devices,
+            get_organization_contacts,
+            get_organization_tickets,
+            get_organization_summary,
+            get_device_by_name_for_org,
+            # FULL DETAILS tools - return ALL columns with foreign key data
+            get_device_full_details,
+            get_contact_full_details,
+            get_ticket_full_details,
+            get_location_full_details,
         )
         
         # Register all core database tools
         core_tools = [
+            # UNIVERSAL LOOKUP - USE THIS FIRST
+            lookup_organization_data,
+            # Organization auth
+            find_organization_by_ue_code,
             find_organization_by_name,
             create_organization,
-            find_contact_by_phone,
             create_contact,
+            # Organization-scoped lookups (for devices, contacts, tickets)
+            get_organization_devices,
+            get_organization_contacts,
+            get_organization_tickets,
+            get_organization_locations,
+            get_organization_summary,
+            get_device_by_name_for_org,
+            # FULL DETAILS tools - return ALL columns with foreign key data
+            get_device_full_details,
+            get_contact_full_details,
+            get_ticket_full_details,
+            get_location_full_details,
+            # Legacy tools
             get_contact_devices,
             find_device_by_name,
             get_device_status,
@@ -90,9 +117,7 @@ class URackITAgentAdapter(IAgentAdapter):
             escalate_ticket,
             assign_ticket,
             get_available_agents,
-            get_organization_locations,
             transfer_to_human,
-            search_knowledge_base,
             get_ticket_statuses,
             get_ticket_priorities,
             get_account_manager,

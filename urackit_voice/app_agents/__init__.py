@@ -8,6 +8,9 @@ from .printer_agent import printer_agent
 from .phone_agent import phone_agent
 from .security_agent import security_agent
 from .device_agent import device_agent
+from .lookup_agent import lookup_agent
+from .ticket_agent import ticket_agent
+from .servicedesk_agent import servicedesk_agent
 
 __all__ = [
     "triage_agent",
@@ -18,4 +21,7 @@ __all__ = [
     "phone_agent",
     "security_agent",
     "device_agent",
+    "lookup_agent",
+    "ticket_agent",
+    "servicedesk_agent",
 ]

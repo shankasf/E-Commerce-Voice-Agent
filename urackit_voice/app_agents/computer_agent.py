@@ -7,14 +7,10 @@ Handles slow computers, crashes, login issues, and new computer setup.
 from agents import Agent
 from db.queries import (
     create_ticket,
-    search_knowledge_base,
     lookup_ticket,
     escalate_ticket,
     add_ticket_message,
-    get_tickets_by_contact,
-    find_contact_by_phone,
     get_device_details,
-    get_ticket_history,
     transfer_to_human,
 )
 
@@ -39,9 +35,7 @@ WORKFLOW:
    - Were any changes made recently?
    - Does this happen with specific programs?
 
-3. Use search_knowledge_base to find solutions.
-
-4. Provide step-by-step troubleshooting:
+3. Provide step-by-step troubleshooting (see guides below):
    - Start with simple solutions (restart)
    - Progress to more advanced steps if needed
 
@@ -73,12 +67,11 @@ IMPORTANT:
 """,
     tools=[
         create_ticket,
-        search_knowledge_base,
         lookup_ticket,
         escalate_ticket,
         add_ticket_message,
         get_device_details,
-        get_ticket_history,
         transfer_to_human,
     ],
+    handoffs=[],
 )

@@ -7,18 +7,11 @@ Handles ticket status inquiries, general admin requests, and transfers.
 from agents import Agent
 from db.queries import (
     lookup_ticket,
-    update_ticket_status,
-    add_ticket_message,
-    create_ticket,
-    escalate_ticket,
-    find_contact_by_phone,
-    create_contact,
     get_ticket_statuses,
     get_tickets_by_contact,
-    get_tickets_by_organization,
+    get_available_agents,
     transfer_to_human,
 )
-from memory.knowledge_base import lookup_support_info
 
 
 servicedesk_agent = Agent(
@@ -72,16 +65,10 @@ IMPORTANT:
 """,
     tools=[
         lookup_ticket,
-        update_ticket_status,
-        add_ticket_message,
-        create_ticket,
-        escalate_ticket,
-        find_contact_by_phone,
-        create_contact,
         get_ticket_statuses,
         get_tickets_by_contact,
-        get_tickets_by_organization,
+        get_available_agents,
         transfer_to_human,
-        lookup_support_info,
     ],
+    handoffs=[],  # Returns to triage after transfer
 )

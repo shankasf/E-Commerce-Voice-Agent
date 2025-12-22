@@ -1,17 +1,38 @@
-# U Rack IT - AI-Powered IT Support System
+# AI Agent Projects Workspace
 
-Enterprise-grade IT support platform combining **Voice AI** and **Chat AI** agents to provide 24/7 automated support with seamless human handoff. Built for managed service providers (MSPs) serving multiple client organizations.
+This workspace contains multiple AI-powered voice and chat agent projects.
 
-## 🎯 Overview
+## 📁 Projects
 
-U Rack IT is a comprehensive IT support system with two AI-powered channels:
+| Folder | Project | Description |
+|--------|---------|-------------|
+| **playfunia/** | Playfunia Voice Agent (Kids4Fun) | Voice assistant for Kids4Fun playground at Poughkeepsie Galleria Mall |
+| **urackit_voice/** | U Rack IT Voice Support | AI-powered phone support system for IT helpdesk operations |
+| **ticket-console/** | U Rack IT Chat Console | Next.js web app for AI-powered IT support ticket management |
 
-| Channel | Technology | Port | Purpose |
-|---------|------------|------|---------|
-| **Voice AI** | Twilio + OpenAI Realtime | 8080 | Phone support with natural voice conversations |
-| **Chat AI** | Next.js + OpenAI Responses API | 3001 | Web-based ticket support with chat interface |
+---
 
-Both channels share the same **Supabase** database, multi-agent system, and tool infrastructure - ensuring consistent support regardless of how customers reach out.
+## 🎮 playfunia/ - Kids4Fun Voice Agent
+
+Production voice assistant for Kids4Fun at Poughkeepsie Galleria Mall. Handles store info, toy catalog, admissions/policies, party planning, orders, payments, and refunds.
+
+**Tech Stack:** Node.js + FastAPI + OpenAI Realtime API + Supabase
+
+---
+
+## 🖥️ urackit_voice/ - IT Voice Support
+
+AI-powered phone support system with intelligent call routing, multi-issue support (email, computer, network, printer, phone, security), ticket management, and human escalation.
+
+**Tech Stack:** Python + OpenAI Realtime API + Twilio + Supabase
+
+---
+
+## 💬 ticket-console/ - IT Chat Console
+
+Web-based ticket management with AI chatbot, automatic AI assignment, multi-agent routing, human handoff, and admin metrics dashboard.
+
+**Tech Stack:** Next.js + OpenAI gpt-5.2 + Supabase
 
 ---
 

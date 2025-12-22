@@ -17,19 +17,15 @@ class SupabaseDB:
     
     def __init__(self):
         self.url = os.getenv("SUPABASE_URL", "").rstrip("/")
-        self.api_key = os.getenv("SUPABASE_ANON_KEY", "")
-        # Support both naming conventions
+        # Use service role key for full table access (bypasses RLS)
         self.service_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "") or os.getenv("SUPABASE_SERVICE_KEY", "")
         
-        # Use service role key for full table access (bypasses RLS)
-        # Fall back to anon key if service key not available
-        api_key = self.service_key or self.api_key
-        if not api_key:
-            raise ValueError("No Supabase API key configured. Set SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY.")
+        if not self.service_key:
+            raise ValueError("No Supabase API key configured. Set SUPABASE_SERVICE_ROLE_KEY.")
         
         self.headers = {
-            "apikey": api_key,
-            "Authorization": f"Bearer {api_key}",
+            "apikey": self.service_key,
+            "Authorization": f"Bearer {self.service_key}",
             "Content-Type": "application/json",
             "Prefer": "return=representation"
         }

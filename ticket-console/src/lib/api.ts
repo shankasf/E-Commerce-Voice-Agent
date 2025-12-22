@@ -609,6 +609,18 @@ export const agentAPI = {
       criticalTickets: [...assigned, ...escalated].filter(t => t.priority_id === 4).length,
     };
   },
+
+  // Get all human agents for profile switching
+  async getAllHumanAgents(): Promise<SupportAgent[]> {
+    const { data, error } = await supabase
+      .from('support_agents')
+      .select('*')
+      .eq('agent_type', 'Human')
+      .order('full_name');
+    
+    if (error) return [];
+    return data || [];
+  },
 };
 
 // ============================================
