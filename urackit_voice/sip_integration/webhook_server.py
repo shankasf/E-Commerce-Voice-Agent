@@ -12,12 +12,14 @@ from typing import Annotated
 from fastapi import FastAPI, Form, Header, HTTPException, Request, WebSocket, status
 from fastapi.responses import Response, FileResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_config, SIPConfig
 from .twilio_provider import TwilioProvider, create_twilio_provider
 from .session_manager import get_session_manager, init_session_manager, VoiceSession
 from .media_stream import MediaStreamHandler
 from .interfaces import CallInfo
+from .dashboard_api import router as dashboard_router
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +63,15 @@ def create_app(config: SIPConfig = None) -> FastAPI:
         lifespan=lifespan
     )
     
+    # Add CORS middleware for dashboard access
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    
     # Create Twilio provider
     twilio_provider = create_twilio_provider()
     
@@ -76,6 +87,17 @@ def create_app(config: SIPConfig = None) -> FastAPI:
         if os.path.exists(dialer_path):
             return FileResponse(dialer_path)
         raise HTTPException(status_code=404, detail="Dialer page not found")
+    
+    @app.get("/dashboard")
+    async def get_dashboard():
+        """Serve the analytics dashboard."""
+        dashboard_path = os.path.join(static_dir, 'dashboard.html')
+        if os.path.exists(dashboard_path):
+            return FileResponse(dashboard_path)
+        raise HTTPException(status_code=404, detail="Dashboard page not found")
+    
+    # Include dashboard API router
+    app.include_router(dashboard_router)
     
     @app.get("/")
     async def root():
@@ -94,6 +116,16 @@ def create_app(config: SIPConfig = None) -> FastAPI:
             "status": "healthy",
             "active_sessions": session_manager.active_session_count,
             "max_sessions": get_config().max_concurrent_sessions
+        }
+
+    @app.api_route("/get", methods=["GET", "HEAD"])
+    async def uptime_check():
+        """UptimeRobot health check endpoint."""
+        from datetime import datetime
+        return {
+            "status": "ok",
+            "service": "U Rack IT Voice Agent",
+            "timestamp": datetime.utcnow().isoformat() + "Z"
         }
     
     @app.get("/voice-token")

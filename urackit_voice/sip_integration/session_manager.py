@@ -47,6 +47,14 @@ class VoiceSession:
     tool_calls: list = field(default_factory=list)
     ticket_created: bool = False
     escalated: bool = False
+    ai_resolution: bool = True  # Assume AI resolved unless escalated
+    
+    # AI usage tracking
+    total_tokens: int = 0
+    input_tokens: int = 0
+    output_tokens: int = 0
+    ai_cost_usd: float = 0.0
+    agent_type: str = "triage_agent"
     
     # Conference call tracking
     conference_name: Optional[str] = None
@@ -236,7 +244,10 @@ class VoiceSessionManager(ISessionManager):
             summary_parts.append(f"Messages: {len(session.conversation_history)}")
             call_summary = " | ".join(summary_parts) if summary_parts else None
             
-            # Insert call log
+            # Determine AI resolution (resolved if not escalated and had conversation)
+            ai_resolution = not session.escalated and len(session.conversation_history) > 0
+            
+            # Insert call log with all fields
             call_log_data = {
                 "call_sid": session.call_info.call_sid,
                 "from_number": session.call_info.from_number,
@@ -246,12 +257,33 @@ class VoiceSessionManager(ISessionManager):
                 "duration_seconds": duration,
                 "transcript": transcript if transcript else None,
                 "call_summary": call_summary,
+                "caller_name": session.caller_name,
+                "company_name": session.company_name,
+                "ai_resolution": ai_resolution,
+                "escalated": session.escalated,
+                "ticket_created": session.ticket_created,
+                "agent_type": session.agent_type,
                 "started_at": datetime.utcfromtimestamp(session.created_at).isoformat(),
                 "ended_at": datetime.utcnow().isoformat()
             }
             
             result = db.insert("call_logs", call_log_data)
             logger.info(f"Saved call log for session {session.session_id}: {result}")
+            
+            # Save AI usage log if tokens were used
+            if session.total_tokens > 0:
+                ai_log_data = {
+                    "call_sid": session.call_info.call_sid,
+                    "model": "gpt-4o-realtime",
+                    "input_tokens": session.input_tokens,
+                    "output_tokens": session.output_tokens,
+                    "total_tokens": session.total_tokens,
+                    "cost_usd": session.ai_cost_usd,
+                    "response_time_ms": 0,
+                    "agent_type": session.agent_type
+                }
+                db.insert("ai_usage_logs", ai_log_data)
+                logger.info(f"Saved AI usage log: {session.total_tokens} tokens")
             
         except Exception as e:
             logger.error(f"Failed to save call log for session {session.session_id}: {e}")

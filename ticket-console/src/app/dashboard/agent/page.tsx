@@ -39,6 +39,7 @@ type Tab = 'assigned' | 'escalated' | 'human-required';
 
 export default function AgentDashboard() {
   const { user, logout, isLoading, switchAgent } = useAuth();
+  const [mounted, setMounted] = useState(false);
 
   const [activeTab, setActiveTab] = useState<Tab>('assigned');
   const [stats, setStats] = useState<any>(null);
@@ -112,12 +113,16 @@ export default function AgentDashboard() {
   }, [user?.id, loadTickets, loadDashboardData]);
 
   useEffect(() => {
-    if (!isLoading && !user) {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (mounted && !isLoading && !user) {
       window.location.href = '/tms';
-    } else if (!isLoading && user?.role !== 'agent') {
+    } else if (mounted && !isLoading && user?.role !== 'agent') {
       window.location.href = `/tms/dashboard/${user?.role}`;
     }
-  }, [user, isLoading]);
+  }, [user, isLoading, mounted]);
 
   useEffect(() => {
     if (user) {

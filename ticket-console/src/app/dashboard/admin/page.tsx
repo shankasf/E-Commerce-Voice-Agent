@@ -132,12 +132,16 @@ export default function AdminDashboard() {
   }, [activeTab, loadDashboardData, loadTickets]);
 
   useEffect(() => {
-    if (!isLoading && !user) {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (mounted && !isLoading && !user) {
       window.location.href = '/tms';
-    } else if (!isLoading && user?.role !== 'admin') {
+    } else if (mounted && !isLoading && user?.role !== 'admin') {
       window.location.href = `/tms/dashboard/${user?.role}`;
     }
-  }, [user, isLoading]);
+  }, [user, isLoading, mounted]);
 
   useEffect(() => {
     if (user) {

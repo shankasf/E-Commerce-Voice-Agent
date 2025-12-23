@@ -705,6 +705,15 @@ app.get("/health", async (req, res) => {
   }
 });
 
+// UptimeRobot health check endpoint
+app.get("/get", (req, res) => {
+  res.json({
+    status: "ok",
+    service: "CallSphere Voice Agent",
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Root health check
 app.get("/", (req, res) => {
   res.json({
