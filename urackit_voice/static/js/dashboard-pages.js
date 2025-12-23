@@ -12,8 +12,9 @@ async function renderTicketsPage(container) {
     try {
         data = await fetchData(`${API_BASE}/tickets`);
         data = data.metrics || data;
-    } catch {
-        data = getMockTicketData();
+    } catch (e) {
+        console.error('Error fetching tickets:', e);
+        data = {};
     }
 
     container.innerHTML = `
@@ -67,8 +68,8 @@ async function renderTicketsPage(container) {
         </div>
     `;
 
-    renderTicketsByPriorityChart(data.tickets_by_priority || getMockPriorityData());
-    renderOpenTicketsChart(data.open_by_priority || getMockPriorityData());
+    renderTicketsByPriorityChart(data.tickets_by_priority || []);
+    renderOpenTicketsChart(data.open_by_priority || []);
 }
 
 // =====================================================
@@ -80,8 +81,9 @@ async function renderCustomersPage(container) {
     try {
         data = await fetchData(`${API_BASE}/customers`);
         data = data.metrics || data;
-    } catch {
-        data = getMockCustomerData();
+    } catch (e) {
+        console.error('Error fetching customers:', e);
+        data = {};
     }
 
     container.innerHTML = `
@@ -156,8 +158,9 @@ async function renderSystemPage(container) {
     let data;
     try {
         data = await fetchData(`${API_BASE}/system`);
-    } catch {
-        data = getMockSystemData();
+    } catch (e) {
+        console.error('Error fetching system metrics:', e);
+        data = {};
     }
 
     const memoryPercent = data.memory_total_mb ? Math.round((data.memory_usage_mb / data.memory_total_mb) * 100) : 0;
@@ -240,8 +243,9 @@ async function renderCostsPage(container) {
     try {
         data = await fetchData(`${API_BASE}/costs`);
         data = data.metrics || data;
-    } catch {
-        data = getMockCostData();
+    } catch (e) {
+        console.error('Error fetching costs:', e);
+        data = {};
     }
 
     container.innerHTML = `
@@ -330,8 +334,9 @@ async function renderTrendsPage(container) {
     let data;
     try {
         data = await fetchData(`${API_BASE}/trends`, { days: 30 });
-    } catch {
-        data = getMockTrendData();
+    } catch (e) {
+        console.error('Error fetching trends:', e);
+        data = {};
     }
 
     container.innerHTML = `

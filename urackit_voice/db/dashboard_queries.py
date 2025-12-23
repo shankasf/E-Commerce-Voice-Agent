@@ -578,57 +578,252 @@ async def get_trend_metrics(days: int = 30) -> Dict[str, Any]:
 # =====================================================
 # OVERVIEW (COMBINED) - PARALLEL EXECUTION
 # =====================================================
+# ASSET/DEVICE METRICS (FROM REAL DATA)
+# =====================================================
+
+async def get_device_metrics() -> Dict[str, Any]:
+    """Get device and endpoint metrics from real data."""
+    conn = get_connection()
+    try:
+        # Device status counts
+        status = query_one("""
+            SELECT 
+                COUNT(*) as total_devices,
+                COUNT(*) FILTER (WHERE status = 'ONLINE') as online_devices,
+                COUNT(*) FILTER (WHERE status = 'OFFLINE') as offline_devices
+            FROM devices
+        """, conn=conn) or {'total_devices': 0, 'online_devices': 0, 'offline_devices': 0}
+        
+        # Devices by organization
+        by_org = query_all("""
+            SELECT o.name as organization, COUNT(d.device_id) as device_count,
+                   COUNT(*) FILTER (WHERE d.status = 'ONLINE') as online,
+                   COUNT(*) FILTER (WHERE d.status = 'OFFLINE') as offline
+            FROM organizations o
+            LEFT JOIN devices d ON o.organization_id = d.organization_id
+            GROUP BY o.name
+            HAVING COUNT(d.device_id) > 0
+            ORDER BY device_count DESC
+        """, conn=conn)
+        
+        # Devices by OS
+        by_os = query_all("""
+            SELECT os.name as os_name, COUNT(*) as count
+            FROM devices d
+            JOIN operating_systems os ON d.os_id = os.os_id
+            GROUP BY os.name
+            ORDER BY count DESC
+        """, conn=conn)
+        
+        # Devices by manufacturer
+        by_manufacturer = query_all("""
+            SELECT dm.name as manufacturer, COUNT(*) as count
+            FROM devices d
+            JOIN device_manufacturers dm ON d.manufacturer_id = dm.manufacturer_id
+            GROUP BY dm.name
+            ORDER BY count DESC
+            LIMIT 10
+        """, conn=conn)
+        
+        # Patch status
+        patch_status = query_all("""
+            SELECT COALESCE(us.name, 'Unknown') as status, COUNT(*) as count
+            FROM devices d
+            LEFT JOIN update_statuses us ON d.update_status_id = us.update_status_id
+            GROUP BY us.name
+            ORDER BY count DESC
+        """, conn=conn)
+        
+        # Device types
+        device_types = query_all("""
+            SELECT COALESCE(dt.name, 'Unknown') as type, COUNT(*) as count
+            FROM devices d
+            LEFT JOIN device_types dt ON d.device_type_id = dt.device_type_id
+            GROUP BY dt.name
+            ORDER BY count DESC
+        """, conn=conn)
+        
+        total = status['total_devices'] or 1
+        online_pct = round((status['online_devices'] or 0) / total * 100, 1)
+        
+        return convert_decimal({
+            "total_devices": status['total_devices'] or 0,
+            "online_devices": status['online_devices'] or 0,
+            "offline_devices": status['offline_devices'] or 0,
+            "online_percentage": online_pct,
+            "devices_by_organization": by_org,
+            "devices_by_os": by_os,
+            "devices_by_manufacturer": by_manufacturer,
+            "patch_status": patch_status,
+            "device_types": device_types
+        })
+    finally:
+        release_connection(conn)
+
+
+async def get_organization_metrics() -> Dict[str, Any]:
+    """Get organization and client metrics from real data."""
+    conn = get_connection()
+    try:
+        # Organization counts
+        org_count = query_one("""
+            SELECT 
+                COUNT(*) as total_organizations,
+                COUNT(*) FILTER (WHERE organization_id IN (SELECT DISTINCT organization_id FROM devices)) as with_devices,
+                COUNT(*) FILTER (WHERE organization_id IN (SELECT DISTINCT organization_id FROM contacts)) as with_contacts
+            FROM organizations
+        """, conn=conn) or {'total_organizations': 0, 'with_devices': 0, 'with_contacts': 0}
+        
+        # Organization details
+        org_details = query_all("""
+            SELECT 
+                o.name as organization,
+                am.full_name as account_manager,
+                am.email as manager_email,
+                COUNT(DISTINCT d.device_id) as device_count,
+                COUNT(DISTINCT c.contact_id) as contact_count,
+                COUNT(DISTINCT l.location_id) as location_count
+            FROM organizations o
+            LEFT JOIN account_managers am ON o.manager_id = am.manager_id
+            LEFT JOIN devices d ON o.organization_id = d.organization_id
+            LEFT JOIN contacts c ON o.organization_id = c.organization_id
+            LEFT JOIN locations l ON o.organization_id = l.organization_id
+            GROUP BY o.name, am.full_name, am.email
+            ORDER BY device_count DESC
+        """, conn=conn)
+        
+        # Location counts
+        location_stats = query_one("""
+            SELECT 
+                COUNT(*) as total_locations,
+                COUNT(*) FILTER (WHERE location_type = 'Headquarters') as headquarters,
+                COUNT(*) FILTER (WHERE location_type = 'Data Center') as data_centers,
+                COUNT(*) FILTER (WHERE location_type = 'Support') as support_locations
+            FROM locations
+        """, conn=conn) or {'total_locations': 0, 'headquarters': 0, 'data_centers': 0, 'support_locations': 0}
+        
+        return convert_decimal({
+            "total_organizations": org_count['total_organizations'] or 0,
+            "organizations_with_devices": org_count['with_devices'] or 0,
+            "organizations_with_contacts": org_count['with_contacts'] or 0,
+            "organization_details": org_details,
+            "total_locations": location_stats['total_locations'] or 0,
+            "headquarters": location_stats['headquarters'] or 0,
+            "data_centers": location_stats['data_centers'] or 0,
+            "support_locations": location_stats['support_locations'] or 0
+        })
+    finally:
+        release_connection(conn)
+
+
+async def get_contact_metrics() -> Dict[str, Any]:
+    """Get contact/user metrics from real data."""
+    conn = get_connection()
+    try:
+        # Contact counts
+        contact_count = query_one("""
+            SELECT 
+                COUNT(*) as total_contacts,
+                COUNT(*) FILTER (WHERE contact_id IN (SELECT DISTINCT contact_id FROM contact_devices)) as with_devices
+            FROM contacts
+        """, conn=conn) or {'total_contacts': 0, 'with_devices': 0}
+        
+        # Contacts by organization
+        by_org = query_all("""
+            SELECT o.name as organization, COUNT(c.contact_id) as contact_count
+            FROM organizations o
+            LEFT JOIN contacts c ON o.organization_id = c.organization_id
+            GROUP BY o.name
+            HAVING COUNT(c.contact_id) > 0
+            ORDER BY contact_count DESC
+        """, conn=conn)
+        
+        # Contact device assignments
+        assignments = query_one("""
+            SELECT COUNT(*) as total_assignments FROM contact_devices
+        """, conn=conn) or {'total_assignments': 0}
+        
+        return convert_decimal({
+            "total_contacts": contact_count['total_contacts'] or 0,
+            "contacts_with_devices": contact_count['with_devices'] or 0,
+            "contacts_by_organization": by_org,
+            "total_device_assignments": assignments['total_assignments'] or 0
+        })
+    finally:
+        release_connection(conn)
+
 
 async def get_dashboard_overview() -> Dict[str, Any]:
-    """Get complete dashboard overview with all key metrics."""
+    """Get complete dashboard overview with all key metrics - REAL DATA ONLY."""
     import asyncio
     
-    # Run all queries in parallel
+    # Run all queries in parallel - using real data from devices/orgs/contacts
     results = await asyncio.gather(
-        get_call_metrics(),
-        get_ai_performance_metrics(),
-        get_ticket_metrics(),
-        get_customer_metrics(),
+        get_device_metrics(),
+        get_organization_metrics(),
+        get_contact_metrics(),
+        get_call_metrics(),  # Will show 0 if no calls yet
         get_system_health_metrics(),
-        get_cost_metrics()
+        get_ticket_metrics()  # Will show 0 if no tickets yet
     )
     
     return {
-        "call_metrics": results[0],
-        "ai_metrics": results[1],
-        "ticket_metrics": results[2],
-        "customer_metrics": results[3],
+        "device_metrics": results[0],
+        "organization_metrics": results[1],
+        "contact_metrics": results[2],
+        "call_metrics": results[3],
         "system_metrics": results[4],
-        "cost_metrics": results[5],
+        "ticket_metrics": results[5],
         "generated_at": datetime.utcnow().isoformat() + "Z"
     }
 
 
 async def get_realtime_metrics() -> Dict[str, Any]:
-    """Get real-time metrics for live updates."""
+    """Get real-time metrics for live updates - REAL DATA."""
     import psutil
     
     conn = get_connection()
     try:
-        combined = query_one("""
-            WITH active AS (SELECT COUNT(*) as active FROM call_logs WHERE status = 'in_progress'),
-            today AS (SELECT COUNT(*) as calls, COUNT(*) FILTER (WHERE ai_resolution = true) as resolved 
-                      FROM call_logs WHERE DATE(started_at) = CURRENT_DATE)
-            SELECT * FROM active, today
-        """, conn=conn)
+        # Real device status
+        device_status = query_one("""
+            SELECT 
+                COUNT(*) as total_devices,
+                COUNT(*) FILTER (WHERE status = 'ONLINE') as online,
+                COUNT(*) FILTER (WHERE status = 'OFFLINE') as offline
+            FROM devices
+        """, conn=conn) or {'total_devices': 0, 'online': 0, 'offline': 0}
         
-        if not combined:
-            combined = {'active': 0, 'calls': 0, 'resolved': 0}
+        # Real organization/contact counts
+        org_stats = query_one("""
+            SELECT 
+                (SELECT COUNT(*) FROM organizations) as total_orgs,
+                (SELECT COUNT(*) FROM contacts) as total_contacts,
+                (SELECT COUNT(*) FROM locations) as total_locations
+        """, conn=conn) or {'total_orgs': 0, 'total_contacts': 0, 'total_locations': 0}
         
-        return {
-            "active_calls": combined.get('active', 0) or 0,
-            "calls_in_queue": 0,
-            "active_sessions": combined.get('active', 0) or 0,
+        # Call stats (may be 0 if no calls yet)
+        call_stats = query_one("""
+            SELECT 
+                COUNT(*) FILTER (WHERE status = 'in_progress') as active_calls,
+                COUNT(*) FILTER (WHERE DATE(started_at) = CURRENT_DATE) as calls_today
+            FROM call_logs
+        """, conn=conn) or {'active_calls': 0, 'calls_today': 0}
+        
+        total_devices = device_status['total_devices'] or 1
+        
+        return convert_decimal({
+            "total_devices": device_status['total_devices'] or 0,
+            "online_devices": device_status['online'] or 0,
+            "offline_devices": device_status['offline'] or 0,
+            "online_percentage": round((device_status['online'] or 0) / total_devices * 100, 1),
+            "total_organizations": org_stats['total_orgs'] or 0,
+            "total_contacts": org_stats['total_contacts'] or 0,
+            "total_locations": org_stats['total_locations'] or 0,
+            "active_calls": call_stats['active_calls'] or 0,
+            "calls_today": call_stats['calls_today'] or 0,
             "cpu_usage": round(psutil.cpu_percent(interval=0.1), 1),
             "memory_usage": round(psutil.virtual_memory().percent, 1),
-            "calls_today": combined.get('calls', 0) or 0,
-            "resolutions_today": combined.get('resolved', 0) or 0,
             "timestamp": datetime.utcnow().isoformat() + "Z"
-        }
+        })
     finally:
         release_connection(conn)

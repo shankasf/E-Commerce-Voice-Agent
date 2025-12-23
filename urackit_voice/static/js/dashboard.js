@@ -14,6 +14,7 @@ let currentPage = 'overview';
 let currentDateRange = '7d';
 let refreshTimer = null;
 let charts = {};
+let isInitialLoad = true; // Track if this is the first load
 
 // =====================================================
 // INITIALIZATION
@@ -54,10 +55,11 @@ function initNavigation() {
 
 function navigateTo(page) {
     window.location.hash = page;
+    isInitialLoad = true; // Show loading when navigating to new page
     loadPage(page);
 }
 
-function loadPage(page) {
+function loadPage(page, showLoadingOverlay = true) {
     currentPage = page;
 
     // Update active nav
@@ -71,14 +73,25 @@ function loadPage(page) {
     // Update header
     updatePageHeader(page);
 
-    // Load page content
-    showLoading();
+    // Only show loading overlay on initial load or page change
+    if (showLoadingOverlay && isInitialLoad) {
+        showLoading();
+    } else {
+        // Show subtle refresh indicator
+        showRefreshIndicator();
+    }
+
     renderPage(page).then(() => {
         hideLoading();
+        hideRefreshIndicator();
+        isInitialLoad = false;
     }).catch(err => {
         console.error('Error loading page:', err);
         hideLoading();
-        showError('Failed to load page data');
+        hideRefreshIndicator();
+        if (isInitialLoad) {
+            showError('Failed to load page data');
+        }
     });
 }
 
@@ -123,7 +136,7 @@ function initDateRange() {
     const select = document.getElementById('dateRange');
     select.addEventListener('change', (e) => {
         currentDateRange = e.target.value;
-        loadPage(currentPage);
+        refreshPage(); // Use background refresh for date change
     });
 }
 
@@ -133,18 +146,23 @@ function initDateRange() {
 
 function initRefresh() {
     document.getElementById('refreshBtn').addEventListener('click', () => {
-        loadPage(currentPage);
+        refreshPage(); // Use background refresh
     });
 
     // Auto-refresh
     startAutoRefresh();
 }
 
+function refreshPage() {
+    // Background refresh without full loading overlay
+    loadPage(currentPage, false);
+}
+
 function startAutoRefresh() {
     if (refreshTimer) clearInterval(refreshTimer);
     refreshTimer = setInterval(() => {
         if (currentPage === 'overview' || currentPage === 'system') {
-            loadPage(currentPage);
+            refreshPage(); // Background refresh
         }
     }, REFRESH_INTERVAL);
 }
@@ -185,6 +203,20 @@ function showLoading() {
 function hideLoading() {
     document.getElementById('loadingOverlay').classList.add('hidden');
     document.getElementById('loadingOverlay').classList.remove('flex');
+}
+
+function showRefreshIndicator() {
+    const indicator = document.getElementById('refreshIndicator');
+    if (indicator) {
+        indicator.classList.remove('hidden');
+    }
+}
+
+function hideRefreshIndicator() {
+    const indicator = document.getElementById('refreshIndicator');
+    if (indicator) {
+        indicator.classList.add('hidden');
+    }
 }
 
 function showError(message) {
@@ -277,9 +309,9 @@ async function renderOverviewPage(container) {
     let data;
     try {
         data = await fetchData(`${API_BASE}/overview`);
-    } catch {
-        // Use mock data for demo
-        data = getMockOverviewData();
+    } catch (e) {
+        console.error('Error fetching overview:', e);
+        data = {};
     }
 
     const call = data.call_metrics || {};
@@ -287,31 +319,44 @@ async function renderOverviewPage(container) {
     const ticket = data.ticket_metrics || {};
     const system = data.system_metrics || {};
     const cost = data.cost_metrics || {};
+    const device = data.device_metrics || {};
+    const org = data.organization_metrics || {};
+    const contact = data.contact_metrics || {};
 
     container.innerHTML = `
         <div class="fade-in space-y-6">
-            <!-- Top Stats Row -->
+            <!-- Top Stats Row - Device & Asset Overview -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-                ${renderMetricCard('Total Calls', call.total_calls_today || 0, 'phone', 'primary', '+12%')}
-                ${renderMetricCard('AI Resolution', (ai.ai_resolution_rate_percent || 0) + '%', 'cpu', 'green', '+5%')}
+                ${renderMetricCard('Total Devices', device.total_devices || 0, 'server', 'primary')}
+                ${renderMetricCard('Online', device.online_devices || 0, 'check-circle', 'green')}
+                ${renderMetricCard('Offline', device.offline_devices || 0, 'x', 'red')}
+                ${renderMetricCard('Organizations', org.total_organizations || 0, 'users', 'blue')}
+                ${renderMetricCard('Contacts', contact.total_contacts || 0, 'user-plus', 'purple')}
+                ${renderMetricCard('Locations', org.total_locations || 0, 'target', 'orange')}
+            </div>
+            
+            <!-- Secondary Stats Row - Calls & Tickets -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+                ${renderMetricCard('Total Calls', call.total_calls_today || 0, 'phone', 'primary')}
+                ${renderMetricCard('AI Resolution', (ai.ai_resolution_rate_percent || 0) + '%', 'cpu', 'green')}
                 ${renderMetricCard('Avg Duration', formatDuration(call.avg_call_duration_seconds || 0), 'clock', 'blue')}
-                ${renderMetricCard('Active Now', call.active_calls_now || 0, 'activity', 'yellow', null, true)}
+                ${renderMetricCard('Active Now', call.active_calls_now || 0, 'activity', 'yellow')}
                 ${renderMetricCard('Open Tickets', ticket.open_tickets || 0, 'ticket', 'orange')}
-                ${renderMetricCard('Uptime', (system.uptime_percent_24h || 99.9) + '%', 'server', 'green')}
+                ${renderMetricCard('Uptime', (system.uptime_percent_24h || 99.9) + '%', 'shield', 'green')}
             </div>
             
             <!-- Charts Row -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <!-- Hourly Calls Chart -->
+                <!-- Device Status Chart -->
                 <div class="glass rounded-2xl p-6">
-                    <h3 class="text-lg font-semibold mb-4">Calls by Hour</h3>
-                    <div id="hourlyCallsChart" class="h-64"></div>
+                    <h3 class="text-lg font-semibold mb-4">Device Status by Organization</h3>
+                    <div id="deviceOrgChart" class="h-64"></div>
                 </div>
                 
-                <!-- Agent Distribution -->
+                <!-- OS Distribution -->
                 <div class="glass rounded-2xl p-6">
-                    <h3 class="text-lg font-semibold mb-4">Agent Distribution</h3>
-                    <div id="agentDistChart" class="h-64"></div>
+                    <h3 class="text-lg font-semibold mb-4">Operating Systems</h3>
+                    <div id="osDistChart" class="h-64"></div>
                 </div>
             </div>
             
@@ -364,20 +409,19 @@ async function renderOverviewPage(container) {
             
             <!-- Recent Activity -->
             <div class="glass rounded-2xl p-6">
-                <h3 class="text-lg font-semibold mb-4">Recent Calls</h3>
+                <h3 class="text-lg font-semibold mb-4">Recent Devices</h3>
                 <div class="overflow-x-auto">
                     <table class="w-full">
                         <thead>
                             <tr class="text-left text-dark-400 text-sm">
-                                <th class="pb-3">Caller</th>
+                                <th class="pb-3">Device</th>
                                 <th class="pb-3">Status</th>
-                                <th class="pb-3">Duration</th>
-                                <th class="pb-3">Resolution</th>
-                                <th class="pb-3">Time</th>
+                                <th class="pb-3">Organization</th>
+                                <th class="pb-3">OS</th>
                             </tr>
                         </thead>
-                        <tbody id="recentCallsTable" class="text-sm">
-                            ${renderRecentCallsPlaceholder()}
+                        <tbody id="recentDevicesTable" class="text-sm">
+                            ${renderRecentDevicesTable(device.devices_by_organization || [])}
                         </tbody>
                     </table>
                 </div>
@@ -385,10 +429,10 @@ async function renderOverviewPage(container) {
         </div>
     `;
 
-    // Render charts
-    renderHourlyCallsChart(call.hourly_distribution || getMockHourlyData());
-    renderAgentDistributionChart(ai.agent_distribution || getMockAgentData());
-    renderTicketPriorityChart(ticket.open_by_priority || getMockPriorityData());
+    // Render charts with real device data
+    renderDeviceOrgChart(device.devices_by_organization || []);
+    renderOSDistChart(device.devices_by_os || []);
+    renderTicketPriorityChart(ticket.open_by_priority || []);
 }
 
 // =====================================================
@@ -400,8 +444,9 @@ async function renderCallsPage(container) {
     try {
         data = await fetchData(`${API_BASE}/calls`);
         data = data.metrics || data;
-    } catch {
-        data = getMockCallData();
+    } catch (e) {
+        console.error('Error fetching calls:', e);
+        data = {};
     }
 
     container.innerHTML = `
@@ -459,8 +504,8 @@ async function renderCallsPage(container) {
         </div>
     `;
 
-    renderCallsHourlyChart(data.hourly_distribution || getMockHourlyData());
-    renderCallsDayChart(data.day_of_week_distribution || getMockDayData());
+    renderCallsHourlyChart(data.hourly_distribution || []);
+    renderCallsDayChart(data.day_of_week_distribution || []);
     renderCallDirectionChart(data.inbound_calls || 0, data.outbound_calls || 0);
 }
 
@@ -473,8 +518,9 @@ async function renderAIPage(container) {
     try {
         data = await fetchData(`${API_BASE}/ai-performance`);
         data = data.metrics || data;
-    } catch {
-        data = getMockAIData();
+    } catch (e) {
+        console.error('Error fetching AI metrics:', e);
+        data = {};
     }
 
     container.innerHTML = `
@@ -528,15 +574,15 @@ async function renderAIPage(container) {
                             ${(data.agent_distribution || []).map(a => `
                                 <tr class="border-b border-dark-800">
                                     <td class="py-3 pr-4">
-                                        <span class="px-2 py-1 bg-primary-600/20 text-primary-400 rounded text-xs font-medium">
+                                        <span class="px-2 py-1 bg-primary-600/20 text-primary-400 rounded text-xs font-medium whitespace-nowrap">
                                             ${formatAgentName(a.agent_type)}
                                         </span>
                                     </td>
-                                    <td class="py-3 pr-4 font-medium">${a.usage_count}</td>
-                                    <td class="py-3 pr-4">${a.percentage}%</td>
-                                    <td class="py-3 pr-4">${a.avg_duration_ms}ms</td>
-                                    <td class="py-3 pr-4">${a.tool_calls || 0}</td>
-                                    <td class="py-3">${a.handoffs || 0}</td>
+                                    <td class="py-3 pr-4 font-medium whitespace-nowrap">${a.usage_count}</td>
+                                    <td class="py-3 pr-4 whitespace-nowrap">${a.percentage}%</td>
+                                    <td class="py-3 pr-4 whitespace-nowrap">${a.avg_duration_ms}ms</td>
+                                    <td class="py-3 pr-4 whitespace-nowrap">${a.tool_calls || 0}</td>
+                                    <td class="py-3 whitespace-nowrap">${a.handoffs || 0}</td>
                                 </tr>
                             `).join('') || '<tr><td colspan="6" class="py-4 text-dark-400 text-center">No data available</td></tr>'}
                         </tbody>
@@ -546,7 +592,7 @@ async function renderAIPage(container) {
         </div>
     `;
 
-    renderAIAgentChart(data.agent_distribution || getMockAgentData());
+    renderAIAgentChart(data.agent_distribution || []);
     renderAIResolutionChart(data.ai_resolved_calls || 0, (data.ai_resolved_calls || 0) + (data.escalated_calls || 0));
 }
 
@@ -588,7 +634,13 @@ function renderProgressBar(label, value, color) {
 }
 
 function renderTicketPriorityChart(data) {
-    if (!data || data.length === 0) data = getMockPriorityData();
+    const el = document.querySelector("#ticketPriorityChart");
+    if (!el) return;
+
+    if (!data || data.length === 0) {
+        el.innerHTML = '<div class="flex items-center justify-center h-full text-dark-400"><p>No ticket data available</p></div>';
+        return;
+    }
 
     const labels = data.map(d => d.priority);
     const values = data.map(d => d.count);
@@ -606,7 +658,13 @@ function renderTicketPriorityChart(data) {
 }
 
 function renderCallsDayChart(data) {
-    if (!data || data.length === 0) data = getMockDayData();
+    const el = document.querySelector("#callsDayChart");
+    if (!el) return;
+
+    if (!data || data.length === 0) {
+        el.innerHTML = '<div class="flex items-center justify-center h-full text-dark-400"><p>No call data available</p></div>';
+        return;
+    }
 
     const labels = data.map(d => d.day);
     const values = data.map(d => d.call_count);
@@ -623,6 +681,85 @@ function renderCallsDayChart(data) {
     }).render();
 }
 
+// =====================================================
+// DEVICE CHART FUNCTIONS
+// =====================================================
+
+function renderDeviceOrgChart(data) {
+    const el = document.querySelector("#deviceOrgChart");
+    if (!el) return;
+
+    if (!data || data.length === 0) {
+        el.innerHTML = '<div class="flex items-center justify-center h-full text-dark-400"><p>No device data available</p></div>';
+        return;
+    }
+
+    const labels = data.slice(0, 8).map(d => d.organization);
+    const online = data.slice(0, 8).map(d => d.online || 0);
+    const offline = data.slice(0, 8).map(d => d.offline || 0);
+
+    new ApexCharts(el, {
+        chart: { type: 'bar', height: '100%', stacked: true, toolbar: { show: false }, background: 'transparent' },
+        series: [
+            { name: 'Online', data: online },
+            { name: 'Offline', data: offline }
+        ],
+        xaxis: { categories: labels, labels: { style: { fontSize: '10px' } } },
+        colors: ['#10b981', '#ef4444'],
+        plotOptions: { bar: { horizontal: true, borderRadius: 4 } },
+        legend: { position: 'bottom', labels: { colors: '#9ca3af' } },
+        grid: { borderColor: '#374151' },
+        theme: { mode: 'dark' },
+        tooltip: { theme: 'dark' }
+    }).render();
+}
+
+function renderOSDistChart(data) {
+    const el = document.querySelector("#osDistChart");
+    if (!el) return;
+
+    if (!data || data.length === 0) {
+        el.innerHTML = '<div class="flex items-center justify-center h-full text-dark-400"><p>No OS data available</p></div>';
+        return;
+    }
+
+    const labels = data.slice(0, 6).map(d => d.os_name);
+    const values = data.slice(0, 6).map(d => d.count);
+
+    new ApexCharts(el, {
+        chart: { type: 'donut', height: '100%', background: 'transparent' },
+        series: values,
+        labels: labels,
+        colors: ['#06b6d4', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#ec4899'],
+        legend: { position: 'bottom', labels: { colors: '#9ca3af' } },
+        plotOptions: { pie: { donut: { size: '65%' } } },
+        theme: { mode: 'dark' },
+        tooltip: { theme: 'dark' }
+    }).render();
+}
+
+function renderRecentDevicesTable(data) {
+    if (!data || data.length === 0) {
+        return '<tr><td colspan="4" class="py-4 text-dark-400 text-center">No device data available</td></tr>';
+    }
+
+    return data.slice(0, 5).map(org => `
+        <tr class="border-b border-dark-800">
+            <td class="py-3 pr-4 font-medium max-w-[150px] truncate">${org.organization}</td>
+            <td class="py-3 pr-4">
+                <span class="px-2 py-1 ${org.online > 0 ? 'bg-green-600/20 text-green-400' : 'bg-red-600/20 text-red-400'} rounded text-xs whitespace-nowrap">
+                    ${org.online || 0} online
+                </span>
+            </td>
+            <td class="py-3 pr-4 text-dark-400 whitespace-nowrap">${org.device_count} devices</td>
+            <td class="py-3 whitespace-nowrap">
+                ${org.offline > 0 ? `<span class="text-red-400">${org.offline} offline</span>` : '<span class="text-green-400">All online</span>'}
+            </td>
+        </tr>
+    `).join('');
+}
+
+// Keep legacy functions for other pages
 function getMockHourlyData() {
     return Array.from({ length: 24 }, (_, i) => ({
         hour: i,

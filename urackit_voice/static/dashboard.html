@@ -23,24 +23,114 @@
         }
     </script>
     <style>
-        * { font-family: 'Inter', sans-serif; }
+        * { font-family: 'Inter', sans-serif; box-sizing: border-box; }
+        
+        /* Sidebar responsive */
         .sidebar-collapsed { width: 80px !important; }
         .sidebar-collapsed .sidebar-text { display: none; }
         .sidebar-collapsed .sidebar-logo-text { display: none; }
         .sidebar-collapsed .nav-item { justify-content: center; padding-left: 0; padding-right: 0; }
         .main-expanded { margin-left: 80px !important; }
-        .metric-card { transition: all 0.2s ease-in-out; }
-        .metric-card:hover { transform: translateY(-2px); box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
-        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
-        .gradient-text { background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        
+        /* Card styling */
+        .metric-card { 
+            transition: all 0.2s ease-in-out; 
+            overflow: hidden;
+        }
+        .metric-card:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2); 
+        }
+        .glass { 
+            background: rgba(30, 41, 59, 0.7); 
+            backdrop-filter: blur(10px); 
+            border: 1px solid rgba(255,255,255,0.1);
+            overflow: hidden;
+        }
+        .gradient-text { 
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+        }
         .pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .7; } }
         .fade-in { animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Scrollbar */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #1e293b; }
         ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        
+        /* Responsive text sizing */
+        @media (max-width: 1280px) {
+            .metric-card p.text-xl { font-size: 1rem; }
+            .metric-card p.text-sm { font-size: 0.75rem; }
+        }
+        
+        @media (max-width: 1024px) {
+            #sidebar { width: 80px; }
+            #sidebar .sidebar-text { display: none; }
+            #sidebar .sidebar-logo-text { display: none; }
+            #sidebar .nav-item { justify-content: center; padding-left: 0; padding-right: 0; }
+            #mainContent { margin-left: 80px; }
+        }
+        
+        @media (max-width: 768px) {
+            #sidebar { 
+                width: 0; 
+                overflow: hidden;
+            }
+            #mainContent { 
+                margin-left: 0 !important; 
+            }
+            .metric-card .w-10 { width: 2rem; height: 2rem; }
+            .metric-card .w-10 svg { width: 1rem; height: 1rem; }
+        }
+        
+        /* Chart container responsive */
+        .chart-container {
+            width: 100%;
+            min-height: 200px;
+            position: relative;
+        }
+        
+        /* Table responsive */
+        .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        /* Card content overflow handling */
+        .card-content {
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        /* ApexCharts responsive fixes */
+        .apexcharts-canvas {
+            max-width: 100% !important;
+        }
+        .apexcharts-legend {
+            overflow-x: auto !important;
+        }
+        .apexcharts-legend-text {
+            font-size: 11px !important;
+        }
+        
+        /* Value text responsive */
+        .value-text {
+            font-size: clamp(1rem, 2vw, 1.25rem);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        /* Stat card responsive */
+        .stat-value {
+            font-size: clamp(1.5rem, 3vw, 1.875rem);
+        }
     </style>
 </head>
 <body class="bg-dark-950 text-dark-100 min-h-screen">
@@ -136,11 +226,17 @@
                         <option value="90d">Last 90 Days</option>
                     </select>
                     <!-- Refresh Button -->
-                    <button id="refreshBtn" class="p-2 rounded-lg bg-dark-800 hover:bg-dark-700 transition-colors">
-                        <svg class="w-5 h-5 text-dark-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                        </svg>
-                    </button>
+                    <div class="relative">
+                        <button id="refreshBtn" class="p-2 rounded-lg bg-dark-800 hover:bg-dark-700 transition-colors">
+                            <svg class="w-5 h-5 text-dark-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                            </svg>
+                        </button>
+                        <!-- Refresh Indicator (subtle spinner) -->
+                        <div id="refreshIndicator" class="hidden absolute -top-1 -right-1">
+                            <div class="w-3 h-3 border-2 border-primary-400 border-t-transparent rounded-full animate-spin"></div>
+                        </div>
+                    </div>
                     <!-- Export Button -->
                     <button id="exportBtn" class="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 rounded-lg text-sm font-medium transition-colors">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

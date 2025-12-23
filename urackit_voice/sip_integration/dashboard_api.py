@@ -1,6 +1,6 @@
 """
 Dashboard API Endpoints for U Rack IT Voice Agent
-FastAPI routes for all 100 metrics
+FastAPI routes for real data metrics
 """
 
 import logging
@@ -20,7 +20,10 @@ from db.dashboard_queries import (
     get_cost_metrics,
     get_trend_metrics,
     get_dashboard_overview,
-    get_realtime_metrics
+    get_realtime_metrics,
+    get_device_metrics,
+    get_organization_metrics,
+    get_contact_metrics
 )
 
 logger = logging.getLogger(__name__)
@@ -92,6 +95,59 @@ async def realtime_metrics():
         return JSONResponse(content=data)
     except Exception as e:
         logger.error(f"Error fetching realtime metrics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# =====================================================
+# DEVICE & ASSET METRICS (REAL DATA)
+# =====================================================
+
+@router.get("/devices")
+async def device_metrics():
+    """
+    Get device/endpoint metrics from real data:
+    - Total devices, online/offline counts
+    - Devices by organization
+    - Devices by OS, manufacturer
+    - Patch status distribution
+    """
+    try:
+        data = await get_device_metrics()
+        return JSONResponse(content=data)
+    except Exception as e:
+        logger.error(f"Error fetching device metrics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/organizations")
+async def organization_metrics():
+    """
+    Get organization/client metrics:
+    - Total organizations, with devices/contacts
+    - Organization details with account managers
+    - Location statistics
+    """
+    try:
+        data = await get_organization_metrics()
+        return JSONResponse(content=data)
+    except Exception as e:
+        logger.error(f"Error fetching organization metrics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/contacts")
+async def contact_metrics():
+    """
+    Get contact/user metrics:
+    - Total contacts
+    - Contacts by organization
+    - Device assignments
+    """
+    try:
+        data = await get_contact_metrics()
+        return JSONResponse(content=data)
+    except Exception as e:
+        logger.error(f"Error fetching contact metrics: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

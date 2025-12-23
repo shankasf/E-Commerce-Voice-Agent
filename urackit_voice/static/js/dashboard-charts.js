@@ -8,6 +8,14 @@
 // =====================================================
 
 function renderHourlyCallsChart(data) {
+    const el = document.querySelector("#hourlyCallsChart");
+    if (!el) return;
+
+    if (!data || data.length === 0) {
+        el.innerHTML = '<div class="flex items-center justify-center h-full text-dark-400"><p>No call data available</p></div>';
+        return;
+    }
+
     const hours = data.map(d => formatHour(d.hour));
     const counts = data.map(d => d.call_count);
 
@@ -26,6 +34,14 @@ function renderHourlyCallsChart(data) {
 }
 
 function renderAgentDistributionChart(data) {
+    const el = document.querySelector("#agentDistChart");
+    if (!el) return;
+
+    if (!data || data.length === 0) {
+        el.innerHTML = '<div class="flex items-center justify-center h-full text-dark-400"><p>No agent data available</p></div>';
+        return;
+    }
+
     const labels = data.map(d => d.agent_type);
     const values = data.map(d => d.count);
 
@@ -43,6 +59,14 @@ function renderAgentDistributionChart(data) {
 }
 
 function renderCallsHourlyChart(data) {
+    const el = document.querySelector("#callsHourlyChart");
+    if (!el) return;
+
+    if (!data || data.length === 0) {
+        el.innerHTML = '<div class="flex items-center justify-center h-full text-dark-400"><p>No call data available</p></div>';
+        return;
+    }
+
     const hours = data.map(d => formatHour(d.hour));
     const counts = data.map(d => d.call_count);
     const durations = data.map(d => d.avg_duration);
@@ -67,7 +91,15 @@ function renderCallsHourlyChart(data) {
 }
 
 function renderCallDirectionChart(inbound, outbound) {
-    new ApexCharts(document.querySelector("#callDirectionChart"), {
+    const el = document.querySelector("#callDirectionChart");
+    if (!el) return;
+
+    if (inbound === 0 && outbound === 0) {
+        el.innerHTML = '<div class="flex items-center justify-center h-full text-dark-400"><p>No call data available</p></div>';
+        return;
+    }
+
+    new ApexCharts(el, {
         chart: { type: 'pie', height: '100%', background: 'transparent' },
         series: [inbound, outbound],
         labels: ['Inbound', 'Outbound'],
@@ -91,7 +123,11 @@ function renderCallStatusChart(completed, answered, voicemail, no_answer) {
 }
 
 function renderAIAgentChart(data) {
-    if (!data || data.length === 0) data = getMockAgentUsage();
+    if (!data || data.length === 0) {
+        const el = document.querySelector("#aiAgentChart");
+        if (el) el.innerHTML = '<p class="text-dark-400 text-center py-8">No agent data available</p>';
+        return;
+    }
 
     const labels = data.map(d => formatAgentName(d.agent_type));
     const values = data.map(d => d.count);
@@ -130,7 +166,13 @@ function renderAIResolutionChart(resolved, total) {
 }
 
 function renderTicketsByPriorityChart(data) {
-    if (!data || data.length === 0) data = getMockPriorityData();
+    const el = document.querySelector("#ticketsByPriorityChart");
+    if (!el) return;
+
+    if (!data || data.length === 0) {
+        el.innerHTML = '<div class="flex items-center justify-center h-full text-dark-400"><p>No ticket data available</p></div>';
+        return;
+    }
 
     const labels = data.map(d => d.priority);
     const values = data.map(d => d.count);
@@ -148,7 +190,13 @@ function renderTicketsByPriorityChart(data) {
 }
 
 function renderOpenTicketsChart(data) {
-    if (!data || data.length === 0) data = getMockPriorityData();
+    const el = document.querySelector("#openTicketsChart");
+    if (!el) return;
+
+    if (!data || data.length === 0) {
+        el.innerHTML = '<div class="flex items-center justify-center h-full text-dark-400"><p>No ticket data available</p></div>';
+        return;
+    }
 
     const labels = data.map(d => d.priority);
     const values = data.map(d => d.count);
@@ -164,8 +212,16 @@ function renderOpenTicketsChart(data) {
 }
 
 function renderCSATChart(data) {
+    const el = document.querySelector("#csatChart");
+    if (!el) return;
+
     const labels = ['1 Star', '2 Stars', '3 Stars', '4 Stars', '5 Stars'];
     const values = [0, 0, 0, 0, 0];
+
+    if (!data || data.length === 0) {
+        el.innerHTML = '<div class="flex items-center justify-center h-full text-dark-400"><p>No CSAT data available</p></div>';
+        return;
+    }
 
     data.forEach(d => {
         if (d.score >= 1 && d.score <= 5) values[d.score - 1] = d.count;
@@ -184,7 +240,15 @@ function renderCSATChart(data) {
 }
 
 function renderCallerTypeChart(newCallers, repeatCallers) {
-    new ApexCharts(document.querySelector("#callerTypeChart"), {
+    const el = document.querySelector("#callerTypeChart");
+    if (!el) return;
+
+    if (newCallers === 0 && repeatCallers === 0) {
+        el.innerHTML = '<div class="flex items-center justify-center h-full text-dark-400"><p>No caller data available</p></div>';
+        return;
+    }
+
+    new ApexCharts(el, {
         chart: { type: 'pie', height: '100%', background: 'transparent' },
         series: [newCallers, repeatCallers],
         labels: ['New Callers', 'Repeat Callers'],
@@ -195,8 +259,11 @@ function renderCallerTypeChart(newCallers, repeatCallers) {
 }
 
 function renderOrgCallsChart(data) {
+    const el = document.querySelector("#orgCallsChart");
+    if (!el) return;
+
     if (!data || data.length === 0) {
-        document.querySelector("#orgCallsChart").innerHTML = '<p class="text-center text-dark-400 py-8">No data available</p>';
+        el.innerHTML = '<div class="flex items-center justify-center h-full text-dark-400"><p>No organization data available</p></div>';
         return;
     }
 
@@ -216,7 +283,15 @@ function renderOrgCallsChart(data) {
 }
 
 function renderCostDistributionChart(aiCost, twilioCost) {
-    new ApexCharts(document.querySelector("#costDistChart"), {
+    const el = document.querySelector("#costDistChart");
+    if (!el) return;
+
+    if (aiCost === 0 && twilioCost === 0) {
+        el.innerHTML = '<div class="flex items-center justify-center h-full text-dark-400"><p>No cost data available</p></div>';
+        return;
+    }
+
+    new ApexCharts(el, {
         chart: { type: 'pie', height: '100%', background: 'transparent' },
         series: [aiCost, twilioCost],
         labels: ['AI (OpenAI)', 'Twilio'],
@@ -228,8 +303,11 @@ function renderCostDistributionChart(aiCost, twilioCost) {
 }
 
 function renderDailyTrendChart(data) {
+    const el = document.querySelector("#dailyTrendChart");
+    if (!el) return;
+
     if (!data || data.length === 0) {
-        document.querySelector("#dailyTrendChart").innerHTML = '<p class="text-center text-dark-400 py-8">No data available</p>';
+        el.innerHTML = '<div class="flex items-center justify-center h-full text-dark-400"><p>No trend data available</p></div>';
         return;
     }
 
@@ -254,8 +332,11 @@ function renderDailyTrendChart(data) {
 }
 
 function renderSentimentChart(data) {
+    const el = document.querySelector("#sentimentChart");
+    if (!el) return;
+
     if (!data || data.length === 0) {
-        document.querySelector("#sentimentChart").innerHTML = '<p class="text-center text-dark-400 py-8">No data available</p>';
+        el.innerHTML = '<div class="flex items-center justify-center h-full text-dark-400"><p>No sentiment data available</p></div>';
         return;
     }
 
@@ -360,17 +441,48 @@ function renderMetricCard(label, value, icon, color) {
         purple: 'bg-purple-600/20 text-purple-400'
     };
 
+    const icons = {
+        phone: 'M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z',
+        cpu: 'M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z',
+        clock: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+        activity: 'M13 10V3L4 14h7v7l9-11h-7z',
+        ticket: 'M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z',
+        server: 'M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01',
+        users: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z',
+        check: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+        'check-circle': 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+        'arrow-up': 'M5 10l7-7m0 0l7 7m-7-7v18',
+        trending: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6',
+        'folder-open': 'M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z',
+        plus: 'M12 4v16m8-8H4',
+        shield: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
+        'dollar-sign': 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+        zap: 'M13 10V3L4 14h7v7l9-11h-7z',
+        target: 'M12 8v4l3 3M3 12a9 9 0 1118 0 9 9 0 01-18 0z',
+        refresh: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15',
+        repeat: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15',
+        'user-plus': 'M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z',
+        star: 'M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z',
+        hourglass: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+        x: 'M6 18L18 6M6 6l12 12',
+        'trending-down': 'M13 17h8m0 0V9m0 8l-8-8-4 4-6-6',
+        'alert-triangle': 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z',
+        default: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6'
+    };
+
+    const iconPath = icons[icon] || icons.default;
+
     return `
-        <div class="glass rounded-xl p-4">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 ${colors[color] || colors.primary} rounded-lg flex items-center justify-center">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+        <div class="glass rounded-xl p-3 md:p-4 metric-card">
+            <div class="flex items-center gap-2 md:gap-3">
+                <div class="w-8 h-8 md:w-10 md:h-10 ${colors[color] || colors.primary} rounded-lg flex items-center justify-center flex-shrink-0">
+                    <svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${iconPath}"/>
                     </svg>
                 </div>
-                <div>
-                    <p class="text-dark-400 text-sm">${label}</p>
-                    <p class="text-xl font-bold">${value}</p>
+                <div class="min-w-0 flex-1">
+                    <p class="text-dark-400 text-xs md:text-sm truncate">${label}</p>
+                    <p class="value-text font-bold truncate">${value}</p>
                 </div>
             </div>
         </div>
@@ -386,10 +498,10 @@ function renderStatCard(label, value, subtitle, color = 'primary') {
     };
 
     return `
-        <div class="glass rounded-xl p-4 text-center">
-            <p class="text-3xl font-bold ${colors[color] || colors.primary}">${value}</p>
-            <p class="font-medium mt-1">${label}</p>
-            <p class="text-sm text-dark-400">${subtitle}</p>
+        <div class="glass rounded-xl p-4 text-center overflow-hidden">
+            <p class="stat-value font-bold ${colors[color] || colors.primary} truncate">${value}</p>
+            <p class="font-medium mt-1 text-sm md:text-base truncate">${label}</p>
+            <p class="text-xs md:text-sm text-dark-400 truncate">${subtitle}</p>
         </div>
     `;
 }
@@ -405,15 +517,15 @@ function renderGaugeCard(label, value, unit, color, subtitle = '') {
     const percent = Math.min(value, 100);
 
     return `
-        <div class="glass rounded-xl p-4">
-            <div class="flex items-center justify-between mb-3">
-                <span class="font-medium">${label}</span>
-                <span class="text-sm text-dark-400">${value}${unit}</span>
+        <div class="glass rounded-xl p-3 md:p-4 overflow-hidden">
+            <div class="flex items-center justify-between mb-2 md:mb-3 gap-2">
+                <span class="font-medium text-sm md:text-base truncate">${label}</span>
+                <span class="text-xs md:text-sm text-dark-400 flex-shrink-0">${value}${unit}</span>
             </div>
-            <div class="w-full bg-dark-700 rounded-full h-3">
-                <div class="${c.bg} h-3 rounded-full transition-all duration-500" style="width: ${percent}%"></div>
+            <div class="w-full bg-dark-700 rounded-full h-2 md:h-3">
+                <div class="${c.bg} h-2 md:h-3 rounded-full transition-all duration-500" style="width: ${percent}%"></div>
             </div>
-            ${subtitle ? `<p class="text-xs text-dark-400 mt-2">${subtitle}</p>` : ''}
+            ${subtitle ? `<p class="text-xs text-dark-400 mt-2 truncate">${subtitle}</p>` : ''}
         </div>
     `;
 }
@@ -426,9 +538,9 @@ function renderLatencyCard(label, value) {
     };
 
     return `
-        <div class="glass rounded-xl p-4 text-center">
-            <p class="text-2xl font-bold ${getColor(value)}">${value}ms</p>
-            <p class="text-sm text-dark-400 mt-1">${label}</p>
+        <div class="glass rounded-xl p-3 md:p-4 text-center overflow-hidden">
+            <p class="text-xl md:text-2xl font-bold ${getColor(value)}">${value}ms</p>
+            <p class="text-xs md:text-sm text-dark-400 mt-1 truncate">${label}</p>
         </div>
     `;
 }
