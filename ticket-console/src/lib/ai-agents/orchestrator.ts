@@ -7,7 +7,10 @@ import { AGENT_DEFINITIONS, getAgentName, AgentType, MultiAgentAnalysis, Handoff
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseServiceKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: { autoRefreshToken: false, persistSession: false },
+  global: { headers: { Authorization: `Bearer ${supabaseServiceKey}` } }
+});
 
 // Consult another specialist agent for advice
 export async function consultAgent(agentType: string, question: string, context: string): Promise<string> {

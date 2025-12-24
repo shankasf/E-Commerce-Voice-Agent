@@ -9,6 +9,7 @@ interface DashboardLayoutProps {
     subtitle: string;
     onRefresh?: () => void;
     isRefreshing?: boolean;
+    headerContent?: ReactNode;
 }
 
 export function DashboardLayout({
@@ -17,6 +18,7 @@ export function DashboardLayout({
     subtitle,
     onRefresh,
     isRefreshing,
+    headerContent,
 }: DashboardLayoutProps) {
     const [dateRange, setDateRange] = useState('7d');
 
@@ -31,6 +33,7 @@ export function DashboardLayout({
                     isRefreshing={isRefreshing}
                     dateRange={dateRange}
                     onDateRangeChange={setDateRange}
+                    headerContent={headerContent}
                 />
                 <div className="p-6">{children}</div>
             </main>

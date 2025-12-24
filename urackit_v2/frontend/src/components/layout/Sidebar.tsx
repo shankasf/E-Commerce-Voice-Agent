@@ -3,6 +3,10 @@ import { Link, useLocation } from 'react-router-dom';
 import {
     LayoutDashboard,
     Phone,
+    Radio,
+    Gauge,
+    BarChart3,
+    ShieldCheck,
     Ticket,
     Monitor,
     Building2,
@@ -17,7 +21,11 @@ import clsx from 'clsx';
 
 const navItems = [
     { path: '/overview', label: 'Overview', icon: LayoutDashboard },
+    { path: '/live', label: 'Live Calls', icon: Radio },
     { path: '/calls', label: 'Calls', icon: Phone },
+    { path: '/quality', label: 'Quality & AI', icon: Gauge },
+    { path: '/analytics', label: 'Analytics', icon: BarChart3 },
+    { path: '/compliance', label: 'Compliance', icon: ShieldCheck },
     { path: '/tickets', label: 'Tickets', icon: Ticket },
     { path: '/devices', label: 'Devices', icon: Monitor },
     { path: '/organizations', label: 'Organizations', icon: Building2 },

@@ -74,12 +74,28 @@ class VoiceSession:
         self.last_activity = time.time()
     
     def add_message(self, role: str, content: str) -> None:
-        """Add a message to conversation history."""
+        """Add a message to conversation history and track token usage."""
         self.conversation_history.append({
             "role": role,
             "content": content,
             "timestamp": datetime.utcnow().isoformat()
         })
+        
+        # Estimate token count (roughly 4 chars per token for English)
+        # OpenAI Realtime uses different pricing but we estimate for metrics
+        estimated_tokens = max(1, len(content) // 4)
+        
+        if role == "user":
+            self.input_tokens += estimated_tokens
+        else:
+            self.output_tokens += estimated_tokens
+        
+        self.total_tokens = self.input_tokens + self.output_tokens
+        
+        # Estimate cost (OpenAI Realtime: ~$0.06 per minute of audio)
+        # We estimate ~100 tokens per minute of conversation
+        self.ai_cost_usd = self.total_tokens * 0.0006  # Rough estimate
+        
         self.touch()
     
     def add_conference_transcript(self, speaker: str, content: str) -> None:
@@ -179,6 +195,10 @@ class VoiceSessionManager(ISessionManager):
             self._sessions[session_id] = session
             
             logger.info(f"Created session {session_id} for call {call_info.call_sid}")
+            
+            # Notify backend of new call
+            await self._notify_call_update()
+            
             return session_id
     
     async def get_session(self, session_id: str) -> Optional[VoiceSession]:
@@ -201,6 +221,9 @@ class VoiceSessionManager(ISessionManager):
             session = self._sessions.pop(session_id, None)
         
         if session:
+            # Notify backend of call end
+            await self._notify_call_end(session.call_info.call_sid)
+            
             # Save call log to database
             await self._save_call_log(session)
             
@@ -216,7 +239,8 @@ class VoiceSessionManager(ISessionManager):
     async def _save_call_log(self, session: VoiceSession) -> None:
         """Save call log and transcript to database."""
         try:
-            from db.database import db
+            from db.connection import SupabaseDB
+            db = SupabaseDB()
             
             duration = int(time.time() - session.created_at)
             
@@ -272,9 +296,13 @@ class VoiceSessionManager(ISessionManager):
             
             # Save AI usage log if tokens were used
             if session.total_tokens > 0:
+                from .config import get_config
+                config = get_config()
+                # Use realtime model for voice sessions
+                model = getattr(config, "openai_realtime_model", "gpt-realtime-2025-08-28")
                 ai_log_data = {
                     "call_sid": session.call_info.call_sid,
-                    "model": "gpt-4o-realtime",
+                    "model": model,
                     "input_tokens": session.input_tokens,
                     "output_tokens": session.output_tokens,
                     "total_tokens": session.total_tokens,
@@ -283,7 +311,7 @@ class VoiceSessionManager(ISessionManager):
                     "agent_type": session.agent_type
                 }
                 db.insert("ai_usage_logs", ai_log_data)
-                logger.info(f"Saved AI usage log: {session.total_tokens} tokens")
+                logger.info(f"Saved AI usage log: {session.total_tokens} tokens for model {model}")
             
         except Exception as e:
             logger.error(f"Failed to save call log for session {session.session_id}: {e}")
@@ -313,6 +341,113 @@ class VoiceSessionManager(ISessionManager):
         
         return len(expired)
     
+    async def _notify_call_update(self) -> None:
+        """Notify backend of live calls update for WebSocket broadcast."""
+        try:
+            from .event_notifier import get_event_notifier
+            notifier = get_event_notifier()
+            
+            calls, metrics = self._build_live_calls_data()
+            await notifier.push_live_calls_update(calls, metrics)
+        except Exception as e:
+            logger.debug(f"Could not notify call update: {e}")
+    
+    async def _notify_call_end(self, call_sid: str) -> None:
+        """Notify backend when a call ends."""
+        try:
+            from .event_notifier import get_event_notifier
+            notifier = get_event_notifier()
+            await notifier.notify_call_end(call_sid)
+        except Exception as e:
+            logger.debug(f"Could not notify call end: {e}")
+    
+    async def notify_transcript_update(self, session_id: str, role: str, content: str) -> None:
+        """Notify backend of new transcript entry and push full update."""
+        try:
+            from .event_notifier import get_event_notifier
+            notifier = get_event_notifier()
+            await notifier.notify_transcript(session_id, role, content)
+            
+            # Also push full live calls update for the dashboard
+            calls, metrics = self._build_live_calls_data()
+            await notifier.push_live_calls_update(calls, metrics)
+        except Exception as e:
+            logger.debug(f"Could not notify transcript update: {e}")
+    
+    def _build_live_calls_data(self) -> tuple:
+        """Build the live calls data for WebSocket broadcast."""
+        from datetime import datetime
+        
+        calls = []
+        agents_set = set()
+        total_duration = 0
+        inbound_count = 0
+        outbound_count = 0
+        
+        for session in self._sessions.values():
+            duration = int(time.time() - session.created_at)
+            total_duration += duration
+            
+            direction = session.call_info.direction or "inbound"
+            if direction == "inbound":
+                inbound_count += 1
+            else:
+                outbound_count += 1
+            
+            if session.agent_type:
+                agents_set.add(session.agent_type)
+            
+            # Build transcript entries
+            transcript = []
+            for msg in session.conversation_history:
+                transcript.append({
+                    "role": msg.get("role", "assistant"),
+                    "content": msg.get("content", ""),
+                    "timestamp": msg.get("timestamp", datetime.utcnow().isoformat())
+                })
+            
+            # Build agent history
+            agent_history = []
+            current_agent = session.agent_type or "triage_agent"
+            agent_history.append({
+                "agentName": current_agent,
+                "action": "Started conversation",
+                "timestamp": datetime.utcfromtimestamp(session.created_at).isoformat()
+            })
+            
+            calls.append({
+                "callSid": session.call_info.call_sid,
+                "sessionId": session.session_id,
+                "from": session.call_info.from_number,
+                "to": session.call_info.to_number,
+                "direction": direction,
+                "status": "in-progress",
+                "startTime": datetime.utcfromtimestamp(session.created_at).isoformat(),
+                "startedAt": datetime.utcfromtimestamp(session.created_at).isoformat(),
+                "duration": duration,
+                "callerName": session.caller_name,
+                "companyName": session.company_name,
+                "currentAgent": current_agent,
+                "agentType": current_agent,
+                "transcript": transcript,
+                "agentHistory": agent_history,
+                "sentiment": "neutral",
+                "ticketCreated": session.ticket_created,
+                "escalated": session.escalated
+            })
+        
+        avg_duration = total_duration // len(self._sessions) if self._sessions else 0
+        
+        metrics = {
+            "activeCalls": len(self._sessions),
+            "inbound": inbound_count,
+            "outbound": outbound_count,
+            "avgDuration": avg_duration,
+            "activeAgents": list(agents_set)
+        }
+        
+        return calls, metrics
+    
     async def _cleanup_loop(self) -> None:
         """Background task to periodically cleanup expired sessions."""
         while self._running:
@@ -328,6 +463,10 @@ class VoiceSessionManager(ISessionManager):
     def active_session_count(self) -> int:
         """Get the number of active sessions."""
         return len(self._sessions)
+    
+    def get_all_sessions(self) -> list:
+        """Get all active sessions (for live monitoring)."""
+        return list(self._sessions.values())
 
 
 # Global session manager instance

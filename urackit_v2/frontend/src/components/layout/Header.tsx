@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { RefreshCw, Download, Loader2 } from 'lucide-react';
 
@@ -8,6 +9,7 @@ interface HeaderProps {
     isRefreshing?: boolean;
     dateRange: string;
     onDateRangeChange: (range: string) => void;
+    headerContent?: ReactNode;
 }
 
 export function Header({
@@ -17,6 +19,7 @@ export function Header({
     isRefreshing,
     dateRange,
     onDateRangeChange,
+    headerContent,
 }: HeaderProps) {
     const [exporting, setExporting] = useState(false);
 
@@ -40,9 +43,12 @@ export function Header({
     return (
         <header className="sticky top-0 z-40 bg-dark-950/80 backdrop-blur-xl border-b border-dark-800">
             <div className="flex items-center justify-between px-6 py-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-white">{title}</h1>
-                    <p className="text-sm text-dark-400 mt-1">{subtitle}</p>
+                <div className="flex items-center gap-4">
+                    <div>
+                        <h1 className="text-2xl font-bold text-white">{title}</h1>
+                        <p className="text-sm text-dark-400 mt-1">{subtitle}</p>
+                    </div>
+                    {headerContent}
                 </div>
                 <div className="flex items-center gap-4">
                     {/* Date Range Selector */}

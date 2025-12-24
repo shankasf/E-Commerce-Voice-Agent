@@ -3,6 +3,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
+import { existsSync } from 'fs';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -23,6 +24,27 @@ async function bootstrap() {
   const frontendPath = join(__dirname, '..', '..', '..', 'frontend', 'dist');
   console.log('Static assets path:', frontendPath);
   app.useStaticAssets(frontendPath, { prefix: '/v2/dashboard' });
+
+  // SPA fallback: serve index.html for all /v2/dashboard/* routes (client-side routing)
+  const expressApp = app.getHttpAdapter().getInstance();
+  const indexPath = join(frontendPath, 'index.html');
+  
+  expressApp.use('/v2/dashboard', (req: any, res: any, next: any) => {
+    // Skip static assets - let them 404 naturally
+    if (req.url.includes('/assets/') || 
+        req.url.match(/\.(js|css|svg|png|ico|json|woff|woff2|ttf)$/)) {
+      return next();
+    }
+    // Skip the root dashboard path (let static assets handle it)
+    if (req.url === '/' || req.url === '') {
+      return next();
+    }
+    // Serve index.html for SPA routes
+    if (existsSync(indexPath)) {
+      return res.sendFile(indexPath);
+    }
+    next();
+  });
 
   // Global validation pipe
   app.setGlobalPrefix('v2/api');

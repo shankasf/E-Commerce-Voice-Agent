@@ -134,6 +134,22 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   /**
+   * Emit call end event
+   */
+  emitCallEnd(callSid: string) {
+    this.server.to('calls').emit('call:end', { callSid });
+    this.logger.log(`Call end emitted: ${callSid}`);
+  }
+
+  /**
+   * Emit live calls update (full list refresh)
+   */
+  emitLiveCallsUpdate(calls: unknown[], metrics: unknown) {
+    this.server.to('calls').emit('livecalls:update', { calls, metrics });
+    this.logger.debug(`Live calls update emitted: ${Array.isArray(calls) ? calls.length : 0} calls`);
+  }
+
+  /**
    * Emit ticket update
    */
   emitTicketEvent(event: TicketEvent) {

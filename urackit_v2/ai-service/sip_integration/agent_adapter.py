@@ -63,26 +63,16 @@ class URackITAgentAdapter(IAgentAdapter):
             update_ticket_status,
             add_ticket_message,
             escalate_ticket,
-            assign_ticket,
-            get_available_agents,
             get_organization_locations,
-            transfer_to_human,
             get_ticket_statuses,
             get_ticket_priorities,
             get_account_manager,
-            get_ticket_history,
             # Organization-scoped lookup tools
             lookup_organization_data,
             get_organization_devices,
             get_organization_contacts,
-            get_organization_tickets,
             get_organization_summary,
             get_device_by_name_for_org,
-            # FULL DETAILS tools
-            get_device_full_details,
-            get_contact_full_details,
-            get_ticket_full_details,
-            get_location_full_details,
         )
         
         # Register all core database tools
@@ -95,31 +85,22 @@ class URackITAgentAdapter(IAgentAdapter):
             find_contact_by_phone,
             get_organization_devices,
             get_organization_contacts,
-            get_organization_tickets,
+            get_tickets_by_organization,
             get_organization_locations,
             get_organization_summary,
             get_device_by_name_for_org,
-            get_device_full_details,
-            get_contact_full_details,
-            get_ticket_full_details,
-            get_location_full_details,
             get_contact_devices,
             get_device_status,
             get_device_details,
             create_ticket,
             lookup_ticket,
             get_tickets_by_contact,
-            get_tickets_by_organization,
             update_ticket_status,
             add_ticket_message,
             escalate_ticket,
-            assign_ticket,
-            get_available_agents,
-            transfer_to_human,
             get_ticket_statuses,
             get_ticket_priorities,
             get_account_manager,
-            get_ticket_history,
         ]
         
         for tool in core_tools:
@@ -168,6 +149,37 @@ VOICE-SPECIFIC RULES:
 REMEMBER: You are speaking to a real person on a phone call.
 """
         return base_prompt + voice_additions
+    
+    async def process_input(self, session_id: str, text: str) -> str:
+        """Process text input through the agent system and return response.
+        
+        This method routes user input through the triage agent which will
+        delegate to specialist agents as needed.
+        """
+        self._ensure_agents_loaded()
+        
+        try:
+            # Use the triage agent to process the input
+            # The agent will determine if it needs to delegate to a specialist
+            from agents.pipeline import Runner
+            
+            runner = Runner()
+            result = await runner.run(
+                self._triage_agent,
+                text
+            )
+            
+            # Extract the response text from the result
+            if hasattr(result, 'final_output'):
+                return str(result.final_output)
+            elif hasattr(result, 'output'):
+                return str(result.output)
+            else:
+                return str(result)
+                
+        except Exception as e:
+            logger.error(f"Error processing input for session {session_id}: {e}")
+            return "I'm sorry, I encountered an error processing your request. Let me try again."
     
     def get_tools_schema(self) -> list[dict]:
         """Get OpenAI function calling schema for all available tools."""

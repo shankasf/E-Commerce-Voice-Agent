@@ -343,6 +343,337 @@ export interface LoginRequest {
 }
 
 // =====================================================
+// LIVE CALLS
+// =====================================================
+
+export interface LiveCallEvent {
+  callSid: string;
+  sessionId: string;
+  status: 'ringing' | 'in-progress' | 'completed' | 'failed';
+  from: string;
+  to?: string;
+  direction: 'inbound' | 'outbound';
+  startedAt: string;
+  callerName?: string;
+  companyName?: string;
+  agentType?: string;
+  duration?: number;
+  transcript?: TranscriptEntry[];
+  agentHistory?: AgentEvent[];
+  toolCalls?: LiveToolCall[];
+  sentiment?: 'positive' | 'neutral' | 'negative';
+  aiResolution?: boolean;
+}
+
+export interface TranscriptEntry {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp: string;
+}
+
+export interface AgentEvent {
+  agentName: string;
+  action: string;
+  timestamp: string;
+  details?: string;
+}
+
+export interface LiveToolCall {
+  name: string;
+  success: boolean;
+  timestamp: string;
+  result?: string;
+}
+
+export interface LiveCallMetrics {
+  activeCalls: number;
+  inboundCalls: number;
+  outboundCalls: number;
+  avgDuration: number;
+  activeAgents: string[];
+}
+
+// =====================================================
+// QUEUE & TRAFFIC METRICS
+// =====================================================
+
+export interface QueueMetrics {
+  callsInQueue: number;
+  longestWaitTime: number;
+  avgWaitTime: number;
+  callsStartedPerMinute: number;
+  callsEndedPerMinute: number;
+  serviceLevel: number; // % answered within X seconds
+  asa: number; // Average Speed of Answer
+  abandonRate: number;
+  shortAbandonRate: number;
+  callbackOfferedRate: number;
+  callbackAcceptedRate: number;
+  blockedRate: number;
+  failureRate: number;
+}
+
+// =====================================================
+// HANDOFF & STAFFING METRICS
+// =====================================================
+
+export interface HandoffMetrics {
+  agentsOnline: number;
+  agentsAvailable: number;
+  agentsBusy: number;
+  agentsAway: number;
+  aiToHumanHandoffRate: number;
+  handoffLatency: number;
+  ringTime: number;
+  connectTime: number;
+  transferRate: number;
+  warmTransferSuccessRate: number;
+  postHandoffResolutionRate: number;
+  handoffReasons: HandoffReason[];
+}
+
+export interface HandoffReason {
+  reason: string;
+  count: number;
+  percentage: number;
+}
+
+// =====================================================
+// CALL QUALITY METRICS
+// =====================================================
+
+export interface CallQualityMetrics {
+  packetLossInbound: number;
+  packetLossOutbound: number;
+  jitter: number;
+  rtt: number;
+  latency: number;
+  mos: number; // Mean Opinion Score
+  audioLevelHealth: number;
+  oneWayAudioRate: number;
+  deadAirTime: number;
+  silenceTime: number;
+  callsBelowQualityThreshold: number;
+  qualityAlerts: QualityAlert[];
+}
+
+export interface QualityAlert {
+  type: 'packet_loss' | 'jitter' | 'latency' | 'audio' | 'mos';
+  severity: 'warning' | 'critical';
+  message: string;
+  timestamp: string;
+}
+
+// =====================================================
+// LATENCY & RESPONSIVENESS METRICS
+// =====================================================
+
+export interface LatencyMetrics {
+  endToEndTurnLatency: number;
+  asrLatency: number;
+  llmLatencyFirstToken: number;
+  llmLatencyFullResponse: number;
+  ttsLatency: number;
+  bargeInLatency: number;
+  vadDelay: number;
+  endpointingDelay: number;
+  interruptionRate: number;
+  streamReconnects: number;
+  streamDrops: number;
+}
+
+// =====================================================
+// ASR METRICS
+// =====================================================
+
+export interface ASRMetrics {
+  transcriptConfidenceAvg: number;
+  transcriptConfidenceDistribution: ConfidenceDistribution[];
+  wordErrorRateProxy: number;
+  noSpeechDetectedRate: number;
+  partialTranscriptChurnRate: number;
+  diarizationErrorRate: number;
+  languageDetectionAccuracy: number;
+  noiseScore: number;
+  outOfVocabularyRate: number;
+  profanityMaskingRate: number;
+}
+
+export interface ConfidenceDistribution {
+  range: string;
+  percentage: number;
+}
+
+// =====================================================
+// NLU / ROUTING METRICS
+// =====================================================
+
+export interface NLUMetrics {
+  intentMatchRate: number;
+  fallbackRate: number;
+  noMatchRate: number;
+  entityExtractionSuccessRate: number;
+  slotFillCompletionRate: number;
+  misrouteRate: number;
+  repromptRate: number;
+  topConfusionPairs: ConfusionPair[];
+}
+
+export interface ConfusionPair {
+  intentA: string;
+  intentB: string;
+  confusionRate: number;
+}
+
+// =====================================================
+// CONVERSATION FLOW METRICS
+// =====================================================
+
+export interface ConversationFlowMetrics {
+  taskCompletionRate: number;
+  taskCompletionByJourney: JourneyMetric[];
+  dropOffByStep: FunnelStep[];
+  turnsPerCall: number;
+  avgTimeToResolution: number;
+  repeatedQuestionRate: number;
+  recoveryRateAfterFallback: number;
+  repairSuccessRate: number;
+  toolFailureRate: number;
+  webhookFailureRate: number;
+  timeoutRate: number;
+  retryRate: number;
+}
+
+export interface JourneyMetric {
+  journey: string;
+  completionRate: number;
+  avgDuration: number;
+}
+
+export interface FunnelStep {
+  step: string;
+  dropOffRate: number;
+  avgTimeSpent: number;
+}
+
+// =====================================================
+// CUSTOMER EXPERIENCE METRICS
+// =====================================================
+
+export interface CustomerExperienceMetrics {
+  csat: number;
+  ces: number; // Customer Effort Score
+  nps: number;
+  sentimentScoreAvg: number;
+  sentimentScoreMin: number;
+  negativeSentimentSpikeRate: number;
+  complaintKeywordRate: number;
+  agentHelpfulThumbsUp: number;
+  agentHelpfulThumbsDown: number;
+  escalationRequestedRate: number;
+}
+
+// =====================================================
+// SUPPORT EFFECTIVENESS METRICS
+// =====================================================
+
+export interface SupportEffectivenessMetrics {
+  aht: number; // Average Handle Time
+  talkTime: number;
+  holdTime: number;
+  acwTime: number; // After-call work
+  fcr: number; // First Call Resolution
+  repeatCallRate: number;
+  transferRate: number;
+  reopenRate: number;
+  callbackResolutionRate: number;
+}
+
+// =====================================================
+// BUSINESS OUTCOMES METRICS
+// =====================================================
+
+export interface BusinessOutcomesMetrics {
+  conversionRate: number;
+  abandonRateAtKeySteps: KeyStepAbandon[];
+  revenuePerCall: number;
+  revenuePerSession: number;
+  costPerResolvedCase: number;
+  deflectionRate: number; // AI resolved without human
+  containmentRate: number; // Fully automated
+  assistedRate: number; // Human involved
+  failureRate: number;
+  slaComplianceByIssueType: SLACompliance[];
+  backlogCreated: number;
+  backlogResolved: number;
+}
+
+export interface KeyStepAbandon {
+  step: string;
+  abandonRate: number;
+}
+
+export interface SLACompliance {
+  issueType: string;
+  complianceRate: number;
+}
+
+// =====================================================
+// PLATFORM RELIABILITY METRICS
+// =====================================================
+
+export interface PlatformReliabilityMetrics {
+  uptime: number;
+  errorRate4xx: number;
+  errorRate5xx: number;
+  timeoutRate: number;
+  retryRate: number;
+  circuitBreakerTrips: number;
+  dependencyLatency: DependencyLatency[];
+  queueDepth: number;
+  tokenUsage: number;
+  ttsCharacters: number;
+  ttsSeconds: number;
+  asrMinutes: number;
+  costPerCall: number;
+  costPerResolution: number;
+  rateLimitHits: number;
+  modelFallbackUsage: number;
+  regionFailoverEvents: number;
+}
+
+export interface DependencyLatency {
+  service: string;
+  latency: number;
+  status: 'healthy' | 'degraded' | 'down';
+}
+
+// =====================================================
+// COMPLIANCE & SECURITY METRICS
+// =====================================================
+
+export interface ComplianceMetrics {
+  policyTriggerRate: number;
+  redactionSuccessRate: number;
+  consentCapturedRate: number;
+  verificationPassRate: number;
+  verificationFailRate: number;
+  fraudFlagsRate: number;
+  auditCoverage: number;
+  retentionCompliance: number;
+  deletionCompliance: number;
+}
+
+export interface SecurityMetrics {
+  adminLogins: number;
+  permissionChanges: number;
+  apiKeyUsageAnomalies: number;
+  suspiciousIpCount: number;
+  geoAnomalies: number;
+  dataExportEvents: number;
+}
+
+// =====================================================
 // API RESPONSES
 // =====================================================
 

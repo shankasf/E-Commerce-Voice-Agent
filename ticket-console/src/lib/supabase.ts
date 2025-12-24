@@ -11,6 +11,14 @@ if (supabaseUrl && supabaseServiceKey) {
     auth: {
       autoRefreshToken: false,
       persistSession: false
+    },
+    db: {
+      schema: 'public'
+    },
+    global: {
+      headers: {
+        Authorization: `Bearer ${supabaseServiceKey}`
+      }
     }
   });
 } else {

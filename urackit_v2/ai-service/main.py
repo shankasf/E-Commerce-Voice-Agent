@@ -644,6 +644,84 @@ try:
         
         return {"token": token.to_jwt(), "identity": identity}
     
+    @app.get("/api/live-sessions")
+    async def get_live_sessions():
+        """Get all active live call sessions with their details."""
+        import time
+        from datetime import datetime
+        
+        session_manager = get_session_manager()
+        sessions = session_manager.get_all_sessions()
+        
+        calls = []
+        agents_set = set()
+        total_duration = 0
+        inbound_count = 0
+        outbound_count = 0
+        
+        for session in sessions:
+            duration = int(time.time() - session.created_at)
+            total_duration += duration
+            
+            direction = session.call_info.direction or "inbound"
+            if direction == "inbound":
+                inbound_count += 1
+            else:
+                outbound_count += 1
+            
+            if session.agent_type:
+                agents_set.add(session.agent_type)
+            
+            # Build transcript entries
+            transcript = []
+            for msg in session.conversation_history:
+                transcript.append({
+                    "role": msg.get("role", "assistant"),
+                    "content": msg.get("content", ""),
+                    "timestamp": msg.get("timestamp", datetime.utcnow().isoformat())
+                })
+            
+            # Build agent history
+            agent_history = []
+            current_agent = session.agent_type or "triage_agent"
+            agent_history.append({
+                "agentName": current_agent,
+                "action": "Started conversation",
+                "timestamp": datetime.utcfromtimestamp(session.created_at).isoformat()
+            })
+            
+            calls.append({
+                "callSid": session.call_info.call_sid,
+                "from": session.call_info.from_number,
+                "to": session.call_info.to_number,
+                "direction": direction,
+                "status": "in-progress",
+                "startTime": datetime.utcfromtimestamp(session.created_at).isoformat(),
+                "duration": duration,
+                "callerName": session.caller_name,
+                "companyName": session.company_name,
+                "currentAgent": current_agent,
+                "transcript": transcript,
+                "agentHistory": agent_history,
+                "sentiment": "neutral",
+                "ticketCreated": session.ticket_created,
+                "escalated": session.escalated
+            })
+        
+        # Calculate metrics
+        avg_duration = total_duration // len(sessions) if sessions else 0
+        
+        return {
+            "calls": calls,
+            "metrics": {
+                "activeCalls": len(sessions),
+                "inbound": inbound_count,
+                "outbound": outbound_count,
+                "avgDuration": avg_duration,
+                "activeAgents": list(agents_set)
+            }
+        }
+    
     logger.info("SIP/Voice integration routes loaded")
     
 except ImportError as e:

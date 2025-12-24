@@ -258,6 +258,9 @@ class MediaStreamHandler:
             self.session.add_message(role, text)
             logger.info(f"[{role}]: {text[:100]}...")
             
+            # Notify backend for real-time WebSocket updates
+            asyncio.create_task(self._notify_transcript(role, text))
+            
             # If in conference, also add to conference transcript
             if self.session.in_conference:
                 # Determine speaker based on context
@@ -583,6 +586,16 @@ class MediaStreamHandler:
         
         # Clear Twilio's audio buffer
         await self._clear_twilio_audio()
+    
+    async def _notify_transcript(self, role: str, content: str) -> None:
+        """Notify backend of transcript update for WebSocket broadcast."""
+        try:
+            session_manager = get_session_manager()
+            await session_manager.notify_transcript_update(
+                self.session.session_id, role, content
+            )
+        except Exception as e:
+            logger.debug(f"Could not notify transcript: {e}")
     
     async def _cleanup(self) -> None:
         """Cleanup resources when connection ends."""

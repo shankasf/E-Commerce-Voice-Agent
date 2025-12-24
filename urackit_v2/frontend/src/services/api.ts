@@ -120,6 +120,26 @@ export const dashboardApi = {
     const res = await api.get('/dashboard/contacts');
     return res.data;
   },
+
+  getLiveCalls: async (): Promise<{ calls: any[]; metrics: any }> => {
+    const res = await api.get('/dashboard/live');
+    return res.data;
+  },
+
+  getQualityMetrics: async (): Promise<any> => {
+    const res = await api.get('/dashboard/quality');
+    return res.data;
+  },
+
+  getAnalyticsMetrics: async (range = '7d'): Promise<any> => {
+    const res = await api.get(`/dashboard/analytics?range=${range}`);
+    return res.data;
+  },
+
+  getComplianceMetrics: async (): Promise<any> => {
+    const res = await api.get('/dashboard/compliance');
+    return res.data;
+  },
 };
 
 // =====================================================

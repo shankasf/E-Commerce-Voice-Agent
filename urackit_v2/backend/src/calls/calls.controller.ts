@@ -1,23 +1,29 @@
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import { Controller, Get, Post, Param, Query, Body, UseGuards, Headers } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiExcludeEndpoint } from '@nestjs/swagger';
 import { CallsService } from './calls.service';
 import { CallQueryDto } from './dto/call.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { EventsGateway } from '../events/events.gateway';
 
 @ApiTags('calls')
 @Controller('calls')
-@UseGuards(JwtAuthGuard)
-@ApiBearerAuth()
 export class CallsController {
-  constructor(private callsService: CallsService) {}
+  constructor(
+    private callsService: CallsService,
+    private eventsGateway: EventsGateway,
+  ) {}
 
   @Get()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'List call logs with pagination and filters' })
   async findAll(@Query() query: CallQueryDto) {
     return this.callsService.findAll(query);
   }
 
   @Get('stats')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get call statistics' })
   @ApiQuery({ name: 'range', required: false, enum: ['today', '7d', '30d', '90d'] })
   async getStats(@Query('range') range?: string) {
@@ -25,6 +31,8 @@ export class CallsController {
   }
 
   @Get('agents')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get AI agent usage distribution' })
   @ApiQuery({ name: 'range', required: false, enum: ['7d', '30d', '90d'] })
   async getAgentDistribution(@Query('range') range?: string) {
@@ -32,6 +40,8 @@ export class CallsController {
   }
 
   @Get('hourly')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get hourly call distribution' })
   @ApiQuery({ name: 'date', required: false, description: 'YYYY-MM-DD format' })
   async getHourlyDistribution(@Query('date') date?: string) {
@@ -39,8 +49,59 @@ export class CallsController {
   }
 
   @Get(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get call details with transcript and interactions' })
   async findOne(@Param('id') id: string) {
     return this.callsService.findOne(id);
+  }
+
+  // ============== Internal endpoints for AI service ==============
+
+  @Post('live/update')
+  @ApiExcludeEndpoint()
+  async pushLiveCallUpdate(
+    @Body() body: { calls: any[]; metrics: any },
+    @Headers('x-internal-key') internalKey: string,
+  ) {
+    // Simple internal key check (can be enhanced)
+    const expectedKey = process.env.INTERNAL_API_KEY || 'internal-secret';
+    if (internalKey !== expectedKey) {
+      return { error: 'Unauthorized' };
+    }
+    
+    // Emit to WebSocket clients
+    this.eventsGateway.emitLiveCallsUpdate(body.calls, body.metrics);
+    return { success: true };
+  }
+
+  @Post('live/event')
+  @ApiExcludeEndpoint()
+  async pushCallEvent(
+    @Body() body: { type: 'start' | 'update' | 'end' | 'transcript'; data: any },
+    @Headers('x-internal-key') internalKey: string,
+  ) {
+    const expectedKey = process.env.INTERNAL_API_KEY || 'internal-secret';
+    if (internalKey !== expectedKey) {
+      return { error: 'Unauthorized' };
+    }
+    
+    switch (body.type) {
+      case 'start':
+      case 'update':
+        this.eventsGateway.emitCallEvent(body.data);
+        break;
+      case 'end':
+        this.eventsGateway.emitCallEnd(body.data.callSid);
+        break;
+      case 'transcript':
+        this.eventsGateway.emitAIResponse(body.data.sessionId, {
+          role: body.data.role,
+          content: body.data.content,
+        });
+        break;
+    }
+    
+    return { success: true };
   }
 }

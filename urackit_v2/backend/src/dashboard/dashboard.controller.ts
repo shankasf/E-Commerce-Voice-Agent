@@ -75,4 +75,36 @@ export class DashboardController {
   async getHourlyMetrics(@Query('date') date?: string) {
     return this.dashboardService.getHourlyMetrics(date);
   }
+
+  @Get('live')
+  @ApiOperation({ summary: 'Get live call sessions from AI service' })
+  async getLiveCalls() {
+    return this.dashboardService.getLiveCalls();
+  }
+
+  @Get('quality')
+  @ApiOperation({ summary: 'Get call quality and AI performance metrics' })
+  async getQualityMetrics() {
+    return this.dashboardService.getQualityMetrics();
+  }
+
+  @Get('analytics')
+  @ApiOperation({ summary: 'Get business analytics metrics' })
+  @ApiQuery({ name: 'range', required: false, enum: ['today', '7d', '30d', '90d'] })
+  async getAnalyticsMetrics(@Query('range') range?: string) {
+    return this.dashboardService.getAnalyticsMetrics(range);
+  }
+
+  @Get('compliance')
+  @ApiOperation({ summary: 'Get compliance and security metrics' })
+  async getComplianceMetrics() {
+    return this.dashboardService.getComplianceMetrics();
+  }
+
+  @Get('ai')
+  @ApiOperation({ summary: 'Get AI agent distribution and performance metrics' })
+  @ApiQuery({ name: 'range', required: false, enum: ['today', '7d', '30d', '90d'] })
+  async getAIMetrics(@Query('range') range?: string) {
+    return this.dashboardService.getAIMetrics(range);
+  }
 }

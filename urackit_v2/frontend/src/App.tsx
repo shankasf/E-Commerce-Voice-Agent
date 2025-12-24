@@ -3,6 +3,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   OverviewPage,
   CallsPage,
+  LiveCallsPage,
+  QualityMetricsPage,
+  AnalyticsPage,
+  CompliancePage,
   TicketsPage,
   DevicesPage,
   OrganizationsPage,
@@ -31,6 +35,10 @@ function App() {
           <Route path="/" element={<Navigate to="/overview" replace />} />
           <Route path="/overview" element={<OverviewPage />} />
           <Route path="/calls" element={<CallsPage />} />
+          <Route path="/live" element={<LiveCallsPage />} />
+          <Route path="/quality" element={<QualityMetricsPage />} />
+          <Route path="/analytics" element={<AnalyticsPage />} />
+          <Route path="/compliance" element={<CompliancePage />} />
           <Route path="/tickets" element={<TicketsPage />} />
           <Route path="/devices" element={<DevicesPage />} />
           <Route path="/organizations" element={<OrganizationsPage />} />

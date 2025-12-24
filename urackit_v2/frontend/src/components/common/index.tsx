@@ -28,6 +28,8 @@ import {
     Cpu,
     Mail,
     Database,
+    Eye,
+    Lock,
 } from 'lucide-react';
 
 type IconName =
@@ -59,11 +61,13 @@ type IconName =
     | 'monitor'
     | 'cpu'
     | 'mail'
-    | 'database';
+    | 'database'
+    | 'eye'
+    | 'lock';
 
 export type { IconName };
 
-type ColorName = 'primary' | 'blue' | 'green' | 'yellow' | 'orange' | 'red' | 'purple';
+type ColorName = 'primary' | 'blue' | 'green' | 'yellow' | 'orange' | 'red' | 'purple' | 'gray';
 
 const iconMap: Record<IconName, typeof Phone> = {
     phone: Phone,
@@ -95,6 +99,8 @@ const iconMap: Record<IconName, typeof Phone> = {
     cpu: Cpu,
     mail: Mail,
     database: Database,
+    eye: Eye,
+    lock: Lock,
 };
 
 const colorClasses: Record<ColorName, { bg: string; text: string }> = {
@@ -105,6 +111,7 @@ const colorClasses: Record<ColorName, { bg: string; text: string }> = {
     orange: { bg: 'bg-orange-600/20', text: 'text-orange-400' },
     red: { bg: 'bg-red-600/20', text: 'text-red-400' },
     purple: { bg: 'bg-purple-600/20', text: 'text-purple-400' },
+    gray: { bg: 'bg-dark-600/20', text: 'text-dark-400' },
 };
 
 interface MetricCardProps {
@@ -231,12 +238,18 @@ interface CardProps {
     title?: string;
     children: ReactNode;
     className?: string;
+    headerContent?: ReactNode;
 }
 
-export function Card({ title, children, className }: CardProps) {
+export function Card({ title, children, className, headerContent }: CardProps) {
     return (
         <div className={clsx('glass rounded-2xl p-6', className)}>
-            {title && <h3 className="text-lg font-semibold mb-4">{title}</h3>}
+            {(title || headerContent) && (
+                <div className="flex items-center justify-between mb-4">
+                    {title && <h3 className="text-lg font-semibold">{title}</h3>}
+                    {headerContent}
+                </div>
+            )}
             {children}
         </div>
     );

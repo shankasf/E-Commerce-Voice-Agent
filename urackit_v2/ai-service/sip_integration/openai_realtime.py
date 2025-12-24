@@ -47,6 +47,7 @@ class OpenAIRealtimeConnection(IRealtimeConnection):
         self._session_ready = asyncio.Event()
     
     async def connect(self, session_id: str) -> bool:
+        logger.info(f"Attempting to connect to OpenAI Realtime WebSocket for session {session_id}")
         """Establish WebSocket connection to OpenAI Realtime API."""
         if self._is_connected:
             logger.warning(f"Already connected to session {self._session_id}")
@@ -62,13 +63,12 @@ class OpenAIRealtimeConnection(IRealtimeConnection):
                 "OpenAI-Beta": "realtime=v1",
             }
             
+            logger.info(f"Connecting to {url} with headers: {headers}")
             self._ws = await connect(url, extra_headers=headers)
             self._is_connected = True
-            
+            logger.info(f"WebSocket connection established for session {session_id}")
             await self._configure_session()
-            
             self._receive_task = asyncio.create_task(self._receive_loop())
-            
             logger.info(f"Connected to OpenAI Realtime API for session {session_id}")
             return True
             
@@ -290,27 +290,31 @@ Remember: You are a background assistant. The human technician is leading the ca
         logger.info("Sent conversation.item.truncate to OpenAI")
     
     async def _send_event(self, event: dict) -> None:
-        """Send an event to OpenAI."""
+        """Send an event to OpenAI with debug logging."""
         if self._ws:
+            logger.debug(f"Sending event to OpenAI: {json.dumps(event)}")
             await self._ws.send(json.dumps(event))
     
     async def _receive_loop(self) -> None:
-        """Background loop for receiving messages from OpenAI."""
+        """Background loop for receiving messages from OpenAI with debug logging."""
         try:
             async for message in self._ws:
+                logger.debug(f"Received raw message from OpenAI: {message}")
                 try:
                     event = json.loads(message)
+                    logger.debug(f"Parsed event from OpenAI: {event}")
                     await self._handle_event(event)
                 except json.JSONDecodeError:
                     logger.error(f"Invalid JSON from OpenAI: {message}")
-        except websockets.exceptions.ConnectionClosed:
-            logger.info("OpenAI WebSocket connection closed")
+        except websockets.exceptions.ConnectionClosed as e:
+            logger.info(f"OpenAI WebSocket connection closed: {e}")
         except asyncio.CancelledError:
             raise
         except Exception as e:
             logger.error(f"Error in receive loop: {e}")
     
     async def _handle_event(self, event: dict) -> None:
+        logger.debug(f"Handling event type: {event.get('type', '')}")
         """Handle an event from OpenAI."""
         event_type = event.get("type", "")
         

@@ -499,7 +499,7 @@ export function AIMetricsModal({ isOpen, onClose }: AIMetricsModalProps) {
         try {
             setLoading(true);
             setError(null);
-            
+
             let url = '/tms/api/ai-metrics?';
             if (dateRange === 'custom' && customStartDate && customEndDate) {
                 url += `startDate=${customStartDate}&endDate=${customEndDate}`;
@@ -507,7 +507,7 @@ export function AIMetricsModal({ isOpen, onClose }: AIMetricsModalProps) {
                 const days = parseInt(dateRange.replace('d', ''));
                 url += `days=${days}`;
             }
-            
+
             const response = await fetch(url);
             if (!response.ok) throw new Error('Failed to load metrics');
             const data = await response.json();
@@ -559,22 +559,20 @@ export function AIMetricsModal({ isOpen, onClose }: AIMetricsModalProps) {
                                         setDateRange(range);
                                         setShowCustomRange(false);
                                     }}
-                                    className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                                        dateRange === range && !showCustomRange
+                                    className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${dateRange === range && !showCustomRange
                                             ? 'bg-purple-600 text-white'
                                             : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-                                    }`}
+                                        }`}
                                 >
                                     {range.replace('d', ' Days')}
                                 </button>
                             ))}
                             <button
                                 onClick={() => setShowCustomRange(!showCustomRange)}
-                                className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                                    showCustomRange
+                                className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${showCustomRange
                                         ? 'bg-purple-600 text-white'
                                         : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-                                }`}
+                                    }`}
                             >
                                 Custom
                             </button>

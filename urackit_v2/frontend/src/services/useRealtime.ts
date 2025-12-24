@@ -198,3 +198,44 @@ export function useWebSocketStatus() {
 
   return { ...status, reconnect };
 }
+
+/**
+ * Hook to subscribe to live call updates for real-time monitoring
+ */
+export function useLiveCallUpdates(onUpdate?: (event: CallEvent) => void) {
+  const [liveCalls, setLiveCalls] = useState<Map<string, CallEvent>>(new Map());
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    // Connect if not already connected
+    wsService.connect();
+
+    const unsub = wsService.on('call:update', (data) => {
+      const event = data as CallEvent;
+
+      setLiveCalls((prev) => {
+        const updated = new Map(prev);
+        
+        if (event.status === 'completed' || event.status === 'failed') {
+          // Remove completed/failed calls
+          updated.delete(event.callSid);
+        } else {
+          // Add or update call
+          updated.set(event.callSid, event);
+        }
+        
+        return updated;
+      });
+
+      // Invalidate queries
+      queryClient.invalidateQueries({ queryKey: ['dashboard-live'] });
+
+      // Call custom handler
+      onUpdate?.(event);
+    });
+
+    return () => unsub();
+  }, [queryClient, onUpdate]);
+
+  return Array.from(liveCalls.values());
+}

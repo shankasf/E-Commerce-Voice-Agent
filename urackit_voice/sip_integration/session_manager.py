@@ -247,8 +247,14 @@ class VoiceSessionManager(ISessionManager):
             # Determine AI resolution (resolved if not escalated and had conversation)
             ai_resolution = not session.escalated and len(session.conversation_history) > 0
             
+            # Generate a unique call_id
+            import uuid
+            call_id = str(uuid.uuid4())
+            
             # Insert call log with all fields
             call_log_data = {
+                "call_id": call_id,
+                "session_id": session.session_id,
                 "call_sid": session.call_info.call_sid,
                 "from_number": session.call_info.from_number,
                 "to_number": session.call_info.to_number,
