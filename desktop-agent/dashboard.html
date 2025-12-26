@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>IT Support Agent - Terminal</title>
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' http://localhost:5000 ws://localhost:5000;">
+    <!-- Modern Font akin to Consolas/Menlo -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap">
+    <style>
+        :root {
+            --bg-color: #1e1e1e;
+            --sidebar-bg: #333333;
+            /* Activity bar color */
+            --panel-bg: #252526;
+            --text-color: #cccccc;
+            --blue-accent: #007acc;
+            --border-color: #3e3e42;
+            --terminal-bg: #1e1e1e;
+            --green: #4ec9b0;
+            --yellow: #dcdcaa;
+            --red: #f14c4c;
+            --cmd-blue: #569cd6;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Fira Code', 'Consolas', monospace;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            font-size: 14px;
+        }
+
+        /* Top Title Bar / Menu */
+        .title-bar {
+            background-color: #3c3c3c;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            font-size: 12px;
+            -webkit-app-region: drag;
+            color: #ccc;
+        }
+
+        .title-text {
+            flex: 1;
+            text-align: center;
+        }
+
+        /* Main Layout */
+        .workspace {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Sidebar (Activity Bar) */
+        .activity-bar {
+            width: 48px;
+            background-color: var(--sidebar-bg);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 10px;
+        }
+
+        .icon {
+            width: 24px;
+            height: 24px;
+            margin-bottom: 20px;
+            opacity: 0.6;
+            cursor: pointer;
+            filter: grayscale(100%);
+        }
+
+        .icon.active {
+            opacity: 1;
+            border-left: 2px solid var(--text-color);
+            /* fake selection */
+            filter: none;
+        }
+
+        /* Terminal Area */
+        .terminal-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--terminal-bg);
+        }
+
+        /* Panel Tabs */
+        .panel-header {
+            background-color: var(--panel-bg);
+            display: flex;
+            align-items: center;
+            padding-left: 10px;
+            height: 35px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .tab {
+            padding: 0 15px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            color: #969696;
+            cursor: pointer;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .tab.active {
+            color: white;
+            border-bottom: 1px solid white;
+        }
+
+        /* Actual Terminal Output */
+        #terminal-output {
+            flex: 1;
+            padding: 10px;
+            overflow-y: auto;
+            font-family: 'Consolas', monospace;
+            line-height: 1.5;
+        }
+
+        /* Input Line */
+        .input-line {
+            display: flex;
+            align-items: center;
+            padding: 5px 10px 10px 10px;
+            background-color: var(--terminal-bg);
+        }
+
+        .prompt-label {
+            color: var(--green);
+            margin-right: 8px;
+            font-weight: bold;
+        }
+
+        #cmd-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-color);
+            font-family: 'Consolas', monospace;
+            font-size: 14px;
+            outline: none;
+        }
+
+        /* Status Bar */
+        .status-bar {
+            height: 22px;
+            background-color: var(--blue-accent);
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            font-size: 12px;
+            justify-content: space-between;
+        }
+
+        /* Log Styling */
+        .log-info {
+            color: #cccccc;
+        }
+
+        .log-success {
+            color: var(--green);
+        }
+
+        .log-warn {
+            color: var(--yellow);
+        }
+
+        .log-error {
+            color: var(--red);
+        }
+
+        .log-cmd {
+            color: var(--cmd-blue);
+            font-weight: bold;
+            margin-top: 5px;
+            display: block;
+        }
+
+        .log-stream {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        /* Fake Icons (SVG) */
+        svg {
+            fill: #ccc;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="title-bar">
+        <span class="title-text">IT Support Desktop Agent - main.js</span>
+    </div>
+
+    <div class="workspace">
+        <!-- Sidebar mimicking VS Code Activity Bar -->
+        <div class="activity-bar">
+            <!-- Terminal Icon -->
+            <div class="icon active" title="Terminal">
+                <svg viewBox="0 0 16 16">
+                    <path
+                        d="M12.5 2H3.5C2.67157 2 2 2.67157 2 3.5V12.5C2 13.3284 2.67157 14 3.5 14H12.5C13.3284 14 14 13.3284 14 12.5V3.5C14 2.67157 13.3284 2 12.5 2ZM3.5 3H12.5C12.7761 3 13 3.22386 13 3.5V12.5C13 12.7761 12.7761 13 12.5 13H3.5C3.22386 13 3 12.7761 3 12.5V3.5C3 3.22386 3.22386 3 3.5 3ZM5 5.5L7.5 8L5 10.5H6.41421L8.20711 8.70711L6.41421 6.91421L8.20711 5.12132L6.41421 3.32843L5 5.5Z"
+                        fill="currentColor" />
+                </svg>
+            </div>
+            <!-- Settings Icon -->
+            <div class="icon" title="Settings">
+                <svg viewBox="0 0 16 16">
+                    <path
+                        d="M9.1 4.4L9.5 6C10.5 6.2 11.4 7.1 11.6 8.1L13.1 8.5C13.4 7.5 13.3 6.4 12.8 5.6C12.3 4.8 11.5 4.3 10.6 4.1L9.1 4.4ZM6.9 11.6L6.5 10C5.5 9.8 4.6 8.9 4.4 7.9L2.9 7.5C2.6 8.5 2.7 9.6 3.2 10.4C3.7 11.2 4.5 11.7 5.4 11.9L6.9 11.6ZM8 11C9.65685 11 11 9.65685 11 8C11 6.34315 9.65685 5 8 5C6.34315 5 5 6.34315 5 8C5 9.65685 6.34315 11 8 11Z"
+                        fill="currentColor" />
+                </svg>
+            </div>
+        </div>
+
+        <div class="terminal-container">
+            <div class="panel-header">
+                <div class="tab" data-target="specs-view">System Specs</div>
+                <div class="tab" data-target="logs-view">Logs</div>
+                <div class="tab active" data-target="terminal-view">Terminal</div>
+            </div>
+
+            <!-- Tab Content Areas -->
+            <div id="terminal-view" class="view-content"
+                style="display:flex; flex-direction:column; flex:1; overflow:hidden;">
+                <div id="terminal-output">
+                    <div class="log-info">Microsoft Windows [Version 10.0.19045.3693]</div>
+                    <div class="log-info">(c) Microsoft Corporation. All rights reserved.</div>
+                    <br>
+                    <div class="log-info">Desktop Agent v2.0 <span style="color:#007acc">Ready</span></div>
+                    <!-- Logs inserted here -->
+                </div>
+            </div>
+
+            <div id="specs-view" class="view-content" style="display:none; padding:20px; overflow-y:auto;">
+                <h3 style="color:var(--text-color); margin-top:0;">System Specifications</h3>
+                <div id="specs-loading" style="color:var(--yellow);">Loading specs...</div>
+                <table id="specs-table" style="width:100%; border-collapse:collapse; display:none;">
+                    <style>
+                        #specs-table td {
+                            padding: 8px;
+                            border-bottom: 1px solid var(--border-color);
+                        }
+
+                        #specs-table td:first-child {
+                            color: var(--cmd-blue);
+                            font-weight: bold;
+                            width: 150px;
+                        }
+                    </style>
+                    <!-- Specs injected here -->
+                </table>
+            </div>
+
+            <div id="output-view" class="view-content" style="display:none; padding:20px;">
+                <div style="color:var(--text-color); opacity:0.7;">No active output channels.</div>
+            </div>
+
+            <div id="debug-view" class="view-content" style="display:none; padding:20px;">
+                <div style="color:var(--text-color); opacity:0.7;">Debug console attached to port 9229. Monitoring...
+                </div>
+            </div>
+
+            <div class="input-line">
+                <span class="prompt-label" id="prompt-path">PS C:\User></span>
+                <input type="text" id="cmd-input" placeholder="Type a command..." autocomplete="off" spellcheck="false">
+            </div>
+        </div>
+    </div>
+
+    <div class="status-bar">
+        <span id="status-left"><svg style="width:12px; height:12px; vertical-align:middle; margin-right:5px;"
+                viewBox="0 0 16 16">
+                <path d="M11 2H2V11H11V2Z" fill="currentColor" />
+            </svg>Agent: Initializing...</span>
+        <span id="status-right" style="margin-right:10px;">Ln 1, Col 1</span>
+    </div>
+
+    <script>
+        const outputDiv = document.getElementById('terminal-output');
+        const statusLeft = document.getElementById('status-left');
+        const input = document.getElementById('cmd-input');
+
+        function appendLog(content, type = 'log-info') {
+            const div = document.createElement('div');
+            div.className = type;
+            div.textContent = content;
+            outputDiv.appendChild(div);
+            scrollToBottom();
+        }
+
+        function appendStream(content) {
+            const span = document.createElement('span');
+            span.className = 'log-stream';
+            span.textContent = content;
+            outputDiv.appendChild(span);
+            scrollToBottom();
+        }
+
+        function scrollToBottom() {
+            outputDiv.scrollTop = outputDiv.scrollHeight;
+        }
+
+        // Bridge Listeners
+        window.terminal.onLog((event, data) => {
+            appendLog(data.message, data.type);
+        });
+
+        window.terminal.onData((event, chunk) => {
+            appendStream(chunk);
+        });
+
+        window.terminal.onStatus((event, status) => {
+            if (status.connected) {
+                statusLeft.textContent = `Connected (${status.user})`;
+            } else {
+                statusLeft.textContent = status.text;
+            }
+            // Update Prompt Path
+            if (status.prompt) {
+                document.getElementById('prompt-path').textContent = status.prompt;
+            }
+        });
+
+        // Input Handling
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const cmd = input.value.trim();
+                if (cmd) {
+                    appendLog(`PS C:\\User> ${cmd}`, 'log-info'); // Echo input
+                    if (cmd === 'cls' || cmd === 'clear') {
+                        outputDiv.innerHTML = '';
+                    } else {
+                        window.terminal.sendInput(cmd);
+                    }
+                    input.value = '';
+                }
+            }
+        });
+
+        // Tab Switching Logic
+        const tabs = document.querySelectorAll('.tab');
+        const views = document.querySelectorAll('.view-content');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                // Remove active class
+                tabs.forEach(t => t.classList.remove('active'));
+                views.forEach(v => v.style.display = 'none');
+
+                // Add active
+                tab.classList.add('active');
+                const targetId = tab.getAttribute('data-target');
+                const targetView = document.getElementById(targetId);
+                if (targetView) {
+                    targetView.style.display = (targetId === 'terminal-view') ? 'flex' : 'block';
+                }
+
+                // If clicking Specs, fetch data
+                if (targetId === 'specs-view') loadSpecs();
+            });
+        });
+
+        async function loadSpecs() {
+            const table = document.getElementById('specs-table');
+            const loading = document.getElementById('specs-loading');
+
+            try {
+                const specs = await window.sys.getSpecs();
+                table.innerHTML = '';
+
+                Object.entries(specs).forEach(([key, value]) => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `<td>${key.toUpperCase()}</td><td>${value}</td>`;
+                    table.appendChild(row);
+                });
+
+                loading.style.display = 'none';
+                table.style.display = 'table';
+            } catch (err) {
+                loading.textContent = "Failed to load specs: " + err.message;
+                loading.className = 'log-error';
+            }
+        }
+
+        // Auto-focus input when clicking terminal
+        document.querySelector('#terminal-view').addEventListener('click', () => {
+            if (window.getSelection().toString().length === 0) {
+                input.focus();
+            }
+        });
+
+        input.focus();
+
+    </script>
+</body>
+
+</html>

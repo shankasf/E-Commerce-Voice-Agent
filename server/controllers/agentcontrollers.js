@@ -37,6 +37,22 @@ const TOOLS = [
             required: ["priority"],
         },
     },
+    {
+        type: "function",
+        name: "run_remote_diagnostic",
+        description: "Run a safe, diagnostic command on the user's local machine to troubleshoot issues (requires user approval).",
+        parameters: {
+            type: "object",
+            properties: {
+                command: {
+                    type: "string",
+                    enum: ["ping 8.8.8.8", "ipconfig", "whoami", "systeminfo", "hostname", "Get-ComputerInfo"],
+                    description: "The command to run. strict allowlist applies.",
+                }
+            },
+            required: ["command"],
+        },
+    },
 ];
 
 // 2. Main Controller Logic
@@ -164,35 +180,103 @@ exports.postMessage = async (req, res) => {
                                 .eq('ticket_id', ticketId);
                             toolResponseText = `Updated priority to ${args.priority}.`;
                         }
+                        else if (functionName === "run_remote_diagnostic") {
+                            // GET IO INSTANCE
+                            const io = req.app.get('io');
+                            // Target User (ALWAYS use the authenticated user)
+                            const targetUserId = userId;
+
+                            const runId = `run_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+                            console.log(`[AI] Requesting remote command: ${args.command} on User: ${targetUserId}`);
+
+                            // Send Request to Desktop Agent (via specific agent room)
+                            io.to(`agent_${targetUserId}`).emit('agent:execute_command', {
+                                command: args.command,
+                                runId: runId
+                            });
+
+                            // WAIT for Result (30s Timeout)
+                            try {
+                                const result = await new Promise((resolve, reject) => {
+                                    const timeout = setTimeout(() => {
+                                        reject(new Error(`Timeout: Desktop Agent with ID '${targetUserId}' did not respond in 30s.`));
+                                    }, 30000);
+
+                                    const resultHandler = (data) => {
+                                        clearTimeout(timeout);
+                                        if (data.error) {
+                                            resolve(`Command Failed: ${data.error}`);
+                                        } else {
+                                            resolve(`Command Output:\n${data.output}`);
+                                        }
+                                    };
+
+                                    process.once(`cmd_result_${runId}`, resultHandler);
+                                });
+                                toolResponseText = result;
+
+                                // --- AI SUMMARIZATION LOOP ---
+                                // The original call.id might be too long for the standard chat API (max 40 chars).
+                                // We generate a short, valid ID for this summarization context.
+                                const summaryToolCallId = `call_${Math.random().toString(36).substr(2, 9)}`;
+
+                                const toolMessage = {
+                                    role: "tool",
+                                    content: toolResponseText,
+                                    tool_call_id: summaryToolCallId
+                                };
+
+                                const assistantToolCallMsg = {
+                                    role: "assistant",
+                                    tool_calls: [{
+                                        id: summaryToolCallId,
+                                        type: "function",
+                                        function: {
+                                            name: functionName,
+                                            arguments: argsString
+                                        }
+                                    }]
+                                };
+
+                                const updatedHistory = [
+                                    ...conversationHistory.map(m => ({ role: m.role, content: m.content })),
+                                    assistantToolCallMsg,
+                                    toolMessage
+                                ];
+
+                                const summaryResponse = await openai.chat.completions.create({
+                                    model: "gpt-4o",
+                                    messages: [
+                                        { role: "system", content: DYNAMIC_INSTRUCTIONS },
+                                        ...updatedHistory
+                                    ]
+                                });
+
+                                toolResponseText = summaryResponse.choices[0].message.content;
+
+                            } catch (err) {
+                                toolResponseText = `Error running diagnostic: ${err.message}`;
+                            }
+                        }
 
                         // Log the tool event
                         await supabase.from('ticket_messages').insert([{
                             ticket_id: ticketId,
                             sender_agent_id: 1,
                             content: toolResponseText,
-                            message_type: 'event',
+                            message_type: 'event', // Summary is logged as event
                             response_id: response.id
                         }]);
+
+                        // Use summary as the main response
+                        aiResponseText = toolResponseText;
                     }
                 }
             }
         }
 
-        // E. Save AI Text Response (if any)
-        // Only save if we got text back. Tool calls handled above.
-        if (aiResponseText) {
-            await supabase.from('ticket_messages').insert([{
-                ticket_id: ticketId,
-                sender_agent_id: 1,
-                content: aiResponseText,
-                message_type: 'text',
-                response_id: response.id
-            }]);
-        }
-
         // F. Send Response to Client
-        // We return the text (or tool result) so the UI can update immediately
-        // without waiting for a subscription/poll.
         const finalResponse = aiResponseText || toolResponseText;
 
         res.status(201).json({

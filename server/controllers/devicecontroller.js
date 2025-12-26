@@ -40,7 +40,8 @@ exports.getMyDevices = async (req, res) => {
             name: row.devices.asset_name, // Using Asset Name as name
             model: row.devices.device_models ? `${row.devices.device_models.device_manufacturers.name} ${row.devices.device_models.name}` : 'Unknown Model',
             status: row.unassigned_at ? 'RETURNED' : row.devices.status, // Tag returned devices
-            os: 'Windows 11', // Placeholder or fetch from specs
+            status: row.unassigned_at ? 'RETURNED' : row.devices.status, // Tag returned devices
+            os: row.devices.os || null, // No more hardcoded Windows 11
             assigned_at: row.assigned_at,
             unassigned_at: row.unassigned_at
         }));

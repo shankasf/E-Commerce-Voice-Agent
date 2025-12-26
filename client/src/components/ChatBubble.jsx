@@ -1,5 +1,7 @@
 import { Bot, User, AlertCircle, FileText } from 'lucide-react';
 import { motion } from 'framer-motion';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 const ChatBubble = ({ message, isUser }) => {
 
@@ -12,8 +14,20 @@ const ChatBubble = ({ message, isUser }) => {
                 className="flex justify-center my-6"
             >
                 <div className="bg-yellow-50 text-yellow-700 text-xs font-bold px-4 py-1.5 rounded-full flex items-center border border-yellow-200 shadow-sm">
-                    <AlertCircle size={14} className="mr-2" />
-                    {message.content}
+                    <AlertCircle size={14} className="mr-2 flex-shrink-0 mt-0.5" />
+                    <div className="text-xs">
+                        <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                                p: ({ node, ...props }) => <p className="mb-0" {...props} />,
+                                strong: ({ node, ...props }) => <strong className="font-bold text-yellow-800" {...props} />,
+                                a: ({ node, ...props }) => <a className="underline hover:decoration-2" {...props} />,
+                                code: ({ node, ...props }) => <code className="bg-yellow-100 px-1 rounded font-mono" {...props} />
+                            }}
+                        >
+                            {message.content}
+                        </ReactMarkdown>
+                    </div>
                 </div>
             </motion.div>
         );
@@ -50,19 +64,46 @@ const ChatBubble = ({ message, isUser }) => {
                     )}
 
                     {/* Message Content */}
-                    {message.message_type === 'image' ? (
+                    {message.message_type === 'image' || message.content.startsWith('![Image]') ? (
                         <div className="mb-1 -mx-2 -mt-2">
                             <img
-                                src={message.content}
+                                src={message.content.match(/\((.*?)\)/)?.[1] || message.content}
                                 alt="Attachment"
                                 className="rounded-xl w-full max-h-64 object-cover cursor-pointer hover:opacity-95 transition-opacity border border-gray-100"
-                                onClick={() => window.open(message.content, '_blank')}
+                                onClick={() => window.open(message.content.match(/\((.*?)\)/)?.[1] || message.content, '_blank')}
                             />
                         </div>
                     ) : (
-                        <p className={`text-sm leading-relaxed whitespace-pre-wrap ${isUser ? 'text-white' : 'text-gray-700'}`}>
-                            {message.content}
-                        </p>
+                        <div className={`text-sm leading-relaxed ${isUser ? 'text-white' : 'text-gray-800'}`}>
+                            <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                    p: ({ node, ...props }) => <p className="mb-2 last:mb-0" {...props} />,
+                                    ul: ({ node, ...props }) => <ul className="list-disc pl-4 mb-2 space-y-1" {...props} />,
+                                    ol: ({ node, ...props }) => <ol className="list-decimal pl-4 mb-2 space-y-1" {...props} />,
+                                    li: ({ node, ...props }) => <li className="" {...props} />,
+                                    a: ({ node, ...props }) => <a className="underline hover:opacity-80 transition-opacity" target="_blank" rel="noopener noreferrer" {...props} />,
+                                    strong: ({ node, ...props }) => <strong className="font-semibold" {...props} />,
+                                    code: ({ node, inline, className, children, ...props }) => {
+                                        return inline ? (
+                                            <code className={`px-1.5 py-0.5 rounded font-mono text-xs ${isUser ? 'bg-white/20' : 'bg-gray-100 text-red-500'}`} {...props}>
+                                                {children}
+                                            </code>
+                                        ) : (
+                                            <div className="my-3 overflow-hidden rounded-lg border border-gray-100 shadow-sm">
+                                                <div className="bg-gray-50 px-3 py-1 text-xs text-gray-500 border-b border-gray-100 font-mono">Output</div>
+                                                <code className="block bg-white p-3 overflow-x-auto font-mono text-xs text-gray-800 whitespace-pre">
+                                                    {children}
+                                                </code>
+                                            </div>
+                                        );
+                                    },
+                                    blockquote: ({ node, ...props }) => <blockquote className={`border-l-4 pl-3 italic my-2 ${isUser ? 'border-white/40' : 'border-blue-200 text-gray-500'}`} {...props} />,
+                                }}
+                            >
+                                {message.content}
+                            </ReactMarkdown>
+                        </div>
                     )}
                 </div>
 

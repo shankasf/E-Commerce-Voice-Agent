@@ -10,6 +10,11 @@ const MyTickets = () => {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
 
+    // Filter State
+    const [showFilters, setShowFilters] = useState(false);
+    const [filterStatus, setFilterStatus] = useState('All');
+    const [filterPriority, setFilterPriority] = useState('All');
+
     useEffect(() => {
         const fetchTickets = async () => {
             try {
@@ -24,10 +29,14 @@ const MyTickets = () => {
         fetchTickets();
     }, []);
 
-    const filteredTickets = tickets.filter(t =>
-        t.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        t.id.toString().includes(searchTerm)
-    );
+    const filteredTickets = tickets.filter(t => {
+        const matchesSearch = t.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            t.id.toString().includes(searchTerm);
+        const matchesStatus = filterStatus === 'All' || t.status === filterStatus;
+        const matchesPriority = filterPriority === 'All' || t.priority === filterPriority;
+
+        return matchesSearch && matchesStatus && matchesPriority;
+    });
 
     if (loading) return <div className="flex h-screen items-center justify-center bg-gray-50">Loading Tickets...</div>;
 
@@ -58,10 +67,67 @@ const MyTickets = () => {
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
-                <button className="flex items-center space-x-2 px-4 py-2 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors">
-                    <Filter size={18} />
-                    <span>Filter</span>
-                </button>
+                <div className="relative">
+                    <button
+                        onClick={() => setShowFilters(!showFilters)}
+                        className={`flex items-center space-x-2 px-4 py-2 border rounded-lg transition-colors relative ${showFilters || filterStatus !== 'All' || filterPriority !== 'All'
+                            ? 'border-blue-500 text-blue-600 bg-blue-50'
+                            : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                            }`}
+                    >
+                        <Filter size={18} />
+                        <span>Filter</span>
+                        {(filterStatus !== 'All' || filterPriority !== 'All') && (
+                            <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-white"></span>
+                        )}
+                    </button>
+
+                    {/* Filter Dropdown */}
+                    {showFilters && (
+                        <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 p-4 z-50">
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Status</label>
+                                    <select
+                                        value={filterStatus}
+                                        onChange={(e) => setFilterStatus(e.target.value)}
+                                        className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                                    >
+                                        <option value="All">All Statuses</option>
+                                        <option value="Open">Open</option>
+                                        <option value="Closed">Closed</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Priority</label>
+                                    <select
+                                        value={filterPriority}
+                                        onChange={(e) => setFilterPriority(e.target.value)}
+                                        className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                                    >
+                                        <option value="All">All Priorities</option>
+                                        <option value="Low">Low</option>
+                                        <option value="Medium">Medium</option>
+                                        <option value="High">High</option>
+                                        <option value="Critical">Critical</option>
+                                    </select>
+                                </div>
+                                <div className="pt-2 border-t border-gray-50 flex justify-end">
+                                    <button
+                                        onClick={() => {
+                                            setFilterStatus('All');
+                                            setFilterPriority('All');
+                                            setShowFilters(false);
+                                        }}
+                                        className="text-xs text-red-500 font-bold hover:underline"
+                                    >
+                                        Reset Filters
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Tickets Table */}
@@ -92,16 +158,16 @@ const MyTickets = () => {
                                     <td className="px-6 py-4 text-sm text-gray-600">{ticket.device || 'N/A'}</td>
                                     <td className="px-6 py-4 text-center">
                                         <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${ticket.status === 'Open' ? 'bg-yellow-100 text-yellow-700' :
-                                                ticket.status === 'Resolved' ? 'bg-green-100 text-green-700' :
-                                                    'bg-gray-100 text-gray-600'
+                                            ticket.status === 'Resolved' ? 'bg-green-100 text-green-700' :
+                                                'bg-gray-100 text-gray-600'
                                             }`}>
                                             {ticket.status}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 text-center">
                                         <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-bold ${ticket.priority === 'Critical' ? 'bg-red-100 text-red-700' :
-                                                ticket.priority === 'High' ? 'bg-orange-100 text-orange-700' :
-                                                    'bg-blue-100 text-blue-700'
+                                            ticket.priority === 'High' ? 'bg-orange-100 text-orange-700' :
+                                                'bg-blue-100 text-blue-700'
                                             }`}>
                                             {ticket.priority}
                                         </span>

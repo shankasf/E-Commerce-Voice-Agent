@@ -3,13 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/authcontext';
 import api from '../services/api';
 import Layout from '../components/Layout';
-import FloatingChatBot from '../components/FloatingChatBot';
 import {
     Laptop, AlertTriangle, CheckCircle2, Clock,
-    ArrowUpRight, Plus
+    ArrowUpRight, Plus, Activity, Server, Database, Wifi,
+    Ticket, AlertCircle, CheckCircle
 } from 'lucide-react';
 import {
-    AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell
+    AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell,
+    BarChart, Bar, Legend
 } from 'recharts';
 import { motion } from 'framer-motion';
 
@@ -38,27 +39,14 @@ const StatCard = ({ title, value, icon: Icon, color, trend }) => (
 const Dashboard = () => {
     const { user } = useContext(AuthContext);
     const navigate = useNavigate();
-    const [stats, setStats] = useState({ total: 0, open: 0, critical: 0, devices: 0 });
+    const [stats, setStats] = useState({ total: 0, open: 0, resolved: 0, critical: 0, devices: 0 });
     const [tickets, setTickets] = useState([]);
+    const [chartData, setChartData] = useState([]);
+    const [pieData, setPieData] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [systemHealth, setSystemHealth] = useState({ db: 'checking', server: 'checking', ai: 'operational' });
 
-    // Mock Data for Charts (You can replace with real API data later)
-    const chartData = [
-        { name: 'Mon', tickets: 2 },
-        { name: 'Tue', tickets: 5 },
-        { name: 'Wed', tickets: 3 },
-        { name: 'Thu', tickets: 8 },
-        { name: 'Fri', tickets: 4 },
-        { name: 'Sat', tickets: 1 },
-        { name: 'Sun', tickets: 2 },
-    ];
-
-    const pieData = [
-        { name: 'Open', value: 4, color: '#3B82F6' },
-        { name: 'Closed', value: 8, color: '#10B981' },
-        { name: 'Critical', value: 2, color: '#EF4444' },
-    ];
-
+    // Fetch Data
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -68,88 +56,190 @@ const Dashboard = () => {
                 ]);
 
                 const tList = tRes.data;
-                setTickets(tList.slice(0, 5)); // Just top 5
+                setTickets(tList);
+
+                // Real Stats
+                const openCount = tList.filter(t => t.status === 'Open').length;
+                const closedCount = tList.filter(t => t.status === 'Closed').length;
+                const criticalCount = tList.filter(t => t.priority === 'Critical').length;
+
                 setStats({
                     total: tList.length,
-                    open: tList.filter(t => t.status === 'Open').length,
-                    critical: tList.filter(t => t.priority === 'Critical').length,
+                    open: openCount,
+                    resolved: closedCount,
+                    critical: criticalCount,
                     devices: dRes.data.length
                 });
+
+                // Real Pie Data
+                setPieData([
+                    { name: 'Open', value: openCount, color: '#F59E0B' }, // Yellow
+                    { name: 'Closed', value: closedCount, color: '#10B981' }, // Green
+                    { name: 'Critical', value: criticalCount, color: '#EF4444' }, // Red
+                ]);
+
+                // Real Weekly Activity (Last 7 Days)
+                const last7Days = [...Array(7)].map((_, i) => {
+                    const d = new Date();
+                    d.setDate(d.getDate() - i);
+                    return d.toISOString().split('T')[0]; // YYYY-MM-DD
+                }).reverse();
+
+                const activityData = last7Days.map(date => ({
+                    name: new Date(date).toLocaleDateString('en-US', { weekday: 'short' }),
+                    tickets: tList.filter(t => t.created_at.startsWith(date)).length
+                }));
+                setChartData(activityData);
+
             } catch (err) {
                 console.error(err);
             } finally {
                 setLoading(false);
             }
         };
+
         fetchData();
+
     }, []);
 
-    if (loading) return <div className="flex h-screen items-center justify-center bg-gray-50">Loading...</div>; // Replace with Skeleton later
+    // Get Recent Activity (Top 5 newest tickets)
+    // We sort a copy so we don't mutate original tickets
+    const recentActivity = [...tickets]
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .slice(0, 5);
+
+    const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+
+    if (loading) return <div className="flex h-screen items-center justify-center bg-gray-50">Loading Dashboard...</div>;
 
     return (
         <Layout>
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <StatCard title="Total Tickets" value={stats.total} icon={Clock} color="blue" trend="+12%" />
-                <StatCard title="Open Issues" value={stats.open} icon={AlertTriangle} color="yellow" />
-                <StatCard title="Critical" value={stats.critical} icon={AlertTriangle} color="red" />
-                <StatCard title="Active Assets" value={stats.devices} icon={Laptop} color="purple" />
+                <StatCard
+                    title="Total Tickets"
+                    value={stats.total}
+                    icon={Ticket}
+                    color="blue"
+                    trend="+12%"
+                />
+                <StatCard
+                    title="Open Tickets"
+                    value={stats.open}
+                    icon={AlertCircle}
+                    color="yellow"
+                    trend={stats.open > 5 ? "High Load" : "Normal"}
+                />
+                <StatCard
+                    title="Resolved"
+                    value={stats.resolved}
+                    icon={CheckCircle}
+                    color="green"
+                />
+                <StatCard
+                    title="Avg Response"
+                    value="1.2h"
+                    icon={Clock}
+                    color="purple"
+                />
             </div>
 
+            {/* Charts Row */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
                 {/* Chart Section */}
                 <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                     <h3 className="text-lg font-bold text-gray-800 mb-6">Weekly Activity</h3>
                     <div className="h-64">
                         <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={chartData}>
-                                <defs>
-                                    <linearGradient id="colorTickets" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3} />
-                                        <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
+                            <BarChart data={chartData}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
                                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 12 }} />
                                 <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 12 }} />
-                                <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
-                                <Area type="monotone" dataKey="tickets" stroke="#3B82F6" strokeWidth={3} fillOpacity={1} fill="url(#colorTickets)" />
-                            </AreaChart>
+                                <Tooltip
+                                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                    cursor={{ fill: '#F3F4F6' }}
+                                />
+                                <Bar dataKey="tickets" fill="#3B82F6" radius={[4, 4, 0, 0]} barSize={32} />
+                            </BarChart>
                         </ResponsiveContainer>
                     </div>
                 </div>
 
-                {/* Quick Actions / Pie Chart */}
+                {/* Status Distribution */}
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center">
                     <h3 className="text-lg font-bold text-gray-800 mb-4 w-full text-left">Status Distribution</h3>
-                    <div className="w-48 h-48">
+                    <div className="w-full h-48 relative">
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                                 <Pie
                                     data={pieData}
-                                    innerRadius={60}
-                                    outerRadius={80}
+                                    innerRadius={50}
+                                    outerRadius={70}
                                     paddingAngle={5}
                                     dataKey="value"
+                                    stroke="none"
                                 >
                                     {pieData.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={entry.color} />
                                     ))}
                                 </Pie>
-                                <Tooltip />
+                                <Tooltip
+                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                                />
+                                <Legend verticalAlign="bottom" height={36} iconType="circle" />
                             </PieChart>
                         </ResponsiveContainer>
+                        {/* Center Label for Donut Chart */}
+                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-8">
+                            <span className="text-3xl font-bold text-gray-800">{stats.total}</span>
+                            <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Tickets</span>
+                        </div>
                     </div>
                     <button
                         onClick={() => navigate('/new-ticket')}
-                        className="mt-6 w-full bg-gray-900 hover:bg-gray-800 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center transition-all transform hover:scale-[1.02]"
+                        className="mt-6 w-full bg-gray-900 hover:bg-gray-800 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center transition-all transform hover:scale-[1.02] shadow-lg shadow-gray-900/10"
                     >
                         <Plus size={20} className="mr-2" /> Create New Ticket
                     </button>
                 </div>
             </div>
 
-            {/* Recent Tickets Table */}
+            {/* Widgets Row (New) */}
+            <div className="grid grid-cols-1 mb-8">
+                {/* Recent Activity Feed */}
+                <div className="lg:col-span-3 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col">
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-lg font-bold text-gray-800">Recent Activity</h2>
+                    </div>
+                    <div className="space-y-4">
+                        {recentActivity.length === 0 ? (
+                            <p className="text-gray-400 text-sm text-center py-4">No recent activity found.</p>
+                        ) : (
+                            recentActivity.map((ticket) => (
+                                <div key={ticket.id} className="flex items-start gap-4 p-3 hover:bg-gray-50 rounded-xl transition-colors cursor-pointer" onClick={() => navigate(`/tickets/${ticket.id}`)}>
+                                    <div className={`mt-1 p-2 rounded-full ${ticket.status === 'Open' ? 'bg-yellow-100 text-yellow-600' :
+                                        ticket.status === 'Closed' ? 'bg-green-100 text-green-600' :
+                                            'bg-blue-100 text-blue-600'
+                                        }`}>
+                                        <Activity size={16} />
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-sm font-medium text-gray-900">
+                                            Ticket <span className="text-blue-600">#{ticket.id}</span> created
+                                        </p>
+                                        <p className="text-xs text-gray-500 truncate max-w-md">{ticket.subject}</p>
+                                    </div>
+                                    <div className="text-xs text-gray-400 whitespace-nowrap">
+                                        {new Date(ticket.created_at).toLocaleDateString()}
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Recent Tickets Table (Existing) */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="p-6 border-b border-gray-100 flex justify-between items-center">
                     <h3 className="text-lg font-bold text-gray-800">Recent Tickets</h3>
@@ -166,7 +256,7 @@ const Dashboard = () => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                        {tickets.map((ticket) => (
+                        {tickets.slice(0, 5).map((ticket) => (
                             <tr
                                 key={ticket.id}
                                 onClick={() => navigate(`/tickets/${ticket.id}`)}
@@ -177,7 +267,9 @@ const Dashboard = () => {
                                     <div className="text-xs text-gray-500">{ticket.device}</div>
                                 </td>
                                 <td className="px-6 py-4">
-                                    <span className={`px-3 py-1 text-xs font-bold rounded-full ${ticket.status === 'Open' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'
+                                    <span className={`px-3 py-1 text-xs font-bold rounded-full ${ticket.status === 'Open' ? 'bg-yellow-100 text-yellow-700' :
+                                        ticket.status === 'Closed' ? 'bg-green-100 text-green-700' :
+                                            'bg-gray-100 text-gray-700'
                                         }`}>
                                         {ticket.status}
                                     </span>
@@ -201,8 +293,6 @@ const Dashboard = () => {
                     </tbody>
                 </table>
             </div>
-
-            <FloatingChatBot />
         </Layout>
     );
 };

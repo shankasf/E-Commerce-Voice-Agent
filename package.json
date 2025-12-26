@@ -1,0 +1,12 @@
+{
+    "name": "urackit-monorepo",
+    "version": "1.0.0",
+    "description": "Unified startup for URACKIT",
+    "scripts": {
+        "start": "concurrently \"npm start --prefix server\" \"npm run dev --prefix client\" \"npm start --prefix desktop-agent\"",
+        "install:all": "npm install && npm install --prefix server && npm install --prefix client && npm install --prefix desktop-agent"
+    },
+    "devDependencies": {
+        "concurrently": "^8.2.2"
+    }
+}
