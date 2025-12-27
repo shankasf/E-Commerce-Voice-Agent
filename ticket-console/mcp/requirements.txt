@@ -1,0 +1,9 @@
+# Terminal Server MCP Dependencies
+# Install: pip install -r requirements.txt
+
+# Official Anthropic MCP SDK
+mcp>=1.0.0
+
+# SSH support (optional - for remote Linux execution)
+paramiko>=3.0.0
+

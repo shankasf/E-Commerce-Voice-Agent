@@ -1,4 +1,5 @@
 'use client';
+import FloatingCopilot from "@/components/AICopilot/FloatingCopilot";
 
 import { useAuth } from '@/lib/auth-context';
 import { useParams } from 'next/navigation';
@@ -283,6 +284,9 @@ export default function AgentTicketDetail() {
           </div>
         </div>
       )}
+
+      {/* Floating AI Copilot */}
+      <FloatingCopilot ticketId={String(ticketId)} />
     </div>
   );
 }
