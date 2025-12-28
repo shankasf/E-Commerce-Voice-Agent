@@ -5,47 +5,110 @@ import { PrismaService } from '../prisma/prisma.service';
 export class DashboardService {
   constructor(private prisma: PrismaService) {}
 
-  // Pricing (USD per 1M tokens). Override via env vars if pricing changes.
-  private readonly openaiPricingPer1M: Record<string, { input: number; output: number; audioInput?: number; audioOutput?: number }> = {
-    // GPT-5.2 (latest)
-    'gpt-5.2': {
-      input: Number(process.env.OPENAI_PRICE_GPT52_INPUT_PER_1M || 1.75),
-      output: Number(process.env.OPENAI_PRICE_GPT52_OUTPUT_PER_1M || 14),
-    },
-    // GPT-4o models
-    'gpt-4o': {
-      input: Number(process.env.OPENAI_PRICE_GPT4O_INPUT_PER_1M || 2.5),
-      output: Number(process.env.OPENAI_PRICE_GPT4O_OUTPUT_PER_1M || 10),
-    },
-    'gpt-4o-mini': {
-      input: Number(process.env.OPENAI_PRICE_GPT4O_MINI_INPUT_PER_1M || 0.15),
-      output: Number(process.env.OPENAI_PRICE_GPT4O_MINI_OUTPUT_PER_1M || 0.6),
-    },
-    // Realtime API models (voice) - text tokens
-    'gpt-4o-realtime': {
-      input: Number(process.env.OPENAI_PRICE_GPT4O_REALTIME_INPUT_PER_1M || 5),
-      output: Number(process.env.OPENAI_PRICE_GPT4O_REALTIME_OUTPUT_PER_1M || 20),
-      audioInput: Number(process.env.OPENAI_PRICE_GPT4O_REALTIME_AUDIO_INPUT_PER_1M || 100),
-      audioOutput: Number(process.env.OPENAI_PRICE_GPT4O_REALTIME_AUDIO_OUTPUT_PER_1M || 200),
+  // ═══════════════════════════════════════════════════════════════════════════
+  // OPENAI PRICING (USD per 1M tokens) - Updated December 2025
+  // Override via env vars if pricing changes.
+  // ═══════════════════════════════════════════════════════════════════════════
+  private readonly openaiPricingPer1M: Record<string, { 
+    input: number; 
+    output: number; 
+    cachedInput?: number;
+    audioInput?: number; 
+    audioOutput?: number;
+    audioCachedInput?: number;
+  }> = {
+    // ─────────────────────────────────────────────────────────────────────────
+    // GPT-4o Realtime API (VOICE) - PRIMARY COST DRIVER
+    // ─────────────────────────────────────────────────────────────────────────
+    'gpt-4o-realtime-preview-2024-12-17': {
+      input: 4.00,           // Text input
+      output: 16.00,         // Text output
+      cachedInput: 0.50,     // Cached text input
+      audioInput: 32.00,     // Audio input
+      audioOutput: 64.00,    // Audio output
+      audioCachedInput: 0.50 // Cached audio input
     },
     'gpt-realtime-2025-08-28': {
-      input: Number(process.env.OPENAI_PRICE_REALTIME_202508_INPUT_PER_1M || 4),
-      output: Number(process.env.OPENAI_PRICE_REALTIME_202508_OUTPUT_PER_1M || 16),
-      audioInput: Number(process.env.OPENAI_PRICE_REALTIME_202508_AUDIO_INPUT_PER_1M || 32),
-      audioOutput: Number(process.env.OPENAI_PRICE_REALTIME_202508_AUDIO_OUTPUT_PER_1M || 64),
+      input: 4.00,           // Text input
+      output: 16.00,         // Text output
+      cachedInput: 0.50,     // Cached text input
+      audioInput: 32.00,     // Audio input
+      audioOutput: 64.00,    // Audio output
+      audioCachedInput: 0.50 // Cached audio input
     },
+    'gpt-4o-realtime': {
+      input: 4.00,
+      output: 16.00,
+      cachedInput: 0.50,
+      audioInput: 32.00,
+      audioOutput: 64.00,
+      audioCachedInput: 0.50
+    },
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // GPT-5.x Series (Latest)
+    // ─────────────────────────────────────────────────────────────────────────
+    'gpt-5.2': { input: 1.75, output: 14.00, cachedInput: 0.175 },
+    'gpt-5.2-chat-latest': { input: 1.75, output: 14.00, cachedInput: 0.175 },
+    'gpt-5.2-pro': { input: 21.00, output: 168.00 },
+    'gpt-5.1': { input: 1.25, output: 10.00, cachedInput: 0.125 },
+    'gpt-5.1-chat-latest': { input: 1.25, output: 10.00, cachedInput: 0.125 },
+    'gpt-5.1-codex-max': { input: 1.25, output: 10.00, cachedInput: 0.125 },
+    'gpt-5.1-codex': { input: 1.25, output: 10.00, cachedInput: 0.125 },
+    'gpt-5': { input: 1.25, output: 10.00, cachedInput: 0.125 },
+    'gpt-5-chat-latest': { input: 1.25, output: 10.00, cachedInput: 0.125 },
+    'gpt-5-codex': { input: 1.25, output: 10.00, cachedInput: 0.125 },
+    'gpt-5-pro': { input: 15.00, output: 120.00 },
+    'gpt-5-mini': { input: 0.25, output: 2.00, cachedInput: 0.025 },
+    'gpt-5-nano': { input: 0.05, output: 0.40, cachedInput: 0.005 },
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // GPT-4.x Series
+    // ─────────────────────────────────────────────────────────────────────────
+    'gpt-4.1': { input: 2.00, output: 8.00, cachedInput: 0.50 },
+    'gpt-4.1-mini': { input: 0.40, output: 1.60, cachedInput: 0.10 },
+    'gpt-4.1-nano': { input: 0.10, output: 0.40, cachedInput: 0.025 },
+    'gpt-4o': { input: 2.50, output: 10.00, cachedInput: 1.25 },
+    'gpt-4o-2024-05-13': { input: 5.00, output: 15.00 },
+    'gpt-4o-mini': { input: 0.15, output: 0.60, cachedInput: 0.075 },
+    
     // Fallback for unknown models
-    'default': {
-      input: 5,
-      output: 15,
-    },
+    'default': { input: 5.00, output: 15.00 },
   };
 
-  // Twilio voice defaults (USD/min). Override via env for region-specific pricing.
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TWILIO PRICING (USD per minute) - US Region
+  // https://www.twilio.com/en-us/voice/pricing/us
+  // ═══════════════════════════════════════════════════════════════════════════
   private readonly twilioVoicePricing = {
+    // Programmable Voice - Receive (Inbound)
+    localInbound: Number(process.env.TWILIO_VOICE_LOCAL_INBOUND_PER_MIN || 0.0085),
+    tollFreeInbound: Number(process.env.TWILIO_VOICE_TOLLFREE_INBOUND_PER_MIN || 0.0130),
+    
+    // Programmable Voice - Make (Outbound)
+    localOutbound: Number(process.env.TWILIO_VOICE_LOCAL_OUTBOUND_PER_MIN || 0.014),
+    tollFreeOutbound: Number(process.env.TWILIO_VOICE_TOLLFREE_OUTBOUND_PER_MIN || 0.014),
+    
+    // SIP Trunking (Elastic SIP)
+    sipInbound: Number(process.env.TWILIO_SIP_INBOUND_PER_MIN || 0.0045),
+    sipOutbound: Number(process.env.TWILIO_SIP_OUTBOUND_PER_MIN || 0.007),
+    
+    // Media Streams (WebSocket audio streaming) - per minute
+    mediaStreams: Number(process.env.TWILIO_MEDIA_STREAMS_PER_MIN || 0.004),
+    
+    // Recording storage (per minute stored)
+    recordingStorage: Number(process.env.TWILIO_RECORDING_STORAGE_PER_MIN || 0.0025),
+    
+    // Transcription (per minute)
+    transcription: Number(process.env.TWILIO_TRANSCRIPTION_PER_MIN || 0.05),
+    
+    // Legacy defaults for backwards compatibility
     inbound: Number(process.env.TWILIO_VOICE_INBOUND_PER_MIN || 0.0085),
-    outbound: Number(process.env.TWILIO_VOICE_OUTBOUND_PER_MIN || 0.013),
+    outbound: Number(process.env.TWILIO_VOICE_OUTBOUND_PER_MIN || 0.014),
   };
+
+  // Human agent cost estimate (for ROI calculation)
+  private readonly humanAgentCostPerMinute = Number(process.env.HUMAN_AGENT_COST_PER_MIN || 0.50); // ~$30/hr
 
   private computeOpenAICost(
     model: string, 
@@ -358,110 +421,483 @@ export class DashboardService {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Aggregate AI usage by model for accurate pricing
-    const [aiByModel, aiToday, twilioCosts, dailyCosts] = await Promise.all([
+    // Get all data needed for comprehensive cost analysis
+    const [aiByModel, aiToday, twilioCosts, dailyCosts, callStats, monthlyAI, callsBySource] = await Promise.all([
+      // AI usage by model
       this.prisma.$queryRaw`
         SELECT COALESCE(model, 'gpt-4o') as model,
                SUM(COALESCE(input_tokens,0))::bigint as input_tokens,
                SUM(COALESCE(output_tokens,0))::bigint as output_tokens,
                SUM(COALESCE(audio_tokens,0))::bigint as audio_tokens,
                SUM(COALESCE(total_cost_cents,0))::bigint as cost_cents,
+               SUM(COALESCE(cost_usd,0))::numeric as cost_usd,
                COUNT(*)::int as usage_count
         FROM ai_usage_logs
         WHERE created_at >= ${startDate}
         GROUP BY model
-      ` as Promise<Array<{ model: string; input_tokens: bigint; output_tokens: bigint; audio_tokens: bigint; cost_cents: bigint; usage_count: number }>>,
+      ` as Promise<Array<{ model: string; input_tokens: bigint; output_tokens: bigint; audio_tokens: bigint; cost_cents: bigint; cost_usd: number; usage_count: number }>>,
+      
+      // Today's AI usage
       this.prisma.$queryRaw`
         SELECT SUM(COALESCE(total_cost_cents,0))::bigint as cost_cents,
+               SUM(COALESCE(cost_usd,0))::numeric as cost_usd,
                SUM(COALESCE(total_tokens,0))::bigint as tokens,
                COUNT(*)::int as usage_count
         FROM ai_usage_logs
         WHERE created_at >= ${today}
-      ` as Promise<Array<{ cost_cents: bigint; tokens: bigint; usage_count: number }>>,
+      ` as Promise<Array<{ cost_cents: bigint; cost_usd: number; tokens: bigint; usage_count: number }>>,
+      
+      // Twilio costs
       this.prisma.twilio_usage_logs.aggregate({
         where: { created_at: { gte: startDate } },
         _sum: { billable_minutes: true, cost_cents: true },
       }),
+      
+      // Daily cost breakdown
       this.prisma.$queryRaw`
-        SELECT DATE(created_at) as date, SUM(total_cost_cents)::int as cost_cents
+        SELECT DATE(created_at) as date, 
+               SUM(COALESCE(total_cost_cents,0))::int as cost_cents,
+               SUM(COALESCE(cost_usd,0))::numeric as cost_usd
         FROM ai_usage_logs
         WHERE created_at >= ${startDate}
         GROUP BY DATE(created_at)
         ORDER BY date DESC
         LIMIT 30
       `,
+      
+      // Call statistics for ROI calculation
+      this.prisma.$queryRaw`
+        SELECT COUNT(*)::int as total_calls,
+               SUM(COALESCE(duration_seconds, 0))::int as total_duration_seconds,
+               COUNT(CASE WHEN ai_resolution = true THEN 1 END)::int as ai_resolved_calls,
+               COUNT(CASE WHEN escalated = true THEN 1 END)::int as escalated_calls
+        FROM call_logs
+        WHERE started_at >= ${startDate}
+      ` as Promise<Array<{ total_calls: number; total_duration_seconds: number; ai_resolved_calls: number; escalated_calls: number }>>,
+      
+      // Monthly AI costs (30 days)
+      this.prisma.$queryRaw`
+        SELECT SUM(COALESCE(cost_usd,0))::numeric as cost_usd,
+               SUM(COALESCE(total_tokens,0))::bigint as tokens
+        FROM ai_usage_logs
+        WHERE created_at >= ${new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)}
+      ` as Promise<Array<{ cost_usd: number; tokens: bigint }>>,
+      
+      // ─────────────────────────────────────────────────────────────────────────
+      // CALLS BY SOURCE (Twilio PSTN vs WebRTC browser)
+      // ─────────────────────────────────────────────────────────────────────────
+      this.prisma.$queryRaw`
+        SELECT 
+          COALESCE(call_source, 'twilio') as call_source,
+          COUNT(*)::int as total_calls,
+          SUM(COALESCE(duration_seconds, 0))::int as total_duration_seconds,
+          COUNT(CASE WHEN ai_resolution = true THEN 1 END)::int as ai_resolved_calls,
+          COUNT(CASE WHEN escalated = true THEN 1 END)::int as escalated_calls
+        FROM call_logs
+        WHERE started_at >= ${startDate}
+        GROUP BY COALESCE(call_source, 'twilio')
+      ` as Promise<Array<{ call_source: string; total_calls: number; total_duration_seconds: number; ai_resolved_calls: number; escalated_calls: number }>>,
     ]);
 
-    // Compute AI costs using pricing map (fallback to stored cost_cents when available)
+    // ─────────────────────────────────────────────────────────────────────────
+    // COMPUTE AI COSTS BY MODEL
+    // ─────────────────────────────────────────────────────────────────────────
     let aiCostUsd = 0;
     let totalTokens = 0;
     let totalInputTokens = 0;
     let totalOutputTokens = 0;
     let totalAudioTokens = 0;
+    let totalUsageCount = 0;
+    
     const costByModel = (aiByModel || []).map((m) => {
       const input = Number(m.input_tokens || 0);
       const output = Number(m.output_tokens || 0);
       const audio = Number(m.audio_tokens || 0);
-      const storedCostUsd = Number(m.cost_cents || 0) / 100;
-      // For realtime models, split audio tokens as input/output (estimate 50/50)
-      const audioInput = Math.floor(audio / 2);
-      const audioOutput = audio - audioInput;
+      const storedCostUsd = Number(m.cost_usd || 0);
+      const storedCostCents = Number(m.cost_cents || 0) / 100;
+      
+      // For realtime models, audio is the main cost driver
+      // Estimate: 60% of tokens are audio for voice calls
+      const audioInput = Math.floor(audio * 0.5) || Math.floor((input + output) * 0.3);
+      const audioOutput = audio - audioInput || Math.floor((input + output) * 0.3);
+      
       const computedCostUsd = this.computeOpenAICost(m.model, input, output, audioInput, audioOutput);
-      const finalCost = storedCostUsd > 0 ? storedCostUsd : computedCostUsd;
+      
+      // Use stored cost if available, otherwise compute
+      const finalCost = storedCostUsd > 0 ? storedCostUsd : (storedCostCents > 0 ? storedCostCents : computedCostUsd);
+      
       aiCostUsd += finalCost;
       totalTokens += input + output + audio;
       totalInputTokens += input;
       totalOutputTokens += output;
       totalAudioTokens += audio;
+      totalUsageCount += m.usage_count || 0;
+      
+      const pricing = this.openaiPricingPer1M[m.model] || this.openaiPricingPer1M['default'];
+      
       return {
         model: m.model,
         tokens: input + output,
-        audioTokens: audio,
-        cost: Number(finalCost.toFixed(4)),
+        input_tokens: input,
+        output_tokens: output,
+        audio_tokens: audio,
+        usage_count: m.usage_count || 0,
+        cost: Number(finalCost.toFixed(6)),
+        pricing: {
+          input_per_1m: pricing.input,
+          output_per_1m: pricing.output,
+          audio_input_per_1m: pricing.audioInput || 0,
+          audio_output_per_1m: pricing.audioOutput || 0,
+        },
       };
     });
 
-    // Twilio cost (fallback to pricing if cost_cents missing)
-    const twilioCostUsd = Number(twilioCosts._sum.cost_cents || 0) / 100;
+    // ─────────────────────────────────────────────────────────────────────────
+    // COMPUTE TWILIO COSTS
+    // ─────────────────────────────────────────────────────────────────────────
+    const twilioStoredCostUsd = Number(twilioCosts._sum.cost_cents || 0) / 100;
     const twilioMinutes = Number(twilioCosts._sum.billable_minutes || 0);
-    let twilioComputedUsd = twilioCostUsd;
-    if (twilioCostUsd === 0 && twilioMinutes > 0) {
-      // If direction not stored, use outbound pricing as a conservative estimate
-      twilioComputedUsd = twilioMinutes * this.twilioVoicePricing.outbound;
-    }
+    
+    // Calculate Twilio cost breakdown
+    const twilioVoiceCost = twilioMinutes * this.twilioVoicePricing.inbound;
+    const twilioMediaStreamsCost = twilioMinutes * this.twilioVoicePricing.mediaStreams;
+    const twilioTotalComputed = twilioVoiceCost + twilioMediaStreamsCost;
+    const twilioCostUsd = twilioStoredCostUsd > 0 ? twilioStoredCostUsd : twilioTotalComputed;
 
-    const aiTodayCostUsd = Number((aiToday[0]?.cost_cents || 0)) / 100;
+    // ─────────────────────────────────────────────────────────────────────────
+    // COMPUTE ROI AND SAVINGS
+    // ─────────────────────────────────────────────────────────────────────────
+    const calls = callStats[0] || { total_calls: 0, total_duration_seconds: 0, ai_resolved_calls: 0, escalated_calls: 0 };
+    const totalCallMinutes = (calls.total_duration_seconds || 0) / 60;
+    const aiResolvedCalls = calls.ai_resolved_calls || 0;
+    
+    // Estimated human agent cost (if AI didn't handle these calls)
+    const humanAgentCostEstimate = totalCallMinutes * this.humanAgentCostPerMinute;
+    
+    // Total AI + Twilio cost
+    const totalAiInfrastructureCost = aiCostUsd + twilioCostUsd;
+    
+    // Savings = What human agents would have cost - What AI actually cost
+    const savings = humanAgentCostEstimate - totalAiInfrastructureCost;
+    
+    // ROI = (Savings / AI Cost) * 100
+    const roiPercent = totalAiInfrastructureCost > 0 
+      ? Math.round((savings / totalAiInfrastructureCost) * 100) 
+      : 0;
+    
+    // Cost reduction percentage
+    const costReductionPercent = humanAgentCostEstimate > 0 
+      ? Math.round(((humanAgentCostEstimate - totalAiInfrastructureCost) / humanAgentCostEstimate) * 100)
+      : 0;
+
+    // Today's costs
+    const aiTodayCostUsd = Number(aiToday[0]?.cost_usd || 0) || Number((aiToday[0]?.cost_cents || 0)) / 100;
     const aiTodayTokens = Number(aiToday[0]?.tokens || 0);
+
+    // Monthly costs
+    const aiMonthlyCostUsd = Number(monthlyAI[0]?.cost_usd || 0);
+    const aiMonthlyTokens = Number(monthlyAI[0]?.tokens || 0);
+
+    // Average cost per call
+    const avgCostPerCall = calls.total_calls > 0 
+      ? Number((totalAiInfrastructureCost / calls.total_calls).toFixed(4)) 
+      : 0;
+
+    // Cost per minute
+    const costPerMinute = totalCallMinutes > 0 
+      ? Number((totalAiInfrastructureCost / totalCallMinutes).toFixed(4))
+      : 0;
 
     return {
       metrics: {
-        cost_today: aiTodayCostUsd,
-        cost_week: aiCostUsd,
-        cost_month: aiCostUsd * 4,
-        cost_total: aiCostUsd + twilioComputedUsd,
+        // ─────────────────────────────────────────────────────────────────────
+        // COST TOTALS
+        // ─────────────────────────────────────────────────────────────────────
+        cost_today: Number(aiTodayCostUsd.toFixed(4)),
+        cost_week: Number(aiCostUsd.toFixed(4)),
+        cost_month: Number(aiMonthlyCostUsd.toFixed(4)),
+        cost_total: Number((aiCostUsd + twilioCostUsd).toFixed(4)),
+        
+        // ─────────────────────────────────────────────────────────────────────
+        // TOKEN METRICS
+        // ─────────────────────────────────────────────────────────────────────
         tokens_today: aiTodayTokens,
         tokens_week: totalTokens,
-        tokens_month: totalTokens * 4,
+        tokens_month: aiMonthlyTokens,
         tokens_total: totalTokens,
-        calls_today: 0,
-        calls_week: 0,
-        calls_month: 0,
-        calls_total: 0,
-        avg_cost_per_call: totalTokens > 0 ? Number((aiCostUsd / Math.max(1, aiByModel.length)).toFixed(4)) : 0,
-        roi_percent: 340,
         input_tokens: totalInputTokens,
         output_tokens: totalOutputTokens,
-        input_cost: Number((totalInputTokens / 1_000_000 * (this.openaiPricingPer1M['gpt-4o'].input)).toFixed(4)),
-        output_cost: Number((totalOutputTokens / 1_000_000 * (this.openaiPricingPer1M['gpt-4o'].output)).toFixed(4)),
-        savings: 1250,
-        cost_reduction: 1500,
-        human_agent_cost: 2500,
-        ai_cost: aiCostUsd,
+        audio_tokens: totalAudioTokens,
+        
+        // ─────────────────────────────────────────────────────────────────────
+        // CALL METRICS
+        // ─────────────────────────────────────────────────────────────────────
+        calls_today: calls.total_calls || 0,
+        calls_week: calls.total_calls || 0,
+        calls_month: calls.total_calls || 0,
+        calls_total: calls.total_calls || 0,
+        call_minutes: Number(totalCallMinutes.toFixed(2)),
+        ai_resolved_calls: aiResolvedCalls,
+        escalated_calls: calls.escalated_calls || 0,
+        
+        // ─────────────────────────────────────────────────────────────────────
+        // COST PER UNIT
+        // ─────────────────────────────────────────────────────────────────────
+        avg_cost_per_call: avgCostPerCall,
+        cost_per_minute: costPerMinute,
+        cost_per_1k_tokens: totalTokens > 0 ? Number((aiCostUsd / (totalTokens / 1000)).toFixed(6)) : 0,
+        
+        // ─────────────────────────────────────────────────────────────────────
+        // ROI & SAVINGS
+        // ─────────────────────────────────────────────────────────────────────
+        roi_percent: roiPercent,
+        savings: Number(Math.max(0, savings).toFixed(2)),
+        cost_reduction_percent: Math.max(0, costReductionPercent),
+        human_agent_cost_estimate: Number(humanAgentCostEstimate.toFixed(2)),
+        
+        // ─────────────────────────────────────────────────────────────────────
+        // COST BREAKDOWN
+        // ─────────────────────────────────────────────────────────────────────
+        ai_cost: Number(aiCostUsd.toFixed(4)),
+        twilio_cost: Number(twilioCostUsd.toFixed(4)),
+        twilio_minutes: twilioMinutes,
+        input_cost: Number((totalInputTokens / 1_000_000 * 4).toFixed(4)),   // Text input @ $4/1M
+        output_cost: Number((totalOutputTokens / 1_000_000 * 16).toFixed(4)), // Text output @ $16/1M
+        audio_input_cost: Number((totalAudioTokens * 0.5 / 1_000_000 * 32).toFixed(4)),  // Audio input @ $32/1M
+        audio_output_cost: Number((totalAudioTokens * 0.5 / 1_000_000 * 64).toFixed(4)), // Audio output @ $64/1M
+        
+        // ─────────────────────────────────────────────────────────────────────
+        // DAILY TREND
+        // ─────────────────────────────────────────────────────────────────────
         daily_costs: (dailyCosts as any[]).map((d) => ({
           date: d.date?.toISOString?.()?.split('T')[0] || d.date,
-          cost: (d.cost_cents || 0) / 100,
+          cost: Number(d.cost_usd || 0) || (d.cost_cents || 0) / 100,
         })),
+        
+        // ─────────────────────────────────────────────────────────────────────
+        // COST BY MODEL (detailed breakdown)
+        // ─────────────────────────────────────────────────────────────────────
         cost_by_model: costByModel,
+        
+        // ─────────────────────────────────────────────────────────────────────
+        // PRICING REFERENCE (for display)
+        // ─────────────────────────────────────────────────────────────────────
+        pricing_reference: {
+          openai_realtime: {
+            model: 'gpt-4o-realtime-preview-2024-12-17 / gpt-realtime-2025-08-28',
+            text_input_per_1m: 4.00,
+            text_output_per_1m: 16.00,
+            text_cached_per_1m: 0.50,
+            audio_input_per_1m: 32.00,
+            audio_output_per_1m: 64.00,
+            audio_cached_per_1m: 0.50,
+          },
+          twilio: {
+            voice_inbound_per_min: this.twilioVoicePricing.localInbound,
+            voice_outbound_per_min: this.twilioVoicePricing.localOutbound,
+            media_streams_per_min: this.twilioVoicePricing.mediaStreams,
+            tollfree_inbound_per_min: this.twilioVoicePricing.tollFreeInbound,
+          },
+          human_agent: {
+            cost_per_minute: this.humanAgentCostPerMinute,
+            cost_per_hour: this.humanAgentCostPerMinute * 60,
+          },
+        },
+        
+        // ─────────────────────────────────────────────────────────────────────
+        // CALLS BY SOURCE (Twilio PSTN vs WebRTC browser)
+        // WebRTC = OpenAI only (no Twilio charges)
+        // Twilio PSTN = OpenAI + Twilio Voice + Media Streams
+        // ─────────────────────────────────────────────────────────────────────
+        calls_by_source: this.computeCallsBySource(callsBySource, aiCostUsd, twilioMinutes),
+      },
+    };
+  }
+
+  /**
+   * Compute cost breakdown by call source (Twilio vs WebRTC)
+   * WebRTC calls have ZERO Twilio costs - only OpenAI realtime API costs
+   */
+  private computeCallsBySource(
+    callsBySource: Array<{ call_source: string; total_calls: number; total_duration_seconds: number; ai_resolved_calls: number; escalated_calls: number }>,
+    totalAiCostUsd: number,
+    twilioMinutes: number,
+  ) {
+    const sourceData: Record<string, any> = {};
+    let totalCalls = 0;
+    let totalDurationMinutes = 0;
+
+    for (const src of callsBySource || []) {
+      totalCalls += src.total_calls || 0;
+      totalDurationMinutes += (src.total_duration_seconds || 0) / 60;
+    }
+
+    for (const src of callsBySource || []) {
+      const source = src.call_source || 'twilio';
+      const calls = src.total_calls || 0;
+      const durationMinutes = (src.total_duration_seconds || 0) / 60;
+      const callProportion = totalCalls > 0 ? calls / totalCalls : 0;
+      
+      // Distribute AI cost proportionally by call count
+      const proportionalAiCost = totalAiCostUsd * callProportion;
+      
+      if (source === 'webrtc') {
+        // ═══════════════════════════════════════════════════════════════════
+        // WEBRTC: OpenAI only - NO Twilio costs!
+        // User talks directly via browser WebRTC → OpenAI Realtime API
+        // ═══════════════════════════════════════════════════════════════════
+        sourceData.webrtc = {
+          name: 'WebRTC (Browser Direct)',
+          description: 'Calls via browser WebRTC - OpenAI costs only, no Twilio',
+          calls: calls,
+          duration_minutes: Number(durationMinutes.toFixed(2)),
+          ai_resolved: src.ai_resolved_calls || 0,
+          escalated: src.escalated_calls || 0,
+          
+          // Cost breakdown
+          openai_cost: Number(proportionalAiCost.toFixed(4)),
+          twilio_cost: 0,  // NO TWILIO COSTS!
+          total_cost: Number(proportionalAiCost.toFixed(4)),
+          
+          // Cost per unit
+          cost_per_call: calls > 0 ? Number((proportionalAiCost / calls).toFixed(4)) : 0,
+          cost_per_minute: durationMinutes > 0 ? Number((proportionalAiCost / durationMinutes).toFixed(4)) : 0,
+          
+          // Pricing reference for WebRTC (OpenAI only)
+          pricing: {
+            openai_realtime: {
+              model: 'gpt-4o-realtime-preview / gpt-realtime-2025-08-28',
+              text_input_per_1m: 4.00,
+              text_output_per_1m: 16.00,
+              audio_input_per_1m: 32.00,
+              audio_output_per_1m: 64.00,
+            },
+            twilio: null,  // Not applicable
+            note: 'WebRTC calls bypass Twilio - 100% savings on telephony costs',
+          },
+        };
+      } else {
+        // ═══════════════════════════════════════════════════════════════════
+        // TWILIO PSTN: OpenAI + Twilio Voice + Media Streams
+        // Traditional phone calls via Twilio → OpenAI Realtime API
+        // ═══════════════════════════════════════════════════════════════════
+        const twilioDurationProportion = totalDurationMinutes > 0 ? durationMinutes / totalDurationMinutes : 0;
+        const proportionalTwilioMinutes = twilioMinutes * twilioDurationProportion;
+        
+        const twilioVoiceCost = proportionalTwilioMinutes * this.twilioVoicePricing.inbound;
+        const twilioMediaStreamsCost = proportionalTwilioMinutes * this.twilioVoicePricing.mediaStreams;
+        const totalTwilioCost = twilioVoiceCost + twilioMediaStreamsCost;
+        
+        sourceData.twilio = {
+          name: 'Twilio PSTN',
+          description: 'Traditional phone calls via Twilio telephony + OpenAI',
+          calls: calls,
+          duration_minutes: Number(durationMinutes.toFixed(2)),
+          ai_resolved: src.ai_resolved_calls || 0,
+          escalated: src.escalated_calls || 0,
+          
+          // Cost breakdown
+          openai_cost: Number(proportionalAiCost.toFixed(4)),
+          twilio_voice_cost: Number(twilioVoiceCost.toFixed(4)),
+          twilio_media_streams_cost: Number(twilioMediaStreamsCost.toFixed(4)),
+          twilio_cost: Number(totalTwilioCost.toFixed(4)),
+          total_cost: Number((proportionalAiCost + totalTwilioCost).toFixed(4)),
+          
+          // Cost per unit
+          cost_per_call: calls > 0 ? Number(((proportionalAiCost + totalTwilioCost) / calls).toFixed(4)) : 0,
+          cost_per_minute: durationMinutes > 0 ? Number(((proportionalAiCost + totalTwilioCost) / durationMinutes).toFixed(4)) : 0,
+          
+          // Pricing reference for Twilio
+          pricing: {
+            openai_realtime: {
+              model: 'gpt-4o-realtime-preview / gpt-realtime-2025-08-28',
+              text_input_per_1m: 4.00,
+              text_output_per_1m: 16.00,
+              audio_input_per_1m: 32.00,
+              audio_output_per_1m: 64.00,
+            },
+            twilio: {
+              voice_inbound_per_min: this.twilioVoicePricing.localInbound,
+              voice_outbound_per_min: this.twilioVoicePricing.localOutbound,
+              media_streams_per_min: this.twilioVoicePricing.mediaStreams,
+            },
+          },
+        };
+      }
+    }
+
+    // Ensure both sources exist with defaults if not present
+    if (!sourceData.webrtc) {
+      sourceData.webrtc = {
+        name: 'WebRTC (Browser Direct)',
+        description: 'Calls via browser WebRTC - OpenAI costs only, no Twilio',
+        calls: 0,
+        duration_minutes: 0,
+        ai_resolved: 0,
+        escalated: 0,
+        openai_cost: 0,
+        twilio_cost: 0,
+        total_cost: 0,
+        cost_per_call: 0,
+        cost_per_minute: 0,
+        pricing: {
+          openai_realtime: {
+            model: 'gpt-4o-realtime-preview / gpt-realtime-2025-08-28',
+            text_input_per_1m: 4.00,
+            text_output_per_1m: 16.00,
+            audio_input_per_1m: 32.00,
+            audio_output_per_1m: 64.00,
+          },
+          twilio: null,
+          note: 'WebRTC calls bypass Twilio - 100% savings on telephony costs',
+        },
+      };
+    }
+
+    if (!sourceData.twilio) {
+      sourceData.twilio = {
+        name: 'Twilio PSTN',
+        description: 'Traditional phone calls via Twilio telephony + OpenAI',
+        calls: 0,
+        duration_minutes: 0,
+        ai_resolved: 0,
+        escalated: 0,
+        openai_cost: 0,
+        twilio_voice_cost: 0,
+        twilio_media_streams_cost: 0,
+        twilio_cost: 0,
+        total_cost: 0,
+        cost_per_call: 0,
+        cost_per_minute: 0,
+        pricing: {
+          openai_realtime: {
+            model: 'gpt-4o-realtime-preview / gpt-realtime-2025-08-28',
+            text_input_per_1m: 4.00,
+            text_output_per_1m: 16.00,
+            audio_input_per_1m: 32.00,
+            audio_output_per_1m: 64.00,
+          },
+          twilio: {
+            voice_inbound_per_min: this.twilioVoicePricing.localInbound,
+            voice_outbound_per_min: this.twilioVoicePricing.localOutbound,
+            media_streams_per_min: this.twilioVoicePricing.mediaStreams,
+          },
+        },
+      };
+    }
+
+    // Summary comparison
+    const webrtcSavingsVsTwilio = sourceData.twilio.cost_per_minute > 0 
+      ? ((sourceData.twilio.cost_per_minute - sourceData.webrtc.cost_per_minute) / sourceData.twilio.cost_per_minute * 100).toFixed(1)
+      : 0;
+
+    return {
+      ...sourceData,
+      summary: {
+        total_calls: totalCalls,
+        total_duration_minutes: Number(totalDurationMinutes.toFixed(2)),
+        webrtc_savings_percent: Number(webrtcSavingsVsTwilio),
+        note: 'WebRTC calls eliminate Twilio voice and media stream costs, reducing per-call cost significantly',
       },
     };
   }
@@ -893,6 +1329,271 @@ export class DashboardService {
         requests: m.requests || 0,
         tokens: m.tokens || 0,
         cost: (m.cost_cents || 0) / 100,
+      })),
+    };
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // REQUESTER DASHBOARD - Role-specific data for requesters
+  // ═══════════════════════════════════════════════════════════════════════════
+  async getRequesterDashboard(userEmail: string) {
+    // Find contact by email
+    const contact = await this.prisma.contacts.findFirst({
+      where: { email: userEmail },
+    });
+
+    const contactId = contact?.contact_id;
+    const organizationId = contact?.organization_id;
+
+    // Get date ranges
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const last30Days = new Date();
+    last30Days.setDate(last30Days.getDate() - 30);
+
+    // Build call filter - by contact_id if available, otherwise by email matching caller info
+    const callWhereByContact = contactId 
+      ? { contact_id: contactId }
+      : { caller_phone: { not: null } }; // Fallback - will need phone matching
+
+    // Get statistics
+    const [
+      totalCalls,
+      callsThisMonth,
+      avgWaitTimeResult,
+      openTickets,
+      resolvedThisMonth,
+      recentCalls,
+      tickets,
+    ] = await Promise.all([
+      // Total calls for this user
+      this.prisma.call_logs.count({
+        where: contactId ? { contact_id: contactId } : {},
+      }),
+      // Calls this month
+      this.prisma.call_logs.count({
+        where: {
+          ...(contactId ? { contact_id: contactId } : {}),
+          started_at: { gte: startOfMonth },
+        },
+      }),
+      // Average wait time
+      this.prisma.call_logs.aggregate({
+        where: contactId ? { contact_id: contactId } : {},
+        _avg: { wait_time_seconds: true },
+      }),
+      // Open tickets for this user
+      this.prisma.support_tickets.count({
+        where: {
+          ...(contactId ? { contact_id: contactId } : {}),
+          ticket_statuses: { name: { in: ['Open', 'In Progress'] } },
+        },
+      }),
+      // Resolved tickets this month (using closed_at)
+      this.prisma.support_tickets.count({
+        where: {
+          ...(contactId ? { contact_id: contactId } : {}),
+          closed_at: { gte: startOfMonth },
+          ticket_statuses: { name: 'Resolved' },
+        },
+      }),
+      // Recent calls (last 10)
+      this.prisma.call_logs.findMany({
+        where: contactId ? { contact_id: contactId } : {},
+        orderBy: { started_at: 'desc' },
+        take: 10,
+        select: {
+          call_id: true,
+          started_at: true,
+          duration_seconds: true,
+          status: true,
+          call_summary: true,
+          was_escalated: true,
+          ai_resolution: true,
+          agent_type: true,
+          sentiment: true,
+        },
+      }),
+      // User's tickets (last 10)
+      this.prisma.support_tickets.findMany({
+        where: contactId ? { contact_id: contactId } : {},
+        orderBy: { created_at: 'desc' },
+        take: 10,
+        include: {
+          ticket_statuses: { select: { name: true } },
+          ticket_priorities: { select: { name: true } },
+        },
+      }),
+    ]);
+
+    // Format wait time
+    const avgWaitSeconds = Math.round(avgWaitTimeResult._avg.wait_time_seconds || 0);
+    const waitMins = Math.floor(avgWaitSeconds / 60);
+    const waitSecs = avgWaitSeconds % 60;
+    const avgWaitTime = `${waitMins}:${waitSecs.toString().padStart(2, '0')}`;
+
+    return {
+      stats: {
+        totalCalls: totalCalls || 0,
+        callsThisMonth: callsThisMonth || 0,
+        avgWaitTime,
+        openTickets: openTickets || 0,
+        resolvedThisMonth: resolvedThisMonth || 0,
+      },
+      recentCalls: recentCalls.map((call) => ({
+        id: call.call_id,
+        date: call.started_at?.toISOString().split('T')[0] || '',
+        duration: call.duration_seconds || 0,
+        status: call.was_escalated ? 'escalated' : (call.status === 'completed' ? 'completed' : 'missed'),
+        summary: call.call_summary || 'No summary available',
+        agentType: call.agent_type,
+        sentiment: call.sentiment,
+        aiResolved: call.ai_resolution,
+      })),
+      tickets: tickets.map((ticket) => ({
+        id: `TKT-${String(ticket.ticket_id).padStart(3, '0')}`,
+        ticketId: ticket.ticket_id,
+        title: ticket.subject || 'No subject',
+        status: ticket.ticket_statuses?.name?.toLowerCase().replace(' ', '-') || 'open',
+        createdAt: ticket.created_at?.toISOString().split('T')[0] || '',
+        priority: ticket.ticket_priorities?.name?.toLowerCase() || 'medium',
+        description: ticket.description,
+      })),
+      contact: contact ? {
+        id: contact.contact_id,
+        name: contact.full_name,
+        email: contact.email,
+        phone: contact.phone,
+        organizationId: contact.organization_id,
+      } : null,
+    };
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // AGENT DASHBOARD - Role-specific data for support agents
+  // ═══════════════════════════════════════════════════════════════════════════
+  async getAgentDashboard(userEmail: string) {
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const last7Days = new Date();
+    last7Days.setDate(last7Days.getDate() - 7);
+
+    // Get agent-specific and overall metrics
+    const [
+      callsToday,
+      avgDurationResult,
+      resolvedCalls,
+      totalCallsToday,
+      escalatedCalls,
+      satisfactionResult,
+      recentCalls,
+      queuedTickets,
+      liveCalls,
+    ] = await Promise.all([
+      // Calls handled today
+      this.prisma.call_logs.count({
+        where: { started_at: { gte: startOfDay } },
+      }),
+      // Average call duration
+      this.prisma.call_logs.aggregate({
+        where: { started_at: { gte: last7Days } },
+        _avg: { duration_seconds: true },
+      }),
+      // AI resolved calls (successful resolutions)
+      this.prisma.call_logs.count({
+        where: { 
+          started_at: { gte: last7Days },
+          ai_resolution: true,
+        },
+      }),
+      // Total calls in last 7 days for resolution rate
+      this.prisma.call_logs.count({
+        where: { started_at: { gte: last7Days } },
+      }),
+      // Escalated calls requiring attention
+      this.prisma.call_logs.count({
+        where: { 
+          was_escalated: true,
+          started_at: { gte: startOfDay },
+        },
+      }),
+      // Average satisfaction score
+      this.prisma.call_logs.aggregate({
+        where: { 
+          started_at: { gte: last7Days },
+          customer_satisfaction: { not: null },
+        },
+        _avg: { customer_satisfaction: true },
+      }),
+      // Recent calls for monitoring
+      this.prisma.call_logs.findMany({
+        where: { started_at: { gte: startOfDay } },
+        orderBy: { started_at: 'desc' },
+        take: 20,
+        include: {
+          contacts: { select: { full_name: true, phone: true } },
+          organizations: { select: { name: true } },
+        },
+      }),
+      // Queued/open tickets
+      this.prisma.support_tickets.count({
+        where: { 
+          ticket_statuses: { name: { in: ['Open', 'Pending'] } },
+        },
+      }),
+      // Active/in-progress calls
+      this.prisma.call_logs.findMany({
+        where: { status: 'in_progress' },
+        include: {
+          contacts: { select: { full_name: true, phone: true } },
+        },
+      }),
+    ]);
+
+    // Calculate metrics
+    const avgDurationSecs = Math.round(avgDurationResult._avg.duration_seconds || 0);
+    const avgDurationMins = Math.floor(avgDurationSecs / 60);
+    const avgDurationRemSecs = avgDurationSecs % 60;
+    const avgHandleTime = `${avgDurationMins}:${avgDurationRemSecs.toString().padStart(2, '0')}`;
+    
+    const resolutionRate = totalCallsToday > 0 
+      ? Math.round((resolvedCalls / totalCallsToday) * 100) 
+      : 0;
+    
+    const satisfaction = satisfactionResult._avg.customer_satisfaction 
+      ? Math.round(satisfactionResult._avg.customer_satisfaction * 20) // Convert 1-5 to percentage
+      : 85; // Default
+
+    return {
+      metrics: {
+        callsToday: callsToday || 0,
+        avgHandleTime,
+        resolutionRate,
+        satisfaction,
+        activeNow: liveCalls.length,
+        queueLength: queuedTickets || 0,
+        escalatedToday: escalatedCalls || 0,
+      },
+      liveCalls: liveCalls.map((call) => ({
+        id: call.call_id,
+        callerId: call.caller_phone || 'Unknown',
+        callerName: call.contacts?.full_name || call.caller_name || 'Unknown Caller',
+        status: call.status === 'in_progress' ? 'in-progress' : call.status,
+        duration: call.duration_seconds || 0,
+        agentType: call.agent_type || 'triage_agent',
+        canTakeover: true,
+        startedAt: call.started_at,
+      })),
+      recentInteractions: recentCalls.slice(0, 10).map((call) => ({
+        id: call.call_id,
+        callerName: call.contacts?.full_name || call.caller_name || 'Unknown',
+        organization: call.organizations?.name || 'N/A',
+        issue: call.call_summary?.substring(0, 50) || 'Call interaction',
+        status: call.status,
+        time: call.started_at,
+        duration: call.duration_seconds,
+        wasEscalated: call.was_escalated,
+        aiResolved: call.ai_resolution,
       })),
     };
   }

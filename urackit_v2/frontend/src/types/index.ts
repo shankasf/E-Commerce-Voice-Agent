@@ -329,7 +329,7 @@ export interface User {
   id: number;
   email: string;
   fullName: string;
-  role: 'admin' | 'agent';
+  role: 'admin' | 'agent' | 'requester';
 }
 
 export interface AuthResponse {

@@ -44,7 +44,11 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('accessToken');
-      window.location.href = '/v2/dashboard/login';
+      localStorage.removeItem('user');
+      // Don't redirect if already on login page
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/v2/dashboard/login';
+      }
     }
     return Promise.reject(error);
   }
@@ -57,6 +61,26 @@ api.interceptors.response.use(
 export const authApi = {
   login: async (data: LoginRequest): Promise<AuthResponse> => {
     const res = await api.post('/auth/login', data);
+    return res.data;
+  },
+
+  requesterLogin: async (data: LoginRequest): Promise<AuthResponse> => {
+    const res = await api.post('/auth/requester-login', data);
+    return res.data;
+  },
+
+  requestOTP: async (email: string): Promise<{ success: boolean; message: string }> => {
+    const res = await api.post('/auth/otp/request', { email });
+    return res.data;
+  },
+
+  verifyOTP: async (email: string, code: string): Promise<AuthResponse> => {
+    const res = await api.post('/auth/otp/verify', { email, code });
+    return res.data;
+  },
+
+  checkRole: async (email: string): Promise<{ role: string | null; authMethod: 'otp' | 'password' }> => {
+    const res = await api.get(`/auth/check-role?email=${encodeURIComponent(email)}`);
     return res.data;
   },
   
@@ -138,6 +162,81 @@ export const dashboardApi = {
 
   getComplianceMetrics: async (): Promise<any> => {
     const res = await api.get('/dashboard/compliance');
+    return res.data;
+  },
+
+  getRequesterDashboard: async (): Promise<{
+    stats: {
+      totalCalls: number;
+      callsThisMonth: number;
+      avgWaitTime: string;
+      openTickets: number;
+      resolvedThisMonth: number;
+    };
+    recentCalls: Array<{
+      id: string;
+      date: string;
+      duration: number;
+      status: 'completed' | 'missed' | 'escalated';
+      summary: string;
+      agentType: string;
+      sentiment: string;
+      aiResolved: boolean;
+    }>;
+    tickets: Array<{
+      id: string;
+      ticketId: number;
+      title: string;
+      status: string;
+      createdAt: string;
+      priority: string;
+      description: string;
+    }>;
+    contact: {
+      id: number;
+      name: string;
+      email: string;
+      phone: string;
+      organizationId: number;
+    } | null;
+  }> => {
+    const res = await api.get('/dashboard/requester');
+    return res.data;
+  },
+
+  getAgentDashboard: async (): Promise<{
+    metrics: {
+      callsToday: number;
+      avgHandleTime: string;
+      resolutionRate: number;
+      satisfaction: number;
+      activeNow: number;
+      queueLength: number;
+      escalatedToday: number;
+    };
+    liveCalls: Array<{
+      id: string;
+      callerId: string;
+      callerName: string;
+      status: string;
+      duration: number;
+      agentType: string;
+      canTakeover: boolean;
+      startedAt: string;
+    }>;
+    recentInteractions: Array<{
+      id: string;
+      callerName: string;
+      organization: string;
+      issue: string;
+      status: string;
+      time: string;
+      duration: number;
+      wasEscalated: boolean;
+      aiResolved: boolean;
+    }>;
+  }> => {
+    const res = await api.get('/dashboard/agent');
     return res.data;
   },
 };

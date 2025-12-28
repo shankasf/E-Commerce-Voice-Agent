@@ -10,3 +10,6 @@ export { OrganizationsPage } from './OrganizationsPage';
 export { ContactsPage } from './ContactsPage';
 export { SystemPage } from './SystemPage';
 export { CostsPage } from './CostsPage';
+export { LoginPage } from './LoginPage';
+export { RequesterDashboard } from './RequesterDashboard';
+export { AgentDashboard } from './AgentDashboard';

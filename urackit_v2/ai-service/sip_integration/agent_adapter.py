@@ -67,6 +67,7 @@ class URackITAgentAdapter(IAgentAdapter):
             get_ticket_statuses,
             get_ticket_priorities,
             get_account_manager,
+            transfer_to_human,
             # Organization-scoped lookup tools
             lookup_organization_data,
             get_organization_devices,
@@ -101,6 +102,7 @@ class URackITAgentAdapter(IAgentAdapter):
             get_ticket_statuses,
             get_ticket_priorities,
             get_account_manager,
+            transfer_to_human,
         ]
         
         for tool in core_tools:

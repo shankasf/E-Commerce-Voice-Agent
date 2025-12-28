@@ -90,9 +90,23 @@ export class CallsController {
       case 'start':
       case 'update':
         this.eventsGateway.emitCallEvent(body.data);
+        // Also emit dashboard update for call analytics page
+        this.eventsGateway.emitDashboardUpdate({
+          type: 'call',
+          action: body.type === 'start' ? 'created' : 'updated',
+          data: body.data,
+          timestamp: new Date().toISOString(),
+        });
         break;
       case 'end':
         this.eventsGateway.emitCallEnd(body.data.callSid);
+        // Also emit dashboard update for call analytics page
+        this.eventsGateway.emitDashboardUpdate({
+          type: 'call',
+          action: 'status_changed',
+          data: { callSid: body.data.callSid, status: 'completed' },
+          timestamp: new Date().toISOString(),
+        });
         break;
       case 'transcript':
         this.eventsGateway.emitAIResponse(body.data.sessionId, {

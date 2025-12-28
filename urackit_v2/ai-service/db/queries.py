@@ -859,3 +859,19 @@ def get_account_manager(organization_id: int) -> str:
         )
     except Exception as e:
         return f"Error: {_format_request_error(e)}"
+
+
+# ============================================
+# Transfer to Human
+# ============================================
+
+@function_tool
+def transfer_to_human(reason: str = "Customer requested") -> str:
+    """
+    Transfer the call to a human support agent.
+    This will connect the caller to an available technician.
+    
+    Args:
+        reason: Reason for transfer (e.g., "Customer requested", "Complex issue")
+    """
+    return f"TRANSFER_TO_HUMAN|{reason}"

@@ -15,6 +15,7 @@ from db.queries import (
     get_tickets_by_organization,
     get_ticket_statuses,
     get_ticket_priorities,
+    transfer_to_human,
 )
 
 
@@ -85,6 +86,7 @@ Before creating or updating any ticket:
         get_tickets_by_organization,
         get_ticket_statuses,
         get_ticket_priorities,
+        transfer_to_human,
     ],
     handoffs=[],
 )

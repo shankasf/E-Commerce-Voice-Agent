@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards, Request } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { DashboardService } from './dashboard.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -106,5 +106,29 @@ export class DashboardController {
   @ApiQuery({ name: 'range', required: false, enum: ['today', '7d', '30d', '90d'] })
   async getAIMetrics(@Query('range') range?: string) {
     return this.dashboardService.getAIMetrics(range);
+  }
+
+  @Get('requester')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get requester-specific dashboard data (calls, tickets, stats)' })
+  async getRequesterDashboard(@Request() req: any) {
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return { error: 'User email not found' };
+    }
+    return this.dashboardService.getRequesterDashboard(userEmail);
+  }
+
+  @Get('agent')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get agent-specific dashboard data (live calls, metrics)' })
+  async getAgentDashboard(@Request() req: any) {
+    const userEmail = req.user?.email;
+    if (!userEmail) {
+      return { error: 'User email not found' };
+    }
+    return this.dashboardService.getAgentDashboard(userEmail);
   }
 }

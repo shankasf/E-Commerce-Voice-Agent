@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { DashboardLayout } from '../components/layout';
 import { MetricCard, Card, EmptyState, LoadingSpinner } from '../components/common';
 import {
@@ -131,7 +131,9 @@ function CallTimer({ startedAt }: { startedAt: string }) {
     useEffect(() => {
         const start = new Date(startedAt).getTime();
         const updateTimer = () => {
-            setElapsed(Math.floor((Date.now() - start) / 1000));
+            const diff = Math.floor((Date.now() - start) / 1000);
+            // Ensure elapsed is never negative
+            setElapsed(diff > 0 ? diff : 0);
         };
         updateTimer();
         const interval = setInterval(updateTimer, 1000);
@@ -299,8 +301,28 @@ function LiveCallCard({ call, onClick, isSelected }: { call: LiveCallEvent; onCl
 
 // Live Transcript Component
 function LiveTranscript({ transcript }: { transcript: TranscriptEntry[] }) {
+    const scrollRef = useRef<HTMLDivElement>(null);
+
+    // Auto-scroll to bottom when new messages arrive
+    useEffect(() => {
+        if (scrollRef.current) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+    }, [transcript]);
+
+    if (!transcript || transcript.length === 0) {
+        return (
+            <div className="flex items-center justify-center h-32 text-dark-400">
+                <p>Waiting for conversation...</p>
+            </div>
+        );
+    }
+
     return (
-        <div className="space-y-3 max-h-64 overflow-y-auto custom-scrollbar">
+        <div
+            ref={scrollRef}
+            className="space-y-3 max-h-96 overflow-y-auto custom-scrollbar pr-2"
+        >
             {transcript.map((entry, i) => (
                 <div
                     key={i}
@@ -320,7 +342,7 @@ function LiveTranscript({ transcript }: { transcript: TranscriptEntry[] }) {
                         )}
                     </div>
                     <div className={clsx(
-                        'max-w-[80%] p-3 rounded-xl text-sm',
+                        'max-w-[80%] p-3 rounded-xl text-sm break-words',
                         entry.role === 'user'
                             ? 'bg-primary-600/20 text-primary-100'
                             : 'bg-dark-700 text-dark-200'
@@ -335,6 +357,14 @@ function LiveTranscript({ transcript }: { transcript: TranscriptEntry[] }) {
 
 // Agent Timeline Component
 function AgentTimeline({ events }: { events: AgentEvent[] }) {
+    if (!events || events.length === 0) {
+        return (
+            <div className="flex items-center justify-center h-32 text-dark-400">
+                <p>No agent activity yet</p>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-3">
             {events.map((event, i) => (
@@ -368,6 +398,14 @@ function AgentTimeline({ events }: { events: AgentEvent[] }) {
 
 // Tool Calls List Component
 function ToolCallsList({ calls }: { calls: ToolCall[] }) {
+    if (!calls || calls.length === 0) {
+        return (
+            <div className="flex items-center justify-center h-32 text-dark-400">
+                <p>No tool calls yet</p>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-2">
             {calls.map((call, i) => (

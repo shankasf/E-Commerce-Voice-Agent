@@ -1,4 +1,4 @@
-import { IsEmail, IsNotEmpty, IsString, MinLength, IsOptional } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, MinLength, IsOptional, Length } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class LoginDto {
@@ -37,6 +37,26 @@ export class RegisterDto {
   role?: string = 'agent';
 }
 
+export class OtpRequestDto {
+  @ApiProperty({ example: 'admin@urackit.com', description: 'Email to send OTP to' })
+  @IsEmail()
+  @IsNotEmpty()
+  email: string;
+}
+
+export class OtpVerifyDto {
+  @ApiProperty({ example: 'admin@urackit.com', description: 'Email that received OTP' })
+  @IsEmail()
+  @IsNotEmpty()
+  email: string;
+
+  @ApiProperty({ example: '123456', description: '6-digit OTP code' })
+  @IsString()
+  @IsNotEmpty()
+  @Length(6, 6, { message: 'OTP code must be exactly 6 digits' })
+  code: string;
+}
+
 export class TokenResponseDto {
   accessToken: string;
   user: {
@@ -46,3 +66,4 @@ export class TokenResponseDto {
     role: string;
   };
 }
+

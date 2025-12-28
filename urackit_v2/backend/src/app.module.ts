@@ -12,6 +12,7 @@ import { OrganizationsModule } from './organizations/organizations.module';
 import { ContactsModule } from './contacts/contacts.module';
 import { EventsModule } from './events/events.module';
 import { AiModule } from './ai/ai.module';
+import { VoiceModule } from './voice/voice.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { AiModule } from './ai/ai.module';
     ContactsModule,
     EventsModule,
     AiModule,
+    VoiceModule,
   ],
   controllers: [AppController],
   providers: [AppService],

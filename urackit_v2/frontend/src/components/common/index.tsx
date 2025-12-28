@@ -286,3 +286,6 @@ export function EmptyState({ message, icon }: { message: string; icon?: ReactNod
         </div>
     );
 }
+
+// Re-export persisted input components
+export { PersistedInput, PersistedTextarea } from './PersistedInput';
