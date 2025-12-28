@@ -1,5 +1,7 @@
 # U Rack IT / U Talk.tel - AI Voice Support System
 
+> **Last Updated:** December 28, 2025
+
 An AI-powered phone support system for IT helpdesk operations. Built with OpenAI's Realtime API and Twilio for voice integration.
 
 ## Features

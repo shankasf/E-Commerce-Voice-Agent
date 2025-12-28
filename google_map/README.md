@@ -1,5 +1,7 @@
 # Google Maps Places Scraper
 
+> **Last Updated:** December 28, 2025
+
 A TypeScript-based application that uses Google Maps Places API to search and scrape place data, storing results in Supabase.
 
 ## Features

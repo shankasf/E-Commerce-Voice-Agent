@@ -1,5 +1,7 @@
 # U Rack IT v2 - AI-Powered IT Support Platform
 
+> **Last Updated:** December 28, 2025
+
 A modern 3-tier architecture for AI-powered IT helpdesk with voice integration, real-time dashboard, and multi-agent LLM orchestration.
 
 ## 🌟 Overview
