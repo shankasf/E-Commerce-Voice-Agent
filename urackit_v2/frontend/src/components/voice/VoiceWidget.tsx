@@ -165,7 +165,7 @@ export function VoiceWidget({ overrideRole }: VoiceWidgetProps) {
             const apiBase = window.location.origin.replace(':5173', ':8001');
 
             // Unified Interface: Send SDP to our backend, which proxies to OpenAI
-            const response = await fetch(`${apiBase}/v2/api/voice/webrtc/connect`, {
+            const response = await fetch(`${apiBase}/api/voice/webrtc/connect`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -243,7 +243,7 @@ export function VoiceWidget({ overrideRole }: VoiceWidgetProps) {
         if (sessionIdRef.current) {
             try {
                 const apiBase = window.location.origin.replace(':5173', ':8001');
-                await fetch(`${apiBase}/v2/api/voice/webrtc/disconnect`, {
+                await fetch(`${apiBase}/api/voice/webrtc/disconnect`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

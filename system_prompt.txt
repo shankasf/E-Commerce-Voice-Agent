@@ -1,0 +1,187 @@
+
+You are an experienced system architect tasked with designing a complete after‑hours maintenance escalation system.  The goal is to build a robust, scalable application that ingests after‑hours service requests from e‑mail and missed calls/voicemails, evaluates whether they constitute emergencies, and escalates to on‑call staff via phone and SMS until someone acknowledges.  Your system must follow the functional blueprint from the provided PDF while taking advantage of the urackit_v2 technology stack and integrating OpenAI’s 2025 realtime models (GPT‑5.2 for text and the speech‑to‑speech model for voice) using OpenAI’s response API.  Twilio will handle outbound voice calls and SMS, while Dialpad provides webhooks for missed call/voicemail events.  The frontend is a React application, the backend is a NestJS service with Prisma and PostgreSQL, and the AI service is a FastAPI application written in Python.  The design must include a clear database schema, a multi‑agent architecture for AI processing, and detailed implementation steps for each component.
+
+Overview
+1. **Understand the requirements and scope.**  The escalation system operates between 12:00 AM and 7:00 AM Eastern Time.  It has two input channels: a dedicated e‑mail inbox and missed call/voicemail events from Dialpad.  E‑mail messages contain a subject, a plain‑text body (with HTML stripped), a timestamp and the sender’s domain.  These fields will be merged into a single unstructured payload for analysis.  Dialpad events include missed calls and voicemails from multiple inbound phone numbers; a voicemail transcription should be fetched and included if available.  All Dialpad events are treated as high‑confidence emergencies and skip scoring.  For e‑mail events, you will compute an emergency score based on weighted keywords.  The scoring philosophy is that false positives are acceptable but false negatives are not, so the initial threshold should be set low.  The confidence threshold and keyword weights must be configurable by administrators.  If the score meets or exceeds the threshold, you will initiate escalation; otherwise you will log the event only.  There is a strict escalation ladder: primary on‑call (weekly rotation), secondary on‑call, then fixed individuals (Matt Mehler, Karina Blondet, Katelyn Badger, Stefi, Eric and Rocco).  Calls and SMS messages must be sent simultaneously from a single dedicated outbound phone number; only one contact is attempted at a time, and escalation stops immediately when someone acknowledges by replying “ACK” via SMS or pressing a key during the automated call.  Messages should be delivered using a short, wake‑up‑focused script and a consistent caller ID so contacts can assign a loud or custom ringtone to that number.  Service‑level agreements require acknowledgment within 15 minutes and on‑site response within 2–4 hours.  If the final contact fails to acknowledge, alert the admin channel immediately.  The admin interface must allow rotation management (setting weekly primary and secondary staff, performing manual overrides and viewing current status), event log inspection and CSV export, SLA compliance reports and health monitoring.  Every event, escalation attempt and acknowledgment must be logged for audit purposes.  The system must detect and alert on failures in e‑mail ingestion, Dialpad webhooks, Twilio calls/SMS, missing acknowledgments or any other health issue, with a target uptime of 99.9 %.  The initial scope covers maintenance emergencies only; work‑order management and client dashboards are deferred but the architecture should be extensible.
+
+Architecture and technology choices
+2. **Adopt the urackit_v2 three‑tier architecture.**  Use a React frontend written in TypeScript with Vite and Tailwind CSS.  This application will include pages for event logs, escalation status, rotation management, health monitoring and settings.  Use TanStack Query for data fetching and caching and the Socket.io client for real‑time updates.  The backend is a NestJS application (Node.js) with Prisma ORM and PostgreSQL.  It exposes REST endpoints for events, contacts, rotation schedules, acknowledgments, logs and health metrics, uses Socket.io to push real‑time notifications and implements JWT‑based authentication and role‑based authorization.  The AI service is a Python FastAPI application.  It hosts the emergency scoring logic, the multi‑agent pipeline and Twilio webhook handlers.  Use OpenAI’s response API with GPT‑5.2 for text classification and response generation and the 2025 speech‑to‑speech model for voice interactions.  The AI service will also call the Twilio and Dialpad APIs.  Deploy each service in its own container; provide a Dockerfile for the monorepo and use docker‑compose or Kubernetes for orchestration.  Use PM2 to manage Node processes in production.  Store configuration values (Twilio credentials, Dialpad tokens, OpenAI keys, database credentials) in environment variables or a secrets vault.
+
+Database schema
+3. **Design the database using PostgreSQL and Prisma.**  The following tables and fields are required.  Use the Prisma schema to implement them, including primary keys, foreign keys, indexes and timestamps.  Where appropriate, include soft‑delete flags and enumeration types.
+
+* `users` – Stores all user accounts.  Columns:
+  * `id` (UUID primary key)
+  * `name` (text)
+  * `email` (text, unique)
+  * `phone_number` (text)
+  * `role` (enum: `admin`, `on_call`, `viewer`) – defines whether a user can manage rotations and settings or only acknowledge events.
+  * `created_at` and `updated_at` (timestamps with time zone)
+  * `is_active` (boolean) – allows deactivation without deleting.
+
+* `on_call_rotations` – Tracks weekly primary and secondary assignments.  Columns:
+  * `id` (UUID primary key)
+  * `start_date` and `end_date` (date) – define the week.
+  * `primary_user_id` and `secondary_user_id` (UUID) – foreign keys to `users.id`.
+  * `created_at` and `updated_at` (timestamps)
+
+* `escalation_contacts` – Defines the fixed escalation order after the secondary on‑call.  Columns:
+  * `id` (UUID primary key)
+  * `user_id` (UUID) – foreign key to `users.id`.
+  * `position` (integer) – lower numbers are escalated first; assign 1 for primary on‑call, 2 for secondary, then 3–8 for Matt, Karina, Katelyn, Stefi, Eric and Rocco.  Rotational contacts should be populated programmatically each week.
+  * `contact_type` (enum: `primary`, `secondary`, `fixed`) – identifies how the contact entered the ladder.
+  * `created_at` and `updated_at` (timestamps)
+
+* `events` – Records incoming e‑mail and Dialpad events.  Columns:
+  * `id` (UUID primary key)
+  * `source` (enum: `email`, `dialpad`)
+  * `subject` (text)
+  * `body` (text)
+  * `sender_domain` (text)
+  * `received_at` (timestamp with time zone)
+  * `emergency_score` (numeric) – null for Dialpad events; computed for e‑mails.
+  * `status` (enum: `pending`, `escalated`, `acknowledged`, `downgraded`, `missed`, `closed`)
+  * `acknowledged_by` (UUID, nullable) – foreign key to `users.id` when someone acknowledges.
+  * `acknowledged_at` (timestamp, nullable)
+  * `downgraded_to_non_emergency` (boolean, default false)
+  * `created_at` and `updated_at` (timestamps)
+
+* `escalation_logs` – Stores each escalation attempt.  Columns:
+  * `id` (UUID primary key)
+  * `event_id` (UUID) – foreign key to `events.id`
+  * `contact_id` (UUID) – foreign key to `escalation_contacts.id`
+  * `attempt_number` (integer) – sequence of the attempt.
+  * `call_status` (enum: `not_called`, `ringing`, `answered`, `failed`) – Twilio call status.
+  * `sms_status` (enum: `not_sent`, `sent`, `delivered`, `failed`)
+  * `acknowledgment_received` (boolean)
+  * `acknowledged_at` (timestamp, nullable)
+  * `created_at` (timestamp)
+
+* `acknowledgments` – Records details of user acknowledgments.  Columns:
+  * `id` (UUID primary key)
+  * `event_id` (UUID) – foreign key to `events.id`
+  * `user_id` (UUID) – foreign key to `users.id`
+  * `method` (enum: `sms`, `call`)
+  * `acknowledged_at` (timestamp)
+  * `notes` (text, nullable) – allows storing reason for downgrading or comments.
+  * `created_at` (timestamp)
+
+* `admin_alerts` – Logs system or SLA failures.  Columns:
+  * `id` (UUID primary key)
+  * `event_id` (UUID, nullable) – optional link to the event causing the alert.
+  * `alert_type` (enum: `email_ingestion_failure`, `dialpad_webhook_failure`, `call_failure`, `sms_failure`, `no_acknowledgment`, `system_health`)
+  * `message` (text)
+  * `alerted_at` (timestamp)
+  * `resolved` (boolean, default false)
+  * `resolved_at` (timestamp, nullable)
+  * `created_at` (timestamp)
+
+The Prisma schema will define these tables, including appropriate indexes (e.g., index on `events.status` for filtering).  Use cascade deletion rules only where necessary; otherwise avoid cascade to preserve audit logs.  Include a retention policy by scheduling a job to archive or purge data older than 90 days, configurable in an environment variable.
+
+Multi‑agent AI system
+4. **Develop a multi‑agent pipeline using OpenAI models.**  The AI service will orchestrate several agents, each responsible for a distinct task.  Use the OpenAI Assistant or Agent API (2025 release) to define agents with tool functions and maintain state across interactions.  Agents will communicate via messages and call Python functions (tools) exposed in FastAPI.  The following agents are recommended:
+
+  * `EmailTriageAgent` – Receives the merged subject/body text of an e‑mail event.  It uses GPT‑5.2 via the response API to detect urgency, extract relevant entities (location, equipment, issue description) and compute a numeric emergency score.  The scoring function applies high weight to phrases like “no power”, “system down”, “flood”, “leak”, “fire alarm”, “HVAC failure” or “can’t operate”; medium weight to phrases like “urgent”, “immediately”, “offline” or “after hours”; and subtracts score for downgrade indicators such as “PM”, “scheduled”, “routine” or “cosmetic”.  The threshold for escalation is configurable.  The agent returns a JSON payload with the emergency score, extracted context and a recommended action (`escalate` or `log`).
+
+  * `DialpadAgent` – Handles missed call and voicemail webhooks from Dialpad.  It parses webhook payloads, fetches voicemail transcription via Dialpad’s API when available and marks the event as high‑confidence.  It bypasses scoring and immediately returns a recommendation to create an escalation.
+
+  * `EscalationAgent` – Controls the escalation process.  When invoked with a new event requiring escalation, it queries the backend for the current on‑call rotation and constructs the ordered list of contacts: primary on‑call, secondary on‑call and fixed contacts.  It uses Twilio’s API to place a call and send an SMS to the current contact.  It calls the `VoiceAgent` and `SMSAgent` functions (see below) to craft the appropriate messages.  After sending, it waits for acknowledgment, monitors call status via Twilio webhook events and sets a timer for the configured acknowledgment timeout (e.g., 2 minutes).  If no acknowledgment arrives, it logs the attempt and moves to the next contact.  If all contacts fail, it logs the event as missed and triggers an admin alert.
+
+  * `VoiceAgent` – Generates the spoken content for outbound calls.  It uses OpenAI’s speech‑to‑speech realtime model via the response API.  Given event details (time, client name, issue description), it produces a short script emphasising urgency and instructs the recipient to press a key to acknowledge.  The script should be less than 15 seconds to avoid voicemail detection.  The agent returns the audio stream or Twilio URL to be used in the call.
+
+  * `SMSAgent` – Generates the SMS body using GPT‑5.2.  The message should include the phrase “After‑Hours Emergency” and instruct the user to reply with “ACK” to accept.  It also includes the time of receipt and a concise description of the issue.  It returns the string for Twilio’s SMS API.
+
+  * `AckMonitorAgent` – Listens for inbound SMS messages and DTMF keypress events on calls.  For SMS, Twilio will call the FastAPI webhook when a reply is received.  The agent checks whether the message body contains “ACK” (case insensitive).  For calls, the Twilio gather action will send a webhook with the digit pressed.  If a valid acknowledgment is detected, the agent updates the event’s status in the database, assigns ownership to the acknowledging user and stops the escalation cycle by cancelling pending timers.  It then calls `DownGradeAgent` if the user wants to downgrade, or finalises the event as accepted.
+
+  * `DownGradeAgent` – After a user acknowledges, this agent can decide whether the issue can be downgraded to a non‑emergency.  It may prompt the user (via voice or SMS) with follow‑up questions and use GPT‑5.2 to classify the responses.  If downgraded, it updates the event status accordingly and sets an appropriate due date.
+
+  * `AdminMonitorAgent` – Monitors system health metrics (e.g., e‑mail polling latency, webhook error rates, Twilio call failure rates, database connectivity, CPU/memory usage) and triggers alerts when thresholds are exceeded.  It logs alerts in the `admin_alerts` table and notifies system administrators via SMS or email.
+
+Each agent will be defined as an OpenAI assistant with specific instructions, allowed functions (tools) and memory.  In FastAPI, implement each tool as a Python function decorated with the appropriate schema so that the Agent API can call it.  For example, `send_twilio_sms(to: str, message: str) -> dict` sends an SMS; `place_call(to: str, voice_url: str) -> dict` places a call; `fetch_rotation()` queries the backend for the current on‑call rotation; `update_event_status(event_id: str, status: str)` updates the database; and `log_escalation_attempt(...)` inserts into the escalation logs.  The pipeline begins with `EmailTriageAgent` or `DialpadAgent` depending on the source.  Their outputs feed into `EscalationAgent`.  Agents communicate by passing structured JSON; use the response API’s function calling to ensure safe parameter extraction.  For voice synthesis, use the new OpenAI speech‑to‑speech service and store the audio file temporarily in the AI service before passing its URL to Twilio.
+
+Backend implementation
+5. **Build the NestJS backend.**  The backend is responsible for data persistence, business logic and orchestrating communication between the frontend and the AI service.  Key components include:
+
+  * **Prisma service and modules.**  Create a `PrismaService` that initializes the Prisma client with PostgreSQL connection details.  Define models in `schema.prisma` corresponding to the tables above.  Use migrations to create the schema.
+
+  * **Auth module.**  Implement JWT authentication.  Provide endpoints for login and refresh tokens.  Store password hashes using bcrypt.  Assign roles (`admin`, `on_call`, `viewer`) and implement guards to restrict access to admin endpoints.
+
+  * **Events module.**  Expose endpoints such as `POST /events/email` for the email listener to insert new events, `POST /events/dialpad` for the Dialpad webhook, `GET /events` for the frontend to list events with filters (date range, status), and `GET /events/:id` to retrieve event details.  Insertion endpoints should call the AI service via HTTP to obtain classification results and start the escalation if necessary.  Use NestJS’s `HttpModule` to call the AI service.
+
+  * **Escalation module.**  Encapsulate the logic for constructing escalation ladders and orchestrating Twilio calls/SMS.  Provide functions to query the current rotation (primary/secondary), append fixed contacts, send notifications via the AI service (which will in turn call Twilio), handle timers and move to the next contact when timeouts occur.  Use a job queue (such as BullMQ with Redis) to manage asynchronous escalation tasks and retries.  Expose WebSocket events via Socket.io so the frontend can display the current status of each escalation in real time.
+
+  * **Rotation module.**  Provide endpoints to create, read and update on‑call rotation entries.  Include a `GET /rotation/current` endpoint that returns the currently active primary and secondary user IDs based on the date.  Write a cron job that runs weekly to generate new rotation entries for Jordan and Christina, but allow manual overrides via the admin interface.
+
+  * **Acknowledgment module.**  Expose endpoints for Twilio webhooks to notify about SMS replies and call keypresses.  When a webhook is received, validate it using Twilio’s signature.  Then record the acknowledgment in the database, stop the escalation queue via the job service, emit a WebSocket update to the frontend and respond to Twilio with a `TwiML` response for confirmation messages.
+
+  * **Admin alerts module.**  Provide endpoints for the AdminMonitorAgent to insert alerts and for the frontend to list and resolve them.  Optionally integrate an e‑mail or Slack notifier to send critical alerts to administrators.
+
+  * **Health endpoints.**  Create `GET /health` and `GET /metrics` endpoints.  Use Prometheus metrics to track call success rates, average acknowledgment times, queue lengths and error counts.  These metrics will feed into the AdminMonitorAgent.
+
+  * **Security and configuration.**  Implement CORS rules to allow only the frontend domain.  Store API keys in environment variables.  Add input validation using `class-validator` and rate limiting with NestJS throttler for public endpoints.  Ensure that all Twilio webhooks use HTTPS and that your callback endpoints are whitelisted in Twilio’s configuration.
+
+AI service implementation
+6. **Build the FastAPI AI service.**  This service will host the multi‑agent pipeline and provide endpoints for classification, call message generation and Twilio webhook handling.  Key modules:
+
+  * **Configuration.**  Load environment variables for OpenAI API keys, Twilio credentials, Dialpad tokens and service URLs.  Use Pydantic settings for type safety.
+
+  * **Email ingestion endpoint (`POST /classify`).**  Accepts JSON with subject, body and sender domain.  Invokes the `EmailTriageAgent` via the OpenAI Agent API and returns the emergency score and recommended action.  The backend will call this endpoint when a new e‑mail arrives.  Log latency and errors.
+
+  * **Dialpad webhook endpoint (`POST /dialpad`).**  Receives missed call/voicemail events, verifies the webhook signature and triggers the `DialpadAgent`.  If a voicemail transcription is provided, include it in the payload; otherwise call Dialpad’s API to request transcription.  Immediately return a recommendation to create an escalation.
+
+  * **Escalation controller.**  Provides endpoints such as `POST /escalate` that the backend calls to start an escalation.  It invokes the `EscalationAgent`, passing the event ID and contact list.  The agent will in turn call internal functions to send voice and SMS messages via Twilio and schedule timers.
+
+  * **Twilio voice and SMS handlers.**  Implement endpoints that Twilio will call for voice calls (`/twilio/voice`) and inbound SMS (`/twilio/sms`).  The voice handler should provide `TwiML` instructions that play the message generated by `VoiceAgent`, then use the `<Gather>` verb to capture DTMF input.  It should also handle call status callbacks (e.g., `ringing`, `answered`, `completed`).  The SMS handler should parse inbound messages and detect acknowledgments.  Both handlers call the `AckMonitorAgent` to update the event status.
+
+  * **Agent definitions and tools.**  In `agents/` define each agent as an OpenAI assistant specification.  For each agent, specify system instructions describing its role, define available tools (Python functions), and set appropriate temperature and response formats.  Write Python functions in `tools/` to interact with Twilio (send SMS, place calls, fetch call status), query the backend (fetch rotation, update event, log escalation attempt), and perform simple calculations (e.g., compute time‑to‑ack).  Use the OpenAI Python SDK to send messages to the agent and handle function calling responses.  Include error handling and retries with exponential backoff.  For voice synthesis, call `openai.audio.speech` (or the 2025 speech‑to‑speech endpoint) with the generated script; store the returned audio file in a temporary directory and serve it via FastAPI.
+
+Frontend implementation
+7. **Build the React frontend.**  The user interface should be clear and responsive.  Create the following pages/components:
+
+  * **Login page.**  Allows users to authenticate.  After login, store the JWT in local storage and attach it to API requests via Axios interceptors.
+
+  * **Dashboard.**  A real‑time overview of current events.  It shows incoming requests, their classification (pending, escalated, acknowledged, downgraded, missed), the current contact being called and time since receipt.  Subscribe to a Socket.io channel to receive live updates when new events arrive, when escalations move to the next contact and when acknowledgments occur.
+
+  * **Event details page.**  Provides a detailed view of an event, including the original e‑mail or voicemail transcription, confidence score, escalation log with timestamps, acknowledgment details and final disposition.  Offer a button to manually acknowledge or downgrade if the user has the appropriate role.
+
+  * **Rotation management page.**  For admins only.  Shows the upcoming rotation schedule and allows editing primary and secondary assignments.  Provide forms to override the rotation for a specific date range.  Use a calendar component for date selection.
+
+  * **Audit & reporting page.**  Displays a table of events with filters for date range, status, source and SLA compliance.  Add an export button that fetches CSV data from the backend and triggers a download.  Include a chart summarizing the number of emergencies per week and average acknowledgment time.
+
+  * **Alerts & health page.**  Lists active admin alerts (ingestion failures, call failures, no acknowledgment, system health issues).  For each alert, show details and allow an admin to mark it as resolved.  Provide basic health metrics (uptime, API response times, queue length) and show them in real time via WebSockets.
+
+  * **Settings page.**  Allows admins to configure emergency score thresholds, acknowledgment timeout, SLA parameters, retention period and Twilio/Email settings.  Changes should be stored in the backend and reloaded on service restart.
+
+  Use Tailwind CSS for styling and build reusable components (tables, modals, forms).  Use TanStack Query hooks for data fetching and caching.  Use the Socket.io client to subscribe to channels such as `events`, `acknowledgments` and `alerts`.  Handle unauthorized responses by redirecting to the login page.
+
+Email ingestion service
+8. **Implement e‑mail polling.**  Use a Node.js service or an IMAP client in the backend to monitor the dedicated inbox.  Poll the inbox every minute; when a new message arrives, retrieve the subject, plain‑text body and sender domain.  Merge subject and body into a single string, strip HTML tags and normalise whitespace.  Then call the AI service’s `/classify` endpoint and insert the resulting event into the database via the backend API.  If polling fails or returns an error for more than a configurable duration, record an `admin_alert` of type `email_ingestion_failure` and notify administrators via SMS or e‑mail.  Consider using a library such as `imapflow` for efficient idle/push notifications when supported by the mail provider.
+
+Dialpad integration
+9. **Receive Dialpad webhooks.**  Configure Dialpad’s webhook endpoints to point to the AI service’s `/dialpad` endpoint.  Verify the signature on incoming requests to ensure authenticity.  For missed calls, immediately create a high‑confidence event.  For voicemails, parse the transcription field; if transcription is not provided, call Dialpad’s API to request transcription and wait for the `voicemail.transcription` webhook.  Pass the transcription to the `DialpadAgent`.  Insert the event via the backend API and start the escalation.
+
+Twilio integration
+10. **Send outbound calls and SMS.**  Create a dedicated Twilio phone number for all outgoing notifications.  Use the Twilio Node.js or Python SDK within the AI service to send messages.  The outbound number should remain consistent across all calls and messages so on‑call staff can save it with a unique, loud or custom ringtone and recognise emergencies immediately.  For each escalation step:
+  * Generate the voice script via `VoiceAgent` and request a speech file from OpenAI’s speech‑to‑speech API.  The script must be concise (under 15 seconds) and clearly state that an after‑hours emergency has been received.  It should instruct the recipient to press a specific key to acknowledge.  An example might be: “After‑hours emergency received at 2 a.m. on Main Street.  Please press 1 to acknowledge and take ownership.”
+  * Call `client.calls.create()` specifying `to` (the contact phone number), `from` (the dedicated outbound number) and `url` pointing to your `/twilio/voice` endpoint which returns `TwiML` instructions.  Include status callback URLs for events such as `ringing`, `answered` and `completed` so you can update call status in `escalation_logs`.  Always initiate the call and send the SMS at the same time for each contact.
+  * Send an SMS using `client.messages.create()` with the message from `SMSAgent`.  The SMS should include the phrase “After‑Hours Emergency – new service request received at [time].  Reply ACK to accept.” (mirror the blueprint’s example) and a short description of the issue.  Use delivery status callbacks to update `sms_status`.
+  * Start a timer (e.g., using BullMQ delayed jobs) for the acknowledgment window.  If the timer expires without an acknowledgment, the job handler logs the attempt in `escalation_logs` and triggers the next escalation step.  Ensure that each step is isolated so that a delayed or failed call/SMS does not block subsequent contacts.
+
+  For incoming SMS, configure a webhook on the Twilio number to call `/twilio/sms`.  Parse the message body; if it contains “ACK” (case insensitive), call the backend API to record an acknowledgment, stop all current escalation tasks and assign ownership to the responding user.  Respond to the sender with a confirmation message and, if necessary, further instructions on how to downgrade the issue.
+
+Rotation management and escalation ladder
+11. **Manage on‑call rotations.**  Each week, assign Jordan and Christina alternately as primary and secondary on‑call.  Insert rotation entries into the `on_call_rotations` table.  When determining the escalation ladder, query the current rotation based on the event’s `received_at` date.  Compose the ladder by concatenating the primary and secondary users from `on_call_rotations` with the fixed contacts from `escalation_contacts` sorted by `position`.  Save a snapshot of this ladder in the event metadata so that audits can reproduce the exact order used for each escalation.
+
+Logging, auditing and reporting
+12. **Capture comprehensive logs.**  Every event should produce an entry in `events`.  Every escalation attempt should insert a row into `escalation_logs` with the attempt number, contact, call and SMS statuses, acknowledgment flag and timestamp.  When a contact acknowledges, insert a row into `acknowledgments`.  Log the final disposition (accepted, downgraded or missed) in the `events` table.  Store the time‑to‑ack (difference between `received_at` and `acknowledged_at`).  Provide endpoints for exporting these logs as CSV.  Implement date range filtering and SLA compliance views in both backend and frontend.  Include metrics such as average time‑to‑ack and percentage of escalations meeting the 15‑minute SLA.
+
+Health monitoring and safeguards
+13. **Detect failures early.**  Implement background tasks to monitor e‑mail polling status, Dialpad webhook delivery and Twilio API responses.  Track call and SMS failures; if a message fails to send or a call fails to connect, log it in `escalation_logs` and raise an `admin_alert` of type `call_failure` or `sms_failure`.  If an event reaches the end of the escalation ladder without acknowledgment, record a `no_acknowledgment` alert.  Expose metrics on the AI service’s `/metrics` endpoint and feed them into the `AdminMonitorAgent` for analysis.  Provide Slack or email notifications for critical alerts.
+
+Deployment and scalability
+14. **Prepare for production.**  Containerize each service with Docker.  Use a multi‑stage build to minimise image sizes.  Provide a `docker-compose.yaml` or Kubernetes manifests to orchestrate the frontend, backend, AI service, PostgreSQL and Redis (for the job queue).  In production, use a managed PostgreSQL service and configure read replicas if necessary.  Use environment variables to differentiate between development and production (e.g., using `process.env.NODE_ENV`).  Implement logging with Winston (Node) and Python’s logging module, centralised via a service like ELK or Grafana Loki.  Use PM2 to manage the Node processes for the backend.  Enable auto‑scaling for the AI service so it can handle bursts of classification and voice generation requests.  Plan for horizontal scaling by keeping the AI service stateless; store conversation state and session memory in Redis or the database.  Write unit tests for each module (backend services, agents, Twilio interactions) and integration tests for the end‑to‑end escalation flow using Twilio’s test credentials.  Use CI/CD pipelines to run tests and deploy updates automatically.
+
+Definition of success
+15. **Establish clear success criteria.**  To ensure the system meets its operational objectives, define explicit success metrics.  The system should never miss an after‑hours emergency; acceptance of escalations must occur within 15 minutes in at least 99 % of cases; all escalations, acknowledgments and dispositions should be fully auditable via the event and log tables; and the automation should enable overnight staffing to be reduced safely without sacrificing responsiveness.  These metrics should be surfaced in dashboards and reports so administrators can monitor compliance and adjust thresholds or escalation rules as necessary.
+
+By following this detailed technical plan you will design a comprehensive after‑hours maintenance escalation system that leverages OpenAI’s latest models, Twilio telephony and a modern three‑tier architecture.  The database schema captures all necessary entities, the multi‑agent framework handles classification, voice generation and escalation logic, and the NestJS backend coordinates between the AI service, Twilio, Dialpad and the React frontend.  This system will be robust, auditable and extensible for future enhancements such as work‑order management or client‑specific dashboards.

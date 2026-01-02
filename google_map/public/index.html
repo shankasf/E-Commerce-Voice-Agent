@@ -1057,5 +1057,16 @@
       return div.innerHTML;
     }
   </script>
+  
+  <!-- WebRTC Voice Widget -->
+  <script src="./webrtc-voice-widget.js"></script>
+  <script>
+    VoiceWidget.init({
+      apiEndpoint: '/google_map/api/voice/webrtc',
+      aiProvider: 'openai',
+      agentName: 'Maps Assistant',
+      primaryColor: '#10b981',
+    });
+  </script>
 </body>
 </html>

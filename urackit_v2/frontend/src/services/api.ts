@@ -20,7 +20,7 @@ import type {
   PaginatedResponse,
 } from '../types';
 
-const API_BASE = '/v2/api';
+const API_BASE = '/api';
 
 const api = axios.create({
   baseURL: API_BASE,
@@ -47,7 +47,7 @@ api.interceptors.response.use(
       localStorage.removeItem('user');
       // Don't redirect if already on login page
       if (!window.location.pathname.includes('/login')) {
-        window.location.href = '/v2/dashboard/login';
+        window.location.href = '/login';
       }
     }
     return Promise.reject(error);

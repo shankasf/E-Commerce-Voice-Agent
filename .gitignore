@@ -1,12 +1,23 @@
+# Environment and credentials
 .env
+.env.local
+.env.production
+.env.development
+*.pem
+*.key
+credentials.json
+
+# Python
 __pycache__/
-test_openai_ws.py
-node_modules/
-.next/
 *.pyc
 .venv/
 venv/
-.env.local
+test_openai_ws.py
+
+# Node
+node_modules/
+.next/
+package-lock.json
 
 # Runtime artifacts
 *.log
@@ -21,3 +32,10 @@ urackit_voice/venv/
 # Large binary files
 *.so
 *.node
+
+# Redis data
+data/redis/
+
+# IDE
+.idea/
+.vscode/

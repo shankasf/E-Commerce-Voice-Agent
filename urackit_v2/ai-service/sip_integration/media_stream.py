@@ -359,9 +359,9 @@ class MediaStreamHandler:
             result = await self.agent_adapter.execute_tool(name, arguments)
             result_str = str(result)
             
-            # Check if this is a transfer request
-            if result_str.startswith("TRANSFER_TO_HUMAN:"):
-                reason = result_str.replace("TRANSFER_TO_HUMAN:", "").strip()
+            # Check if this is a transfer request (handle both | and : separators)
+            if result_str.startswith("TRANSFER_TO_HUMAN|") or result_str.startswith("TRANSFER_TO_HUMAN:"):
+                reason = result_str.replace("TRANSFER_TO_HUMAN|", "").replace("TRANSFER_TO_HUMAN:", "").strip()
                 logger.info(f"Transfer to human requested: {reason}")
                 # Initiate transfer in background
                 asyncio.create_task(self._initiate_transfer(reason))

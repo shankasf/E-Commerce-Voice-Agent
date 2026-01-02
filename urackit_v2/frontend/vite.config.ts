@@ -5,14 +5,15 @@ import tailwindcss from '@tailwindcss/vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  base: '/v2/dashboard/',
+  base: '/',
   server: {
     port: 5173,
+    host: '0.0.0.0',
+    allowedHosts: ['urackit.callsphere.tech', 'webhook.callsphere.tech', 'localhost'],
     proxy: {
-      '/v2/api': {
+      '/api': {
         target: 'http://localhost:3003',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/v2/, ''),
       },
     },
   },

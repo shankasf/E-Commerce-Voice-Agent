@@ -875,7 +875,7 @@ async def webrtc_connect(request: WebRTCConnectRequest):
     
     Flow:
     1. Browser sends SDP offer to our backend
-    2. Backend sends SDP + session config to OpenAI /v1/realtime/calls (with standard API key)
+    2. Backend sends SDP to OpenAI /v1/realtime endpoint
     3. Backend returns SDP answer to browser
     4. Browser sets remote description and connects
     
@@ -885,10 +885,8 @@ async def webrtc_connect(request: WebRTCConnectRequest):
     - requester: Limited access, 15 min max, triage only
     """
     import aiohttp
-    from aiohttp import FormData
     import os
     import uuid
-    import json
     
     try:
         from sip_integration.session_manager import get_session_manager
@@ -926,30 +924,15 @@ async def webrtc_connect(request: WebRTCConnectRequest):
         if not openai_api_key:
             raise HTTPException(status_code=500, detail="OpenAI API key not configured")
         
-        # Unified Interface: POST SDP + session config to OpenAI using standard API key
-        session_config = json.dumps({
-            "type": "realtime",
-            "model": realtime_model,
-            "audio": {
-                "output": {
-                    "voice": "alloy",
-                },
-            },
-            "instructions": get_system_prompt_for_role(request.role),
-        })
-        
+        # OpenAI Realtime API - POST SDP offer, get SDP answer
         async with aiohttp.ClientSession() as http_session:
-            # Create multipart form data
-            form = FormData()
-            form.add_field('sdp', request.sdp, content_type='application/sdp')
-            form.add_field('session', session_config, content_type='application/json')
-            
             sdp_response = await http_session.post(
-                "https://api.openai.com/v1/realtime/calls",
+                f"https://api.openai.com/v1/realtime?model={realtime_model}",
                 headers={
                     "Authorization": f"Bearer {openai_api_key}",
+                    "Content-Type": "application/sdp",
                 },
-                data=form,
+                data=request.sdp,
             )
 
             if sdp_response.status != 200 and sdp_response.status != 201:
@@ -1021,6 +1004,7 @@ def create_app() -> FastAPI:
 
 if __name__ == "__main__":
     import uvicorn
+    from port_utils import find_available_port
     
     config = get_config()
     errors = config.validate()
@@ -1031,17 +1015,28 @@ if __name__ == "__main__":
         logger.info("Please set the required environment variables in .env file")
         exit(1)
     
-    logger.info("=" * 60)
-    logger.info("URackIT AI Service v2.0.0")
-    logger.info("=" * 60)
-    logger.info(f"Host: {config.host}")
-    logger.info(f"Port: {config.port}")
-    logger.info(f"OpenAI Model: {config.openai_model}")
-    logger.info("=" * 60)
+    preferred_port = config.port
     
-    uvicorn.run(
-        "main:app",
-        host=config.host,
-        port=config.port,
-        reload=config.debug,
-    )
+    try:
+        port = find_available_port(preferred_port)
+        
+        if port != preferred_port:
+            print(f"⚠️  Preferred port {preferred_port} was in use, using port {port} instead")
+        
+        logger.info("=" * 60)
+        logger.info("URackIT AI Service v2.0.0")
+        logger.info("=" * 60)
+        logger.info(f"Host: {config.host}")
+        logger.info(f"Port: {port}")
+        logger.info(f"OpenAI Model: {config.openai_model}")
+        logger.info("=" * 60)
+        
+        uvicorn.run(
+            "main:app",
+            host=config.host,
+            port=port,
+            reload=config.debug,
+        )
+    except RuntimeError as e:
+        logger.error(f"Failed to start server: {e}")
+        exit(1)

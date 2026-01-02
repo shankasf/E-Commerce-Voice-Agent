@@ -49,6 +49,7 @@ interface TicketEvent {
       'http://localhost:5173',
       'http://localhost:3003',
       'https://webhook.callsphere.tech',
+      'https://urackit.callsphere.tech',
     ],
     credentials: true,
   },
