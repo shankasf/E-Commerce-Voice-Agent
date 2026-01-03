@@ -267,9 +267,9 @@ export function VoiceWidget({
     }
 
     return (
-        <div className="fixed bottom-6 right-6 z-50">
+        <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-4">
             {/* Panel */}
-            <div className="w-80 bg-gray-900 rounded-2xl shadow-2xl overflow-hidden mb-4">
+            <div className="w-80 bg-gray-900 rounded-2xl shadow-2xl overflow-hidden">
                 {/* Header */}
                 <div className="p-4 bg-gray-800 flex justify-between items-center border-b border-gray-700">
                     <div className="flex items-center gap-3">

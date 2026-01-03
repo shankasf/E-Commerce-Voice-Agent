@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, FileText, Loader2, Bot, User } from 'lucide-react';
+import { Send, FileText, Loader2, Bot, User, Mic, Phone } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 
 // Parse markdown to React elements
@@ -181,6 +181,7 @@ export function ChatAgentWindow({ isWidget = false }: { isWidget?: boolean }) {
   const [ticketId, setTicketId] = useState<number | null>(null);
   const [deviceDetails, setDeviceDetails] = useState<any>(null);
   const [conversationHistory, setConversationHistory] = useState<Array<{ role: string; content: string }>>([]);
+  const [isVoiceActive, setIsVoiceActive] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -477,6 +478,21 @@ export function ChatAgentWindow({ isWidget = false }: { isWidget?: boolean }) {
             disabled={isProcessing}
             className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm disabled:bg-gray-100"
           />
+          <button
+            onClick={() => setIsVoiceActive(!isVoiceActive)}
+            className={`px-4 py-2 rounded-lg text-white transition-colors flex items-center justify-center ${
+              isVoiceActive 
+                ? 'bg-red-600 hover:bg-red-700' 
+                : 'bg-blue-600 hover:bg-blue-700'
+            }`}
+            title={isVoiceActive ? 'Stop voice input' : 'Start voice input'}
+          >
+            {isVoiceActive ? (
+              <Phone className="w-4 h-4" />
+            ) : (
+              <Mic className="w-4 h-4" />
+            )}
+          </button>
           <button
             onClick={handleSendMessage}
             disabled={!inputValue.trim() || isProcessing}

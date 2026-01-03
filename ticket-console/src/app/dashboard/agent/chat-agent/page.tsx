@@ -72,7 +72,7 @@ export default function ChatAgentPage() {
               <button
                 onClick={() => setIsTerminalOpen(true)}
                 title="Open Terminal"
-                className="p-2 bg-green-700 hover:bg-green-800 text-white rounded-lg transition-colors"
+                className="p-2 bg-gray-800 hover:bg-gray-900 text-white rounded-lg transition-colors"
               >
                 <Terminal className="w-5 h-5" />
               </button>

@@ -227,7 +227,7 @@ export default function AgentDashboard() {
               )}
             </div>
             <button
-              onClick={() => window.location.href = '/tms/dashboard/agent/chat-agent'}
+              onClick={() => window.location.href = '/dashboard/agent/chat-agent'}
               className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-400 rounded-lg text-sm font-medium"
             >
               <Bot className="w-4 h-4" />

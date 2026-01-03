@@ -10,11 +10,11 @@ export function ChatAgentWidget() {
 
   return (
     <>
-      {/* Chat Icon Button - Bottom Right */}
+      {/* Chat Icon Button - Bottom Right, next to Voice Widget */}
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 w-14 h-14 bg-green-600 hover:bg-green-700 text-white rounded-full shadow-lg flex items-center justify-center z-50 transition-all hover:scale-110"
+          className="fixed bottom-6 right-28 w-14 h-14 bg-green-600 hover:bg-green-700 text-white rounded-full shadow-lg flex items-center justify-center z-50 transition-all hover:scale-110"
           aria-label="Open AI Agent Chat"
         >
           <MessageSquare className="w-6 h-6" />
@@ -23,7 +23,7 @@ export function ChatAgentWidget() {
 
       {/* Chat Window */}
       {isOpen && (
-        <div className="fixed bottom-6 right-6 z-50 w-96 h-[600px] flex flex-col bg-white rounded-lg shadow-2xl border border-gray-200">
+        <div className="fixed bottom-6 right-28 z-50 w-96 h-[600px] flex flex-col bg-white rounded-lg shadow-2xl border border-gray-200">
           {/* Header */}
           <div className="bg-green-600 text-white px-4 py-3 rounded-t-lg flex items-center justify-between">
             <div className="flex items-center gap-2">
