@@ -132,12 +132,16 @@ export default function AdminDashboard() {
   }, [activeTab, loadDashboardData, loadTickets]);
 
   useEffect(() => {
-    if (!isLoading && !user) {
-      window.location.href = '/tms';
-    } else if (!isLoading && user?.role !== 'admin') {
-      window.location.href = `/tms/dashboard/${user?.role}`;
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (mounted && !isLoading && !user) {
+      window.location.href = '/';
+    } else if (mounted && !isLoading && user?.role !== 'admin') {
+      window.location.href = `/dashboard/${user?.role}`;
     }
-  }, [user, isLoading]);
+  }, [user, isLoading, mounted]);
 
   useEffect(() => {
     if (user) {
@@ -154,11 +158,11 @@ export default function AdminDashboard() {
 
   const handleLogout = () => {
     logout();
-    window.location.href = '/tms';
+    window.location.href = '/';
   };
 
   const navigateToTicket = (ticketId: number) => {
-    window.location.href = `/tms/dashboard/admin/ticket/${ticketId}`;
+    window.location.href = `/dashboard/admin/ticket/${ticketId}`;
   };
 
   if (isLoading || !user) {

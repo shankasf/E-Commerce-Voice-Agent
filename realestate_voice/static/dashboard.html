@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real Estate Voice Agent - Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
+        .scrollbar-thin::-webkit-scrollbar { width: 6px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: #1f2937; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+    <!-- Header -->
+    <header class="bg-gray-800 border-b border-gray-700 px-6 py-4">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <div class="text-2xl">🏠</div>
+                <div>
+                    <h1 class="text-xl font-bold">Real Estate Voice Agent</h1>
+                    <p class="text-sm text-gray-400">Powered by xAI Grok Voice</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-4">
+                <div id="connection-status" class="flex items-center space-x-2">
+                    <div class="w-2 h-2 bg-green-500 rounded-full pulse-dot"></div>
+                    <span class="text-sm text-gray-300">Connected</span>
+                </div>
+                <span class="text-sm text-gray-400" id="current-time"></span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="p-6">
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <!-- Active Calls -->
+            <div class="bg-gray-800 rounded-xl p-6 border border-gray-700">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-400 text-sm">Active Calls</p>
+                        <p class="text-3xl font-bold text-blue-400" id="stat-active-calls">0</p>
+                    </div>
+                    <div class="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center">
+                        <i class="fas fa-phone text-blue-400 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total Duration -->
+            <div class="bg-gray-800 rounded-xl p-6 border border-gray-700">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-400 text-sm">Total Duration</p>
+                        <p class="text-3xl font-bold text-green-400" id="stat-total-duration">0:00</p>
+                    </div>
+                    <div class="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center">
+                        <i class="fas fa-clock text-green-400 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Maintenance Requests -->
+            <div class="bg-gray-800 rounded-xl p-6 border border-gray-700">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-400 text-sm">Maintenance Today</p>
+                        <p class="text-3xl font-bold text-yellow-400" id="stat-maintenance">0</p>
+                    </div>
+                    <div class="w-12 h-12 bg-yellow-500/20 rounded-full flex items-center justify-center">
+                        <i class="fas fa-wrench text-yellow-400 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Emergencies -->
+            <div class="bg-gray-800 rounded-xl p-6 border border-gray-700">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-400 text-sm">Emergencies</p>
+                        <p class="text-3xl font-bold text-red-400" id="stat-emergencies">0</p>
+                    </div>
+                    <div class="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center">
+                        <i class="fas fa-exclamation-triangle text-red-400 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Active Calls List -->
+            <div class="lg:col-span-2 bg-gray-800 rounded-xl border border-gray-700">
+                <div class="p-4 border-b border-gray-700">
+                    <h2 class="text-lg font-semibold flex items-center">
+                        <i class="fas fa-headset mr-2 text-blue-400"></i>
+                        Live Calls
+                    </h2>
+                </div>
+                <div class="p-4 max-h-[400px] overflow-y-auto scrollbar-thin" id="calls-container">
+                    <div class="text-center text-gray-500 py-8" id="no-calls-message">
+                        <i class="fas fa-phone-slash text-4xl mb-4"></i>
+                        <p>No active calls</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Agent Activity -->
+            <div class="bg-gray-800 rounded-xl border border-gray-700">
+                <div class="p-4 border-b border-gray-700">
+                    <h2 class="text-lg font-semibold flex items-center">
+                        <i class="fas fa-robot mr-2 text-purple-400"></i>
+                        Agent Activity
+                    </h2>
+                </div>
+                <div class="p-4">
+                    <canvas id="agent-chart" height="200"></canvas>
+                </div>
+                <div class="px-4 pb-4 space-y-2" id="agent-stats">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-400">Triage Agent</span>
+                        <span class="text-blue-400">0 calls</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-400">Maintenance Agent</span>
+                        <span class="text-yellow-400">0 calls</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-400">Payment Agent</span>
+                        <span class="text-green-400">0 calls</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-400">Leasing Agent</span>
+                        <span class="text-purple-400">0 calls</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Call Details Modal -->
+        <div id="call-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+            <div class="bg-gray-800 rounded-xl w-full max-w-2xl mx-4 max-h-[80vh] overflow-hidden">
+                <div class="p-4 border-b border-gray-700 flex justify-between items-center">
+                    <h3 class="text-lg font-semibold" id="modal-title">Call Details</h3>
+                    <button onclick="closeModal()" class="text-gray-400 hover:text-white">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="p-4 overflow-y-auto max-h-[60vh] scrollbar-thin">
+                    <div id="modal-content"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // State
+        let activeCalls = [];
+        let agentChart = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initAgentChart();
+            fetchData();
+            setInterval(fetchData, 3000);
+            updateTime();
+            setInterval(updateTime, 1000);
+        });
+
+        // Update time
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('current-time').textContent = now.toLocaleTimeString();
+        }
+
+        // Fetch data from API
+        async function fetchData() {
+            try {
+                const response = await fetch('/api/live-sessions');
+                const data = await response.json();
+                
+                activeCalls = data.calls || [];
+                
+                // Update stats
+                document.getElementById('stat-active-calls').textContent = data.summary?.totalCalls || 0;
+                document.getElementById('stat-total-duration').textContent = formatDuration(data.summary?.totalDuration || 0);
+                
+                // Update calls list
+                renderCalls();
+                
+                // Update agent chart
+                updateAgentChart();
+                
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                document.getElementById('connection-status').innerHTML = `
+                    <div class="w-2 h-2 bg-red-500 rounded-full"></div>
+                    <span class="text-sm text-red-400">Disconnected</span>
+                `;
+            }
+        }
+
+        // Render calls list
+        function renderCalls() {
+            const container = document.getElementById('calls-container');
+            const noCallsMessage = document.getElementById('no-calls-message');
+            
+            if (activeCalls.length === 0) {
+                noCallsMessage.style.display = 'block';
+                return;
+            }
+            
+            noCallsMessage.style.display = 'none';
+            
+            let html = '';
+            for (const call of activeCalls) {
+                const statusColor = call.status === 'active' ? 'green' : 'blue';
+                html += `
+                    <div class="bg-gray-700/50 rounded-lg p-4 mb-3 cursor-pointer hover:bg-gray-700 transition-colors"
+                         onclick="showCallDetails('${call.sessionId}')">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-3 h-3 bg-${statusColor}-500 rounded-full pulse-dot"></div>
+                                <span class="font-medium">${call.tenantName || 'Unknown Caller'}</span>
+                            </div>
+                            <span class="text-sm text-gray-400">${formatDuration(call.duration)}</span>
+                        </div>
+                        <div class="flex items-center justify-between text-sm text-gray-400">
+                            <span><i class="fas fa-phone mr-1"></i>${call.from}</span>
+                            <span class="bg-gray-600 px-2 py-0.5 rounded text-xs">${call.agentType || 'triage_agent'}</span>
+                        </div>
+                        <div class="mt-2 flex items-center space-x-4 text-xs text-gray-500">
+                            <span><i class="fas fa-comments mr-1"></i>${call.transcriptLength} messages</span>
+                            <span><i class="fas fa-tools mr-1"></i>${call.toolCallCount} actions</span>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = html + (document.getElementById('no-calls-message')?.outerHTML || '');
+        }
+
+        // Format duration
+        function formatDuration(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // Initialize agent chart
+        function initAgentChart() {
+            const ctx = document.getElementById('agent-chart').getContext('2d');
+            agentChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Triage', 'Maintenance', 'Payment', 'Leasing', 'Emergency'],
+                    datasets: [{
+                        data: [0, 0, 0, 0, 0],
+                        backgroundColor: [
+                            '#3b82f6',
+                            '#eab308',
+                            '#22c55e',
+                            '#a855f7',
+                            '#ef4444'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    cutout: '70%'
+                }
+            });
+        }
+
+        // Update agent chart
+        function updateAgentChart() {
+            if (!agentChart) return;
+            
+            const agentCounts = {
+                triage: 0,
+                maintenance: 0,
+                payment: 0,
+                leasing: 0,
+                emergency: 0
+            };
+            
+            for (const call of activeCalls) {
+                const agent = (call.agentType || 'triage_agent').toLowerCase();
+                if (agent.includes('triage')) agentCounts.triage++;
+                else if (agent.includes('maintenance')) agentCounts.maintenance++;
+                else if (agent.includes('payment')) agentCounts.payment++;
+                else if (agent.includes('leasing')) agentCounts.leasing++;
+                else if (agent.includes('emergency')) agentCounts.emergency++;
+            }
+            
+            agentChart.data.datasets[0].data = [
+                agentCounts.triage,
+                agentCounts.maintenance,
+                agentCounts.payment,
+                agentCounts.leasing,
+                agentCounts.emergency
+            ];
+            agentChart.update();
+        }
+
+        // Show call details modal
+        async function showCallDetails(sessionId) {
+            try {
+                const response = await fetch(`/api/session/${sessionId}`);
+                const data = await response.json();
+                
+                let transcriptHtml = '';
+                for (const msg of data.transcript || []) {
+                    const isUser = msg.role === 'user';
+                    transcriptHtml += `
+                        <div class="mb-3 flex ${isUser ? 'justify-end' : 'justify-start'}">
+                            <div class="${isUser ? 'bg-blue-600' : 'bg-gray-600'} rounded-lg px-4 py-2 max-w-[80%]">
+                                <p class="text-xs text-gray-300 mb-1">${msg.role}</p>
+                                <p class="text-sm">${msg.content}</p>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                let toolsHtml = '';
+                for (const tool of data.toolCalls || []) {
+                    const statusIcon = tool.success ? '✓' : '✗';
+                    const statusColor = tool.success ? 'text-green-400' : 'text-red-400';
+                    toolsHtml += `
+                        <div class="bg-gray-700/50 rounded p-2 mb-2 text-sm">
+                            <span class="${statusColor}">${statusIcon}</span>
+                            <span class="text-purple-400">${tool.name}</span>
+                        </div>
+                    `;
+                }
+                
+                document.getElementById('modal-title').textContent = 
+                    `Call with ${data.tenantName || data.callInfo?.from || 'Unknown'}`;
+                
+                document.getElementById('modal-content').innerHTML = `
+                    <div class="grid grid-cols-2 gap-4 mb-6">
+                        <div class="bg-gray-700/50 rounded p-3">
+                            <p class="text-xs text-gray-400">Duration</p>
+                            <p class="font-medium">${formatDuration(data.duration)}</p>
+                        </div>
+                        <div class="bg-gray-700/50 rounded p-3">
+                            <p class="text-xs text-gray-400">Agent</p>
+                            <p class="font-medium">${data.agentType || 'triage_agent'}</p>
+                        </div>
+                        <div class="bg-gray-700/50 rounded p-3">
+                            <p class="text-xs text-gray-400">From</p>
+                            <p class="font-medium">${data.callInfo?.from || 'N/A'}</p>
+                        </div>
+                        <div class="bg-gray-700/50 rounded p-3">
+                            <p class="text-xs text-gray-400">Location</p>
+                            <p class="font-medium">${data.callInfo?.city || 'Unknown'}, ${data.callInfo?.state || ''}</p>
+                        </div>
+                    </div>
+                    
+                    <h4 class="font-semibold mb-3 flex items-center">
+                        <i class="fas fa-comments mr-2 text-blue-400"></i>
+                        Transcript
+                    </h4>
+                    <div class="bg-gray-700/30 rounded-lg p-4 mb-6 max-h-[200px] overflow-y-auto scrollbar-thin">
+                        ${transcriptHtml || '<p class="text-gray-500 text-center">No messages yet</p>'}
+                    </div>
+                    
+                    <h4 class="font-semibold mb-3 flex items-center">
+                        <i class="fas fa-tools mr-2 text-purple-400"></i>
+                        Tool Calls
+                    </h4>
+                    <div class="max-h-[150px] overflow-y-auto scrollbar-thin">
+                        ${toolsHtml || '<p class="text-gray-500 text-center">No tool calls</p>'}
+                    </div>
+                `;
+                
+                document.getElementById('call-modal').classList.remove('hidden');
+                document.getElementById('call-modal').classList.add('flex');
+                
+            } catch (error) {
+                console.error('Error fetching call details:', error);
+            }
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('call-modal').classList.add('hidden');
+            document.getElementById('call-modal').classList.remove('flex');
+        }
+
+        // Close modal on outside click
+        document.getElementById('call-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'call-modal') {
+                closeModal();
+            }
+        });
+    </script>
+    
+    <!-- WebRTC Voice Widget -->
+    <script src="/static/webrtc-voice-widget.js"></script>
+    <script>
+        VoiceWidget.init({
+            apiEndpoint: '/api/voice/webrtc',
+            aiProvider: 'openai',
+            agentName: 'Real Estate Agent',
+            primaryColor: '#3b82f6',
+        });
+    </script>
+</body>
+</html>

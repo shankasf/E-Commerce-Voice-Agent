@@ -1,0 +1,673 @@
+2025-12-30 11:30:33,132 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.4&start_datetime=lte.2025-01-02T23%3A59%3A59&end_datetime=gte.2025-01-02T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 11:30:33,183 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.4&appointment_date=eq.2025-01-02&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 11:30:33,236 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.1&day_of_week=eq.thursday "HTTP/2 200 OK"
+2025-12-30 11:30:33,288 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.1&start_datetime=lte.2025-01-02T23%3A59%3A59&end_datetime=gte.2025-01-02T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 11:30:33,340 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.1&appointment_date=eq.2025-01-02&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 11:30:33,392 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.2&day_of_week=eq.thursday "HTTP/2 200 OK"
+2025-12-30 11:30:33,445 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.2&start_datetime=lte.2025-01-02T23%3A59%3A59&end_datetime=gte.2025-01-02T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 11:30:33,496 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.2&appointment_date=eq.2025-01-02&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 11:30:33,547 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.3&day_of_week=eq.thursday "HTTP/2 200 OK"
+2025-12-30 11:30:33,598 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.3&start_datetime=lte.2025-01-02T23%3A59%3A59&end_datetime=gte.2025-01-02T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 11:30:33,650 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.3&appointment_date=eq.2025-01-02&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 11:30:33,703 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.4&day_of_week=eq.thursday "HTTP/2 200 OK"
+2025-12-30 11:30:33,757 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.4&start_datetime=lte.2025-01-02T23%3A59%3A59&end_datetime=gte.2025-01-02T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 11:30:33,812 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.4&appointment_date=eq.2025-01-02&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 11:30:33,866 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.1&day_of_week=eq.thursday "HTTP/2 200 OK"
+2025-12-30 11:30:33,924 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.1&start_datetime=lte.2025-01-02T23%3A59%3A59&end_datetime=gte.2025-01-02T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 11:30:33,984 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.1&appointment_date=eq.2025-01-02&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 11:30:34,037 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.2&day_of_week=eq.thursday "HTTP/2 200 OK"
+2025-12-30 11:30:34,090 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.2&start_datetime=lte.2025-01-02T23%3A59%3A59&end_datetime=gte.2025-01-02T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 11:30:34,142 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.2&appointment_date=eq.2025-01-02&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 11:30:34,194 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.3&day_of_week=eq.thursday "HTTP/2 200 OK"
+2025-12-30 11:30:34,251 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.3&start_datetime=lte.2025-01-02T23%3A59%3A59&end_datetime=gte.2025-01-02T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 11:30:34,304 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.3&appointment_date=eq.2025-01-02&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 11:30:34,356 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.4&day_of_week=eq.thursday "HTTP/2 200 OK"
+2025-12-30 11:30:34,408 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.4&start_datetime=lte.2025-01-02T23%3A59%3A59&end_datetime=gte.2025-01-02T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 11:30:34,461 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.4&appointment_date=eq.2025-01-02&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 11:30:34,514 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.1&day_of_week=eq.thursday "HTTP/2 200 OK"
+2025-12-30 11:30:34,566 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.1&start_datetime=lte.2025-01-02T23%3A59%3A59&end_datetime=gte.2025-01-02T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 11:30:34,619 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.1&appointment_date=eq.2025-01-02&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 11:30:34,674 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.2&day_of_week=eq.thursday "HTTP/2 200 OK"
+2025-12-30 11:30:34,726 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.2&start_datetime=lte.2025-01-02T23%3A59%3A59&end_datetime=gte.2025-01-02T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 11:30:34,782 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.2&appointment_date=eq.2025-01-02&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 11:30:34,834 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.3&day_of_week=eq.thursday "HTTP/2 200 OK"
+2025-12-30 11:30:34,889 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.3&start_datetime=lte.2025-01-02T23%3A59%3A59&end_datetime=gte.2025-01-02T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 11:30:34,942 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.3&appointment_date=eq.2025-01-02&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 11:30:35,001 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.4&day_of_week=eq.thursday "HTTP/2 200 OK"
+2025-12-30 11:30:35,055 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.4&start_datetime=lte.2025-01-02T23%3A59%3A59&end_datetime=gte.2025-01-02T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 11:30:35,107 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.4&appointment_date=eq.2025-01-02&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 11:30:35,161 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.1&day_of_week=eq.thursday "HTTP/2 200 OK"
+2025-12-30 11:30:35,225 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.1&start_datetime=lte.2025-01-02T23%3A59%3A59&end_datetime=gte.2025-01-02T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 11:30:35,279 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.1&appointment_date=eq.2025-01-02&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 11:30:35,348 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.2&day_of_week=eq.thursday "HTTP/2 200 OK"
+2025-12-30 11:30:35,403 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.2&start_datetime=lte.2025-01-02T23%3A59%3A59&end_datetime=gte.2025-01-02T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 11:30:35,457 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.2&appointment_date=eq.2025-01-02&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 11:30:35,509 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.3&day_of_week=eq.thursday "HTTP/2 200 OK"
+2025-12-30 11:30:35,561 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.3&start_datetime=lte.2025-01-02T23%3A59%3A59&end_datetime=gte.2025-01-02T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 11:30:35,614 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.3&appointment_date=eq.2025-01-02&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 11:30:35,670 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.4&day_of_week=eq.thursday "HTTP/2 200 OK"
+2025-12-30 11:30:35,722 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.4&start_datetime=lte.2025-01-02T23%3A59%3A59&end_datetime=gte.2025-01-02T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 11:30:35,773 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.4&appointment_date=eq.2025-01-02&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 11:30:35,826 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.1&day_of_week=eq.thursday "HTTP/2 200 OK"
+2025-12-30 11:30:35,879 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.1&start_datetime=lte.2025-01-02T23%3A59%3A59&end_datetime=gte.2025-01-02T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 11:30:35,932 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.1&appointment_date=eq.2025-01-02&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 11:30:35,987 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.2&day_of_week=eq.thursday "HTTP/2 200 OK"
+2025-12-30 11:30:36,039 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.2&start_datetime=lte.2025-01-02T23%3A59%3A59&end_datetime=gte.2025-01-02T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 11:30:36,093 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.2&appointment_date=eq.2025-01-02&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 11:30:36,150 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.3&day_of_week=eq.thursday "HTTP/2 200 OK"
+2025-12-30 11:30:36,204 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.3&start_datetime=lte.2025-01-02T23%3A59%3A59&end_datetime=gte.2025-01-02T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 11:30:36,258 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.3&appointment_date=eq.2025-01-02&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 11:30:36,314 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.4&day_of_week=eq.thursday "HTTP/2 200 OK"
+2025-12-30 11:30:36,369 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.4&start_datetime=lte.2025-01-02T23%3A59%3A59&end_datetime=gte.2025-01-02T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 11:30:36,424 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.4&appointment_date=eq.2025-01-02&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+INFO:     172.18.0.1:55880 - "POST /api/agent/tools/get_available_slots HTTP/1.1" 200 OK
+2025-12-30 11:30:42,283 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/users?select=%2A&phone=eq.555-123-4567 "HTTP/2 200 OK"
+2025-12-30 11:30:42,346 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/users?select=%2A&phone=ilike.%255551234567%25 "HTTP/2 200 OK"
+2025-12-30 11:30:42,461 - httpx - INFO - HTTP Request: POST https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/users "HTTP/2 400 Bad Request"
+2025-12-30 11:30:42,461 - main - ERROR - Tool create_appointment error: {'message': 'null value in column "email" of relation "users" violates not-null constraint', 'code': '23502', 'hint': None, 'details': 'Failing row contains (80a04e55-89fc-4ec1-aefa-d6250cd7f0bb, null, null, 555-123-4567, null, Test Customer, customer, null, t, f, f, 2025-12-30 11:30:42.384688+00, 2025-12-30 11:30:42.384688+00).'}
+INFO:     172.18.0.1:43210 - "POST /api/agent/tools/create_appointment HTTP/1.1" 200 OK
+2025-12-30 11:31:22,432 - watchfiles.main - INFO - 1 change detected
+WARNING:  WatchFiles detected changes in 'db/queries.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2025-12-30 11:31:22,574 - main - INFO - GlamBook AI Service shutting down...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [71]
+INFO:     Started server process [77]
+INFO:     Waiting for application startup.
+2025-12-30 11:31:24,032 - main - INFO - GlamBook AI Service starting...
+2025-12-30 11:31:24,040 - watchfiles.main - INFO - 3 changes detected
+2025-12-30 11:31:24,050 - main - INFO - Creating ElevenLabs agent with 8 tools, webhook URL: https://salon.callsphere.tech
+2025-12-30 11:31:24,740 - httpx - INFO - HTTP Request: POST https://api.elevenlabs.io/v1/convai/agents/create "HTTP/1.1 200 OK"
+2025-12-30 11:31:24,741 - main - INFO - Created ElevenLabs agent: agent_0101kdqgdvtcf6mrspzcwppkk9r6
+2025-12-30 11:31:24,742 - main - INFO - ElevenLabs agent ready: agent_0101kdqgdvtcf6mrspzcwppkk9r6
+2025-12-30 11:31:24,742 - main - INFO - Salon: GlamBook Salon
+2025-12-30 11:31:24,742 - main - INFO - GlamBook AI Service started successfully
+INFO:     Application startup complete.
+2025-12-30 11:31:27,751 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/users?select=%2A&phone=eq.555-987-6543 "HTTP/2 200 OK"
+2025-12-30 11:31:27,810 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/users?select=%2A&phone=ilike.%255559876543%25 "HTTP/2 200 OK"
+2025-12-30 11:31:27,879 - httpx - INFO - HTTP Request: POST https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/users "HTTP/2 201 Created"
+2025-12-30 11:31:27,962 - httpx - INFO - HTTP Request: POST https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/customers "HTTP/2 201 Created"
+2025-12-30 11:31:28,020 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/services?select=%2A&service_id=in.%281%29 "HTTP/2 200 OK"
+2025-12-30 11:31:28,127 - httpx - INFO - HTTP Request: POST https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments "HTTP/2 201 Created"
+2025-12-30 11:31:28,198 - httpx - INFO - HTTP Request: POST https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointment_services "HTTP/2 201 Created"
+INFO:     172.18.0.1:47514 - "POST /api/agent/tools/create_appointment HTTP/1.1" 200 OK
+2025-12-30 11:31:32,847 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/users?select=%2A&phone=eq.555-987-6543 "HTTP/2 200 OK"
+2025-12-30 11:31:32,901 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/customers?select=%2A&user_id=eq.a1c9dbbd-67fe-411c-bc84-d811734ee970 "HTTP/2 200 OK"
+2025-12-30 11:31:32,960 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=%2A%2Cappointment_services%28%2A%2Cservices%28name%2Cprice%29%29&customer_id=eq.1&appointment_date=gte.2025-12-30&order=appointment_date.asc%2Cstart_time.asc "HTTP/2 200 OK"
+INFO:     172.18.0.1:47518 - "POST /api/agent/tools/lookup_appointment HTTP/1.1" 200 OK
+INFO:     172.18.0.1:59114 - "POST /api/debug/find-customer HTTP/1.1" 404 Not Found
+INFO:     172.18.0.1:59126 - "POST /api/agent/tools/lookup_appointment HTTP/1.1" 200 OK
+2025-12-30 11:32:18,466 - watchfiles.main - INFO - 3 changes detected
+WARNING:  WatchFiles detected changes in 'main.py', 'db/queries.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2025-12-30 11:32:18,603 - main - INFO - GlamBook AI Service shutting down...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [77]
+INFO:     Started server process [94]
+INFO:     Waiting for application startup.
+2025-12-30 11:32:20,078 - main - INFO - GlamBook AI Service starting...
+2025-12-30 11:32:20,095 - main - INFO - Creating ElevenLabs agent with 8 tools, webhook URL: https://salon.callsphere.tech
+2025-12-30 11:32:20,121 - watchfiles.main - INFO - 6 changes detected
+2025-12-30 11:32:20,834 - httpx - INFO - HTTP Request: POST https://api.elevenlabs.io/v1/convai/agents/create "HTTP/1.1 200 OK"
+2025-12-30 11:32:20,835 - main - INFO - Created ElevenLabs agent: agent_7601kdqgfjhsepq8jammtwx7nv37
+2025-12-30 11:32:20,835 - main - INFO - ElevenLabs agent ready: agent_7601kdqgfjhsepq8jammtwx7nv37
+2025-12-30 11:32:20,835 - main - INFO - Salon: GlamBook Salon
+2025-12-30 11:32:20,835 - main - INFO - GlamBook AI Service started successfully
+INFO:     Application startup complete.
+2025-12-30 11:33:09,996 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/users?select=%2A&phone=eq.555-987-6543 "HTTP/2 200 OK"
+2025-12-30 11:33:10,056 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/customers?select=%2A&user_id=eq.a1c9dbbd-67fe-411c-bc84-d811734ee970 "HTTP/2 200 OK"
+2025-12-30 11:33:10,143 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=%2A%2Cappointment_services%28%2A%2Cservices%28name%2Cprice%29%29&customer_id=eq.1&appointment_date=gte.2025-12-30&order=appointment_date.asc%2Cstart_time.asc "HTTP/2 200 OK"
+INFO:     172.18.0.1:44274 - "POST /api/agent/tools/lookup_appointment HTTP/1.1" 200 OK
+2025-12-30 11:33:42,859 - watchfiles.main - INFO - 1 change detected
+WARNING:  WatchFiles detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2025-12-30 11:33:43,030 - main - INFO - GlamBook AI Service shutting down...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [94]
+INFO:     Started server process [105]
+INFO:     Waiting for application startup.
+2025-12-30 11:33:44,508 - main - INFO - GlamBook AI Service starting...
+2025-12-30 11:33:44,527 - main - INFO - Creating ElevenLabs agent with 8 tools, webhook URL: https://salon.callsphere.tech
+2025-12-30 11:33:44,596 - watchfiles.main - INFO - 3 changes detected
+2025-12-30 11:33:45,784 - httpx - INFO - HTTP Request: POST https://api.elevenlabs.io/v1/convai/agents/create "HTTP/1.1 200 OK"
+2025-12-30 11:33:45,785 - main - INFO - Created ElevenLabs agent: agent_7901kdqgj50dexba4693ncv9g11n
+2025-12-30 11:33:45,785 - main - INFO - ElevenLabs agent ready: agent_7901kdqgj50dexba4693ncv9g11n
+2025-12-30 11:33:45,785 - main - INFO - Salon: GlamBook Salon
+2025-12-30 11:33:45,786 - main - INFO - GlamBook AI Service started successfully
+INFO:     Application startup complete.
+2025-12-30 11:33:47,513 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/users?select=%2A&phone=eq.555-987-6543 "HTTP/2 200 OK"
+2025-12-30 11:33:47,575 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/customers?select=%2A&user_id=eq.a1c9dbbd-67fe-411c-bc84-d811734ee970 "HTTP/2 200 OK"
+2025-12-30 11:33:47,576 - main - INFO - Lookup by phone 555-987-6543: customer={'user_id': 'a1c9dbbd-67fe-411c-bc84-d811734ee970', 'auth_id': None, 'email': 'customer_5559876543@glambook.voice', 'phone': '555-987-6543', 'password_hash': None, 'full_name': 'John Test', 'role': 'customer', 'avatar_url': None, 'is_active': True, 'email_verified': False, 'phone_verified': False, 'created_at': '2025-12-30T11:31:27.911705+00:00', 'updated_at': '2025-12-30T11:31:27.911705+00:00', 'customer_id': 1, 'preferred_stylist_id': None, 'notes': None, 'allergies': None, 'preferences': None, 'birthday': None, 'referral_source': None, 'total_visits': 0, 'total_spent': 0.0, 'last_visit_at': None, 'loyalty_points': 0, 'is_vip': False}
+2025-12-30 11:33:47,576 - main - INFO - Customer ID: 1
+2025-12-30 11:33:47,650 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=%2A%2Cappointment_services%28%2A%2Cservices%28name%2Cprice%29%29&customer_id=eq.1&appointment_date=gte.2025-12-30&order=appointment_date.asc%2Cstart_time.asc "HTTP/2 200 OK"
+2025-12-30 11:33:47,650 - main - INFO - Appointments found: 0
+INFO:     172.18.0.1:46186 - "POST /api/agent/tools/lookup_appointment HTTP/1.1" 200 OK
+INFO:     172.18.0.1:39204 - "GET /api/appointments HTTP/1.1" 404 Not Found
+2025-12-30 11:34:18,978 - watchfiles.main - INFO - 1 change detected
+WARNING:  WatchFiles detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2025-12-30 11:34:19,133 - main - INFO - GlamBook AI Service shutting down...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [105]
+INFO:     Started server process [110]
+INFO:     Waiting for application startup.
+2025-12-30 11:34:20,616 - main - INFO - GlamBook AI Service starting...
+2025-12-30 11:34:20,632 - main - INFO - Creating ElevenLabs agent with 8 tools, webhook URL: https://salon.callsphere.tech
+2025-12-30 11:34:20,699 - watchfiles.main - INFO - 3 changes detected
+2025-12-30 11:34:21,889 - httpx - INFO - HTTP Request: POST https://api.elevenlabs.io/v1/convai/agents/create "HTTP/1.1 200 OK"
+2025-12-30 11:34:21,890 - main - INFO - Created ElevenLabs agent: agent_4001kdqgk88mertabtq93rep54v3
+2025-12-30 11:34:21,890 - main - INFO - ElevenLabs agent ready: agent_4001kdqgk88mertabtq93rep54v3
+2025-12-30 11:34:21,890 - main - INFO - Salon: GlamBook Salon
+2025-12-30 11:34:21,890 - main - INFO - GlamBook AI Service started successfully
+INFO:     Application startup complete.
+2025-12-30 11:34:22,798 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=%2A "HTTP/2 200 OK"
+INFO:     172.18.0.1:52968 - "GET /debug/appointments HTTP/1.1" 200 OK
+2025-12-30 11:34:40,597 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/users?select=%2A&phone=eq.555-987-6543 "HTTP/2 200 OK"
+2025-12-30 11:34:40,673 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/customers?select=%2A&user_id=eq.a1c9dbbd-67fe-411c-bc84-d811734ee970 "HTTP/2 200 OK"
+2025-12-30 11:34:40,744 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/services?select=%2A&service_id=in.%281%29 "HTTP/2 200 OK"
+2025-12-30 11:34:40,878 - httpx - INFO - HTTP Request: POST https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments "HTTP/2 201 Created"
+2025-12-30 11:34:40,956 - httpx - INFO - HTTP Request: POST https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointment_services "HTTP/2 201 Created"
+INFO:     172.18.0.1:50022 - "POST /api/agent/tools/create_appointment HTTP/1.1" 200 OK
+2025-12-30 11:34:45,168 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/users?select=%2A&phone=eq.555-987-6543 "HTTP/2 200 OK"
+2025-12-30 11:34:45,236 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/customers?select=%2A&user_id=eq.a1c9dbbd-67fe-411c-bc84-d811734ee970 "HTTP/2 200 OK"
+2025-12-30 11:34:45,237 - main - INFO - Lookup by phone 555-987-6543: customer={'user_id': 'a1c9dbbd-67fe-411c-bc84-d811734ee970', 'auth_id': None, 'email': 'customer_5559876543@glambook.voice', 'phone': '555-987-6543', 'password_hash': None, 'full_name': 'John Test', 'role': 'customer', 'avatar_url': None, 'is_active': True, 'email_verified': False, 'phone_verified': False, 'created_at': '2025-12-30T11:31:27.911705+00:00', 'updated_at': '2025-12-30T11:31:27.911705+00:00', 'customer_id': 1, 'preferred_stylist_id': None, 'notes': None, 'allergies': None, 'preferences': None, 'birthday': None, 'referral_source': None, 'total_visits': 0, 'total_spent': 0.0, 'last_visit_at': None, 'loyalty_points': 0, 'is_vip': False}
+2025-12-30 11:34:45,237 - main - INFO - Customer ID: 1
+2025-12-30 11:34:45,321 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=%2A%2Cappointment_services%28%2A%2Cservices%28name%2Cprice%29%29&customer_id=eq.1&appointment_date=gte.2025-12-30&order=appointment_date.asc%2Cstart_time.asc "HTTP/2 200 OK"
+2025-12-30 11:34:45,322 - main - INFO - Appointments found: 1
+INFO:     172.18.0.1:51896 - "POST /api/agent/tools/lookup_appointment HTTP/1.1" 200 OK
+2025-12-30 11:34:49,667 - httpx - INFO - HTTP Request: PATCH https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?appointment_id=eq.2 "HTTP/2 400 Bad Request"
+2025-12-30 11:34:49,667 - main - ERROR - Tool cancel_appointment error: {'message': 'invalid input syntax for type uuid: "voice_agent"', 'code': '22P02', 'hint': None, 'details': None}
+INFO:     172.18.0.1:51898 - "POST /api/agent/tools/cancel_appointment HTTP/1.1" 200 OK
+2025-12-30 11:35:08,857 - watchfiles.main - INFO - 1 change detected
+WARNING:  WatchFiles detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2025-12-30 11:35:09,022 - main - INFO - GlamBook AI Service shutting down...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [110]
+INFO:     Started server process [115]
+INFO:     Waiting for application startup.
+2025-12-30 11:35:10,573 - main - INFO - GlamBook AI Service starting...
+2025-12-30 11:35:10,591 - main - INFO - Creating ElevenLabs agent with 8 tools, webhook URL: https://salon.callsphere.tech
+2025-12-30 11:35:10,639 - watchfiles.main - INFO - 3 changes detected
+2025-12-30 11:35:11,601 - httpx - INFO - HTTP Request: POST https://api.elevenlabs.io/v1/convai/agents/create "HTTP/1.1 200 OK"
+2025-12-30 11:35:11,602 - main - INFO - Created ElevenLabs agent: agent_3101kdqgms6df7y8x0gche9b2cwf
+2025-12-30 11:35:11,602 - main - INFO - ElevenLabs agent ready: agent_3101kdqgms6df7y8x0gche9b2cwf
+2025-12-30 11:35:11,602 - main - INFO - Salon: GlamBook Salon
+2025-12-30 11:35:11,602 - main - INFO - GlamBook AI Service started successfully
+INFO:     Application startup complete.
+2025-12-30 11:35:13,706 - httpx - INFO - HTTP Request: PATCH https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?appointment_id=eq.2 "HTTP/2 200 OK"
+INFO:     172.18.0.1:51072 - "POST /api/agent/tools/cancel_appointment HTTP/1.1" 200 OK
+2025-12-30 11:35:18,451 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/users?select=%2A&phone=eq.555-111-2222 "HTTP/2 200 OK"
+2025-12-30 11:35:18,518 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/users?select=%2A&phone=ilike.%255551112222%25 "HTTP/2 200 OK"
+2025-12-30 11:35:18,597 - httpx - INFO - HTTP Request: POST https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/users "HTTP/2 201 Created"
+2025-12-30 11:35:18,661 - httpx - INFO - HTTP Request: POST https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/customers "HTTP/2 201 Created"
+2025-12-30 11:35:18,724 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/services?select=%2A&service_id=in.%282%29 "HTTP/2 200 OK"
+2025-12-30 11:35:18,786 - httpx - INFO - HTTP Request: POST https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments "HTTP/2 201 Created"
+2025-12-30 11:35:18,856 - httpx - INFO - HTTP Request: POST https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointment_services "HTTP/2 201 Created"
+INFO:     172.18.0.1:51660 - "POST /api/agent/tools/create_appointment HTTP/1.1" 200 OK
+2025-12-30 11:35:23,061 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=%2A&appointment_id=eq.3 "HTTP/2 200 OK"
+2025-12-30 11:35:23,130 - httpx - INFO - HTTP Request: PATCH https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?appointment_id=eq.3 "HTTP/2 200 OK"
+INFO:     172.18.0.1:51670 - "POST /api/agent/tools/reschedule_appointment HTTP/1.1" 200 OK
+2025-12-30 11:35:36,046 - watchfiles.main - INFO - 1 change detected
+WARNING:  WatchFiles detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2025-12-30 11:35:36,171 - main - INFO - GlamBook AI Service shutting down...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [115]
+INFO:     Started server process [120]
+INFO:     Waiting for application startup.
+2025-12-30 11:35:37,692 - main - INFO - GlamBook AI Service starting...
+2025-12-30 11:35:37,709 - main - INFO - Creating ElevenLabs agent with 8 tools, webhook URL: https://salon.callsphere.tech
+2025-12-30 11:35:37,738 - watchfiles.main - INFO - 3 changes detected
+2025-12-30 11:35:38,517 - httpx - INFO - HTTP Request: POST https://api.elevenlabs.io/v1/convai/agents/create "HTTP/1.1 200 OK"
+2025-12-30 11:35:38,518 - main - INFO - Created ElevenLabs agent: agent_5601kdqgnkhbfyeazwzn6rax2cp2
+2025-12-30 11:35:38,518 - main - INFO - ElevenLabs agent ready: agent_5601kdqgnkhbfyeazwzn6rax2cp2
+2025-12-30 11:35:38,518 - main - INFO - Salon: GlamBook Salon
+2025-12-30 11:35:38,518 - main - INFO - GlamBook AI Service started successfully
+INFO:     Application startup complete.
+2025-12-30 11:35:41,798 - watchfiles.main - INFO - 1 change detected
+WARNING:  WatchFiles detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2025-12-30 11:35:41,929 - main - INFO - GlamBook AI Service shutting down...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [120]
+INFO:     Started server process [125]
+INFO:     Waiting for application startup.
+2025-12-30 11:35:43,405 - main - INFO - GlamBook AI Service starting...
+2025-12-30 11:35:43,422 - main - INFO - Creating ElevenLabs agent with 8 tools, webhook URL: https://salon.callsphere.tech
+2025-12-30 11:35:43,493 - watchfiles.main - INFO - 3 changes detected
+2025-12-30 11:35:44,306 - httpx - INFO - HTTP Request: POST https://api.elevenlabs.io/v1/convai/agents/create "HTTP/1.1 200 OK"
+2025-12-30 11:35:44,307 - main - INFO - Created ElevenLabs agent: agent_6101kdqgns3re76b8xtaezerqb4w
+2025-12-30 11:35:44,307 - main - INFO - ElevenLabs agent ready: agent_6101kdqgns3re76b8xtaezerqb4w
+2025-12-30 11:35:44,308 - main - INFO - Salon: GlamBook Salon
+2025-12-30 11:35:44,308 - main - INFO - GlamBook AI Service started successfully
+INFO:     Application startup complete.
+2025-12-30 11:39:15,996 - watchfiles.main - INFO - 1 change detected
+WARNING:  WatchFiles detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2025-12-30 11:39:16,132 - main - INFO - GlamBook AI Service shutting down...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [125]
+INFO:     Started server process [130]
+INFO:     Waiting for application startup.
+2025-12-30 11:39:17,584 - main - INFO - GlamBook AI Service starting...
+2025-12-30 11:39:17,601 - main - INFO - Creating ElevenLabs agent with 8 tools, webhook URL: https://salon.callsphere.tech
+2025-12-30 11:39:17,649 - watchfiles.main - INFO - 3 changes detected
+2025-12-30 11:39:18,324 - httpx - INFO - HTTP Request: POST https://api.elevenlabs.io/v1/convai/agents/create "HTTP/1.1 200 OK"
+2025-12-30 11:39:18,325 - main - INFO - Created ElevenLabs agent: agent_1101kdqgwa93fn6t8b1bqs68rn8r
+2025-12-30 11:39:18,325 - main - INFO - ElevenLabs agent ready: agent_1101kdqgwa93fn6t8b1bqs68rn8r
+2025-12-30 11:39:18,325 - main - INFO - Salon: GlamBook Salon
+2025-12-30 11:39:18,325 - main - INFO - GlamBook AI Service started successfully
+INFO:     Application startup complete.
+2025-12-30 11:39:22,294 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/services?select=%2A%2Cservice_categories%28name%29&is_active=eq.True&order=display_order.asc "HTTP/2 200 OK"
+INFO:     172.18.0.1:57148 - "GET /api/agent/tools/get_services HTTP/1.1" 200 OK
+[2025-12-30T11:55:27.501Z] POST /auth/login
+[2025-12-30T11:55:28.252Z] GET /api/dashboard/overview
+[2025-12-30T11:55:28.254Z] GET /api/dashboard/revenue?period=month
+[2025-12-30T11:55:28.261Z] GET /api/dashboard/appointments?period=week
+2025-12-30 11:56:15,151 - httpx - INFO - HTTP Request: GET https://api.elevenlabs.io/v1/convai/conversation/get_signed_url?agent_id=agent_1101kdqgwa93fn6t8b1bqs68rn8r "HTTP/1.1 200 OK"
+2025-12-30 11:56:15,682 - httpx - INFO - HTTP Request: POST https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/call_logs "HTTP/2 201 Created"
+2025-12-30 11:56:15,683 - main - INFO - ElevenLabs voice session 32e8b05b-b672-4187-a8d1-c3ff4003a994 created with agent agent_1101kdqgwa93fn6t8b1bqs68rn8r
+INFO:     172.18.0.1:43120 - "GET /api/voice/signed-url HTTP/1.1" 200 OK
+INFO:     172.18.0.1:43120 - "POST /api/voice/logs/emit HTTP/1.1" 200 OK
+INFO:     172.18.0.1:42806 - "POST /api/voice/logs/emit HTTP/1.1" 200 OK
+INFO:     172.18.0.1:42806 - "POST /api/voice/logs/emit HTTP/1.1" 200 OK
+INFO:     172.18.0.1:37442 - "POST /api/voice/logs/emit HTTP/1.1" 200 OK
+INFO:     172.18.0.1:37442 - "POST /api/voice/logs/emit HTTP/1.1" 200 OK
+INFO:     172.18.0.1:34576 - "POST /api/voice/logs/emit HTTP/1.1" 200 OK
+INFO:     172.18.0.1:34576 - "POST /api/voice/logs/emit HTTP/1.1" 200 OK
+INFO:     172.18.0.1:34576 - "POST /api/voice/logs/emit HTTP/1.1" 200 OK
+INFO:     172.18.0.1:34576 - "POST /api/voice/logs/emit HTTP/1.1" 200 OK
+INFO:     172.18.0.1:48468 - "POST /api/voice/logs/emit HTTP/1.1" 200 OK
+INFO:     172.18.0.1:48468 - "POST /api/voice/logs/emit HTTP/1.1" 200 OK
+INFO:     172.18.0.1:51662 - "POST /api/voice/logs/emit HTTP/1.1" 200 OK
+INFO:     172.18.0.1:51662 - "POST /api/voice/logs/emit HTTP/1.1" 200 OK
+INFO:     172.18.0.1:38464 - "POST /api/voice/logs/emit HTTP/1.1" 200 OK
+INFO:     172.18.0.1:38464 - "POST /api/voice/logs/emit HTTP/1.1" 200 OK
+INFO:     172.18.0.1:56616 - "POST /api/voice/logs/emit HTTP/1.1" 200 OK
+INFO:     172.18.0.1:56616 - "POST /api/voice/logs/emit HTTP/1.1" 200 OK
+INFO:     172.18.0.1:60814 - "POST /api/voice/logs/emit HTTP/1.1" 200 OK
+INFO:     172.18.0.1:60814 - "POST /api/voice/logs/emit HTTP/1.1" 200 OK
+2025-12-30 12:01:19,312 - httpx - INFO - HTTP Request: PATCH https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/call_logs?call_id=eq.32e8b05b-b672-4187-a8d1-c3ff4003a994 "HTTP/2 200 OK"
+2025-12-30 12:01:19,313 - main - INFO - WebRTC voice session 32e8b05b-b672-4187-a8d1-c3ff4003a994 disconnected (duration: 0s, messages: 0)
+INFO:     172.18.0.1:45690 - "POST /api/voice/webrtc/disconnect HTTP/1.1" 200 OK
+INFO:     172.18.0.1:45692 - "POST /api/voice/logs/emit HTTP/1.1" 200 OK
+INFO:     172.18.0.1:45706 - "POST /api/voice/webrtc/disconnect HTTP/1.1" 200 OK
+INFO:     172.18.0.1:45718 - "POST /api/voice/logs/emit HTTP/1.1" 200 OK
+2025-12-30 12:01:52,220 - watchfiles.main - INFO - 1 change detected
+WARNING:  WatchFiles detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2025-12-30 12:01:52,413 - main - INFO - GlamBook AI Service shutting down...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [130]
+INFO:     Started server process [138]
+INFO:     Waiting for application startup.
+2025-12-30 12:01:53,958 - main - INFO - GlamBook AI Service starting...
+2025-12-30 12:01:53,976 - main - INFO - Creating ElevenLabs agent with 8 tools, webhook URL: https://salon.callsphere.tech
+2025-12-30 12:01:54,031 - watchfiles.main - INFO - 3 changes detected
+2025-12-30 12:01:54,930 - httpx - INFO - HTTP Request: POST https://api.elevenlabs.io/v1/convai/agents/create "HTTP/1.1 200 OK"
+2025-12-30 12:01:54,931 - main - INFO - Created ElevenLabs agent: agent_0301kdqj5pxafzcrt5r0agh8wfb5
+2025-12-30 12:01:54,931 - main - INFO - ElevenLabs agent ready: agent_0301kdqj5pxafzcrt5r0agh8wfb5
+2025-12-30 12:01:54,931 - main - INFO - Salon: GlamBook Salon
+2025-12-30 12:01:54,931 - main - INFO - GlamBook AI Service started successfully
+INFO:     Application startup complete.
+[2025-12-30T12:02:05.918Z] GET /api/dashboard/revenue?period=month
+[2025-12-30T12:02:05.919Z] GET /api/dashboard/appointments?period=week
+[2025-12-30T12:02:05.922Z] GET /api/dashboard/overview
+2025-12-30 12:02:19,793 - watchfiles.main - INFO - 1 change detected
+WARNING:  WatchFiles detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2025-12-30 12:02:19,905 - main - INFO - GlamBook AI Service shutting down...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [138]
+INFO:     Started server process [146]
+INFO:     Waiting for application startup.
+2025-12-30 12:02:21,342 - main - INFO - GlamBook AI Service starting...
+2025-12-30 12:02:21,360 - main - INFO - Creating ElevenLabs agent with 8 tools, webhook URL: https://salon.callsphere.tech
+2025-12-30 12:02:21,419 - watchfiles.main - INFO - 3 changes detected
+2025-12-30 12:02:22,264 - httpx - INFO - HTTP Request: POST https://api.elevenlabs.io/v1/convai/agents/create "HTTP/1.1 200 OK"
+2025-12-30 12:02:22,265 - main - INFO - Created ElevenLabs agent: agent_0401kdqj6hkgfs3b12jmja4gfd9r
+2025-12-30 12:02:22,265 - main - INFO - ElevenLabs agent ready: agent_0401kdqj6hkgfs3b12jmja4gfd9r
+2025-12-30 12:02:22,265 - main - INFO - Salon: GlamBook Salon
+2025-12-30 12:02:22,265 - main - INFO - GlamBook AI Service started successfully
+INFO:     Application startup complete.
+2025-12-30 12:02:33,258 - main - INFO - 
+2025-12-30 12:02:33,258 - main - INFO - 🔧 ══════════════════════════════════════════════════
+2025-12-30 12:02:33,258 - main - INFO - 🔧 TOOL CALL: get_available_slots
+2025-12-30 12:02:33,258 - main - INFO - 🔧 Method: POST
+2025-12-30 12:02:33,258 - main - INFO - 🔧 Request Body: {
+  "date": "2025-12-31",
+  "service_id": 1
+}
+2025-12-30 12:02:33,258 - main - INFO - 🔧 ══════════════════════════════════════════════════
+2025-12-30 12:02:33,260 - main - INFO - 🗓️ get_available_slots processing...
+2025-12-30 12:02:33,260 - main - INFO -    📅 Date: 2025-12-31
+2025-12-30 12:02:33,260 - main - INFO -    💇 Service ID: 1
+2025-12-30 12:02:33,260 - main - INFO -    👤 Stylist ID: None
+2025-12-30 12:02:33,260 - main - INFO -    ✅ Parsed date: 2025-12-31
+2025-12-30 12:02:33,260 - main - INFO -    🔍 Querying database for available slots...
+2025-12-30 12:02:33,423 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/services?select=duration_minutes&service_id=eq.1 "HTTP/2 200 OK"
+2025-12-30 12:02:33,483 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/business_hours?select=%2A&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:33,536 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/salon_closures?select=%2A&closure_date=eq.2025-12-31 "HTTP/2 200 OK"
+2025-12-30 12:02:33,594 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_services?select=stylist_id%2Cstylists%28full_name%2Cis_active%29&service_id=eq.1 "HTTP/2 200 OK"
+2025-12-30 12:02:33,653 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylists?select=stylist_id%2Cfull_name&is_active=eq.True "HTTP/2 200 OK"
+2025-12-30 12:02:33,711 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.1&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:33,776 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.1&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:33,836 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.1&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:33,888 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.2&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:33,943 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.2&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:33,992 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.2&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:34,041 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.3&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:34,101 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.3&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:34,157 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.3&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:34,207 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.4&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:34,256 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.4&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:34,304 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.4&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:34,355 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.1&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:34,410 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.1&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:34,458 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.1&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:34,515 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.2&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:34,565 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.2&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:34,631 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.2&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:34,679 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.3&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:34,728 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.3&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:34,779 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.3&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:34,830 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.4&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:34,880 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.4&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:34,931 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.4&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:34,980 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.1&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:35,030 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.1&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:35,077 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.1&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:35,130 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.2&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:35,181 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.2&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:35,229 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.2&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:35,278 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.3&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:35,335 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.3&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:35,385 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.3&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:35,432 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.4&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:35,484 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.4&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:35,534 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.4&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:35,584 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.1&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:35,634 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.1&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:35,685 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.1&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:35,734 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.2&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:35,786 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.2&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:35,835 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.2&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:35,888 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.3&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:35,937 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.3&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:35,988 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.3&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:36,036 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.4&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:36,087 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.4&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:36,142 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.4&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:36,189 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.1&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:36,240 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.1&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:36,289 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.1&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:36,350 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.2&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:36,396 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.2&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:36,445 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.2&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:36,492 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.3&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:36,552 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.3&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:36,600 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.3&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:36,648 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.4&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:36,698 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.4&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:36,759 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.4&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:36,805 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.1&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:36,853 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.1&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:36,903 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.1&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:36,953 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.2&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:37,006 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.2&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:37,053 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.2&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:37,101 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.3&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:37,151 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.3&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:37,200 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.3&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:37,253 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.4&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:37,302 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.4&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:37,354 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.4&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:37,401 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.1&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:37,447 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.1&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:37,495 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.1&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:37,544 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.2&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:37,594 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.2&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:37,645 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.2&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:37,692 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.3&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:37,739 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.3&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:37,791 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.3&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:37,838 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.4&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:37,889 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.4&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:37,938 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.4&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:37,988 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.1&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:38,038 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.1&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:38,086 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.1&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:38,135 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.2&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:38,183 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.2&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:38,232 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.2&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:38,284 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.3&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:38,334 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.3&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:38,383 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.3&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:38,430 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.4&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:38,477 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.4&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:38,524 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.4&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:38,571 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.1&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:38,620 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.1&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:38,666 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.1&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:38,714 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.2&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:38,761 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.2&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:38,808 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.2&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:38,858 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.3&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:38,912 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.3&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:38,960 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.3&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:39,017 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.4&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:39,064 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.4&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:39,111 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.4&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:39,159 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.1&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:39,207 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.1&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:39,259 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.1&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:39,308 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.2&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:39,356 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.2&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:39,405 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.2&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:39,456 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.3&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:39,505 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.3&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:39,552 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.3&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:39,599 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.4&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:39,646 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.4&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:39,694 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.4&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:39,743 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.1&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:39,794 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.1&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:39,842 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.1&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:39,891 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.2&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:39,939 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.2&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:39,985 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.2&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:40,031 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.3&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:40,079 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.3&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:40,131 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.3&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:40,179 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.4&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:40,237 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.4&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:40,290 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.4&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:40,339 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.1&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:40,387 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.1&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:40,434 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.1&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:40,484 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.2&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:40,531 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.2&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:40,579 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.2&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:40,628 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.3&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:40,679 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.3&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:40,728 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.3&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:40,776 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.4&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:40,838 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.4&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:40,889 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.4&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:40,937 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.1&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:40,994 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.1&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:41,045 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.1&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:41,103 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.2&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:41,152 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.2&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:41,209 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.2&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:41,261 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.3&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:41,315 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.3&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:41,363 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.3&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:41,409 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.4&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:41,462 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.4&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:41,510 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.4&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:41,559 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.1&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:41,607 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.1&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:41,655 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.1&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:41,703 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.2&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:41,759 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.2&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:41,807 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.2&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:41,857 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.3&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:41,906 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.3&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:41,955 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.3&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:42,004 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.4&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:42,050 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.4&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:42,098 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.4&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:42,148 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.1&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:42,196 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.1&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:42,245 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.1&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:42,292 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.2&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:42,344 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.2&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:42,391 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.2&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:42,439 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.3&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:42,489 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.3&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:42,538 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.3&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:42,588 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.4&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:42,636 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.4&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:42,693 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.4&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:42,741 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.1&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:42,791 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.1&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:42,840 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.1&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:42,889 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.2&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:42,935 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.2&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:42,982 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.2&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:43,030 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.3&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:43,077 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.3&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:43,124 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.3&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:43,175 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.4&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:43,223 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.4&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:43,275 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.4&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:43,321 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.1&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:43,370 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.1&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:43,417 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.1&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:43,462 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.2&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:43,510 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.2&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:43,557 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.2&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:43,610 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.3&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:43,658 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.3&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:43,711 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.3&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:43,759 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.4&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:43,807 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.4&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:43,859 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.4&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:43,913 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.1&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:43,960 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.1&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:44,011 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.1&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:44,059 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.2&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:44,106 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.2&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:44,153 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.2&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:44,201 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.3&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:44,248 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.3&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:44,299 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.3&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:44,348 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.4&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:44,395 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.4&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:44,442 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.4&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:44,491 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.1&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:44,539 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.1&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:44,587 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.1&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:44,635 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.2&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:44,682 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.2&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:44,729 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.2&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:44,775 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.3&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:44,823 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.3&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:44,875 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.3&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:44,921 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_schedules?select=%2A&stylist_id=eq.4&day_of_week=eq.wednesday "HTTP/2 200 OK"
+2025-12-30 12:02:44,993 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/stylist_time_off?select=%2A&stylist_id=eq.4&start_datetime=lte.2025-12-31T23%3A59%3A59&end_datetime=gte.2025-12-31T00%3A00%3A00 "HTTP/2 200 OK"
+2025-12-30 12:02:45,040 - httpx - INFO - HTTP Request: GET https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/appointments?select=start_time%2Cend_time%2Cduration_minutes&stylist_id=eq.4&appointment_date=eq.2025-12-31&status=not.in.%28cancelled%29 "HTTP/2 200 OK"
+2025-12-30 12:02:45,041 - main - INFO -    📊 Database returned 72 slots
+2025-12-30 12:02:45,041 - main - INFO -    ⏰ Available times: ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30']...
+2025-12-30 12:02:45,041 - main - INFO -    ✅ Returning 72 slots
+2025-12-30 12:02:45,042 - main - INFO - 🔧 Response Status: 200 (11783.9ms)
+2025-12-30 12:02:45,042 - main - INFO - 
+INFO:     172.18.0.1:57544 - "POST /api/agent/tools/get_available_slots HTTP/1.1" 200 OK
+[2025-12-30T12:04:32.183Z] GET /api/dashboard/overview
+[2025-12-30T12:04:32.185Z] GET /api/dashboard/appointments?period=week
+[2025-12-30T12:04:32.186Z] GET /api/dashboard/revenue?period=month
+2025-12-30 12:04:36,064 - httpx - INFO - HTTP Request: GET https://api.elevenlabs.io/v1/convai/conversation/get_signed_url?agent_id=agent_0401kdqj6hkgfs3b12jmja4gfd9r "HTTP/1.1 200 OK"
+2025-12-30 12:04:36,775 - httpx - INFO - HTTP Request: POST https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/call_logs "HTTP/2 201 Created"
+2025-12-30 12:04:36,776 - main - INFO - ElevenLabs voice session 21026e84-5032-4178-b4bc-2cc8ec609418 created with agent agent_0401kdqj6hkgfs3b12jmja4gfd9r
+INFO:     172.18.0.1:51504 - "GET /api/voice/signed-url HTTP/1.1" 200 OK
+INFO:     172.18.0.1:51504 - "POST /api/voice/logs/emit HTTP/1.1" 200 OK
+2025-12-30 12:05:18,514 - httpx - INFO - HTTP Request: PATCH https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/call_logs?call_id=eq.21026e84-5032-4178-b4bc-2cc8ec609418 "HTTP/2 200 OK"
+2025-12-30 12:05:18,515 - main - INFO - WebRTC voice session 21026e84-5032-4178-b4bc-2cc8ec609418 disconnected (duration: 38s, messages: 1)
+INFO:     172.18.0.1:51564 - "POST /api/voice/webrtc/disconnect HTTP/1.1" 200 OK
+INFO:     172.18.0.1:51556 - "POST /api/voice/logs/emit HTTP/1.1" 200 OK
+2025-12-30 12:05:25,823 - httpx - INFO - HTTP Request: GET https://api.elevenlabs.io/v1/convai/conversation/get_signed_url?agent_id=agent_0401kdqj6hkgfs3b12jmja4gfd9r "HTTP/1.1 200 OK"
+2025-12-30 12:05:25,955 - httpx - INFO - HTTP Request: POST https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/call_logs "HTTP/2 201 Created"
+2025-12-30 12:05:25,955 - main - INFO - ElevenLabs voice session cfaa348d-c694-4a59-b09d-ce08213c5729 created with agent agent_0401kdqj6hkgfs3b12jmja4gfd9r
+INFO:     172.18.0.1:44470 - "GET /api/voice/signed-url HTTP/1.1" 200 OK
+INFO:     172.18.0.1:44470 - "POST /api/voice/logs/emit HTTP/1.1" 200 OK
+2025-12-30 12:05:55,296 - httpx - INFO - HTTP Request: PATCH https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/call_logs?call_id=eq.cfaa348d-c694-4a59-b09d-ce08213c5729 "HTTP/2 200 OK"
+2025-12-30 12:05:55,296 - main - INFO - WebRTC voice session cfaa348d-c694-4a59-b09d-ce08213c5729 disconnected (duration: 27s, messages: 1)
+INFO:     172.18.0.1:55482 - "POST /api/voice/webrtc/disconnect HTTP/1.1" 200 OK
+INFO:     172.18.0.1:55476 - "POST /api/voice/logs/emit HTTP/1.1" 200 OK
+2025-12-30 12:07:28,494 - watchfiles.main - INFO - 1 change detected
+WARNING:  WatchFiles detected changes in 'main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2025-12-30 12:07:28,695 - main - INFO - GlamBook AI Service shutting down...
+INFO:     Application shutdown complete.
+INFO:     Finished server process [146]
+INFO:     Started server process [151]
+INFO:     Waiting for application startup.
+2025-12-30 12:07:30,189 - main - INFO - GlamBook AI Service starting...
+2025-12-30 12:07:30,207 - main - INFO - Creating ElevenLabs agent with 8 tools, webhook URL: https://salon.callsphere.tech
+2025-12-30 12:07:30,261 - watchfiles.main - INFO - 3 changes detected
+2025-12-30 12:07:31,189 - httpx - INFO - HTTP Request: POST https://api.elevenlabs.io/v1/convai/agents/create "HTTP/1.1 200 OK"
+2025-12-30 12:07:31,190 - main - INFO - Created ElevenLabs agent: agent_6501kdqjfza3ewm9qzdvd4jr92h9
+2025-12-30 12:07:31,191 - main - INFO - ElevenLabs agent ready: agent_6501kdqjfza3ewm9qzdvd4jr92h9
+2025-12-30 12:07:31,191 - main - INFO - Salon: GlamBook Salon
+2025-12-30 12:07:31,191 - main - INFO - GlamBook AI Service started successfully
+INFO:     Application startup complete.
+12:07:46 PM [vite] hmr update /src/components/VoiceWidget.tsx, /src/index.css
+12:07:58 PM [vite] hmr update /src/components/VoiceWidget.tsx, /src/index.css
+12:08:13 PM [vite] hmr update /src/components/VoiceWidget.tsx, /src/index.css
+12:08:13 PM [vite] warning: This case clause will never be evaluated because it duplicates an earlier case clause
+262|            break;
+263|  
+264|          case 'agent_response':
+   |               ^
+265|            if (data.agent_response_event?.agent_response) {
+266|              const text = data.agent_response_event.agent_response;
+
+  Plugin: vite:esbuild
+  File: /app/frontend/src/components/VoiceWidget.tsx
+12:08:22 PM [vite] hmr update /src/components/VoiceWidget.tsx, /src/index.css
+12:08:22 PM [vite] warning: This case clause will never be evaluated because it duplicates an earlier case clause
+262|            break;
+263|  
+264|          case 'agent_response':
+   |               ^
+265|            if (data.agent_response_event?.agent_response) {
+266|              const text = data.agent_response_event.agent_response;
+
+  Plugin: vite:esbuild
+  File: /app/frontend/src/components/VoiceWidget.tsx
+12:08:36 PM [vite] hmr update /src/components/VoiceWidget.tsx, /src/index.css
+[2025-12-30T12:22:19.209Z] GET /api/dashboard/overview
+[2025-12-30T12:22:19.216Z] GET /api/dashboard/appointments?period=week
+[2025-12-30T12:22:19.217Z] GET /api/dashboard/revenue?period=month
+2025-12-30 12:22:25,309 - httpx - INFO - HTTP Request: GET https://api.elevenlabs.io/v1/convai/conversation/get_signed_url?agent_id=agent_6501kdqjfza3ewm9qzdvd4jr92h9 "HTTP/1.1 200 OK"
+2025-12-30 12:22:25,759 - httpx - INFO - HTTP Request: POST https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/call_logs "HTTP/2 201 Created"
+2025-12-30 12:22:25,760 - main - INFO - ElevenLabs voice session c261f0b8-6c59-49ce-a2e6-023e848fcbea created with agent agent_6501kdqjfza3ewm9qzdvd4jr92h9
+INFO:     172.18.0.1:36642 - "GET /api/voice/signed-url HTTP/1.1" 200 OK
+INFO:     172.18.0.1:36642 - "POST /api/voice/logs/emit HTTP/1.1" 200 OK
+2025-12-30 12:23:00,355 - httpx - INFO - HTTP Request: PATCH https://wfbnzfjzdnztirwouamu.supabase.co/rest/v1/call_logs?call_id=eq.c261f0b8-6c59-49ce-a2e6-023e848fcbea "HTTP/2 200 OK"
+2025-12-30 12:23:00,356 - main - INFO - WebRTC voice session c261f0b8-6c59-49ce-a2e6-023e848fcbea disconnected (duration: 31s, messages: 1)
+INFO:     172.18.0.1:34154 - "POST /api/voice/webrtc/disconnect HTTP/1.1" 200 OK
+INFO:     172.18.0.1:34162 - "POST /api/voice/logs/emit HTTP/1.1" 200 OK

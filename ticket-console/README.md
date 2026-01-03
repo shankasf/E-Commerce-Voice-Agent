@@ -1,5 +1,7 @@
 # U Rack IT - Chat AI Ticket Console
 
+> **Last Updated:** December 28, 2025
+
 Next.js-based web application for AI-powered IT support ticket management. Part of the U Rack IT multi-channel support system.
 
 ## 🎯 Overview

@@ -3,6 +3,47 @@
 import { User, Bot, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { TicketMessage } from '@/lib/supabase';
+import { useState, useEffect, useRef } from 'react';
+
+// Streaming text component for ChatGPT-like effect
+function StreamingText({ text, onComplete }: { text: string; onComplete?: () => void }) {
+    const [displayedText, setDisplayedText] = useState('');
+    const [isComplete, setIsComplete] = useState(false);
+    const indexRef = useRef(0);
+
+    useEffect(() => {
+        // Reset when text changes
+        setDisplayedText('');
+        indexRef.current = 0;
+        setIsComplete(false);
+
+        const words = text.split(' ');
+
+        const streamWords = () => {
+            if (indexRef.current < words.length) {
+                setDisplayedText(words.slice(0, indexRef.current + 1).join(' '));
+                indexRef.current++;
+                // Random delay between 20-60ms for natural feel
+                const delay = Math.random() * 40 + 20;
+                setTimeout(streamWords, delay);
+            } else {
+                setIsComplete(true);
+                onComplete?.();
+            }
+        };
+
+        // Start streaming after a brief delay
+        const timer = setTimeout(streamWords, 100);
+        return () => clearTimeout(timer);
+    }, [text, onComplete]);
+
+    return (
+        <>
+            {parseMarkdown(displayedText)}
+            {!isComplete && <span className="inline-block w-2 h-4 bg-purple-500 animate-pulse ml-0.5" />}
+        </>
+    );
+}
 
 // Parse markdown-style formatting to React elements
 function parseMarkdown(text: string): React.ReactNode[] {
@@ -63,9 +104,10 @@ interface ChatMessageProps {
     message: TicketMessage;
     currentUserId: number;
     userRole: 'agent' | 'requester' | 'admin';
+    shouldStream?: boolean;
 }
 
-export function ChatMessage({ message, currentUserId, userRole }: ChatMessageProps) {
+export function ChatMessage({ message, currentUserId, userRole, shouldStream = false }: ChatMessageProps) {
     const isAgent = !!message.sender_agent_id;
     const isBot = isAgent && (message.sender_agent as any)?.agent_type === 'Bot';
 
@@ -146,7 +188,13 @@ export function ChatMessage({ message, currentUserId, userRole }: ChatMessagePro
                 <div className={`rounded-2xl px-4 py-2.5 shadow-sm ${getBubbleStyle()} ${isFromMe ? 'rounded-tr-sm' : 'rounded-tl-sm'
                     }`}>
                     <div className="whitespace-pre-wrap break-words leading-relaxed">
-                        {isBot ? parseMarkdown(message.content) : message.content}
+                        {isBot && shouldStream ? (
+                            <StreamingText text={message.content} />
+                        ) : isBot ? (
+                            parseMarkdown(message.content)
+                        ) : (
+                            message.content
+                        )}
                     </div>
                 </div>
             </div>
@@ -161,6 +209,7 @@ interface ChatContainerProps {
     messagesEndRef: React.RefObject<HTMLDivElement>;
     emptyMessage?: string;
     aiThinking?: boolean;
+    streamLatestBot?: boolean;
 }
 
 export function ChatContainer({
@@ -169,8 +218,40 @@ export function ChatContainer({
     userRole,
     messagesEndRef,
     emptyMessage = 'No messages yet. Start the conversation below.',
-    aiThinking = false
+    aiThinking = false,
+    streamLatestBot = true
 }: ChatContainerProps) {
+    // Track which messages have been streamed already
+    const [streamedMessageIds, setStreamedMessageIds] = useState<Set<number>>(new Set());
+
+    // Find the latest bot message that hasn't been streamed AND is recent (within 5 seconds)
+    const latestBotMessageId = (() => {
+        if (!streamLatestBot) return null;
+        const now = Date.now();
+        for (let i = messages.length - 1; i >= 0; i--) {
+            const msg = messages[i];
+            const isBot = msg.sender_agent_id && (msg.sender_agent as any)?.agent_type === 'Bot';
+            // Only stream if message is from the last 5 seconds
+            const messageTime = new Date(msg.message_time).getTime();
+            const isRecent = (now - messageTime) < 5000;
+            if (isBot && isRecent && !streamedMessageIds.has(msg.message_id)) {
+                return msg.message_id;
+            }
+        }
+        return null;
+    })();
+
+    // Mark message as streamed once it appears
+    useEffect(() => {
+        if (latestBotMessageId && !streamedMessageIds.has(latestBotMessageId)) {
+            // Add a delay to ensure streaming completes before marking
+            const timer = setTimeout(() => {
+                setStreamedMessageIds(prev => new Set([...prev, latestBotMessageId]));
+            }, 5000); // 5 seconds should be enough for most messages
+            return () => clearTimeout(timer);
+        }
+    }, [latestBotMessageId, streamedMessageIds]);
+
     if (messages.length === 0) {
         return (
             <div className="flex items-center justify-center py-12">
@@ -186,14 +267,20 @@ export function ChatContainer({
 
     return (
         <div className="space-y-4">
-            {messages.map((msg) => (
-                <ChatMessage
-                    key={msg.message_id}
-                    message={msg}
-                    currentUserId={currentUserId}
-                    userRole={userRole}
-                />
-            ))}
+            {messages.map((msg) => {
+                const isBot = msg.sender_agent_id && (msg.sender_agent as any)?.agent_type === 'Bot';
+                const shouldStream = !!(isBot && msg.message_id === latestBotMessageId);
+
+                return (
+                    <ChatMessage
+                        key={msg.message_id}
+                        message={msg}
+                        currentUserId={currentUserId}
+                        userRole={userRole}
+                        shouldStream={shouldStream}
+                    />
+                );
+            })}
 
             {/* AI Thinking Indicator */}
             {aiThinking && (

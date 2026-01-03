@@ -19,6 +19,56 @@ import {
   SatisfactionResult,
 } from '@/lib/ai-agents';
 
+// Detect user intent using Responses API (JSON output)
+async function detectUserIntent(userMessage: string, conversationHistory: string): Promise<{
+  tool: string;
+  args: any;
+}> {
+  const systemPrompt = `You are an intent detection system for IT support. Analyze the user's message and determine their intent.
+
+IMPORTANT RULES:
+1. If user wants to talk to a human, escalate, transfer, handoff, speak to a real person, or anything similar - use handoff_to_human_agent
+2. If user EXPLICITLY asks to close the ticket (using words like "close", "close it", "close the ticket") - use close_ticket
+3. For everything else (describing issues, asking questions, confirming steps, saying "it worked", etc.) - use continue_troubleshooting
+
+DO NOT use close_ticket just because user says "thanks" or "it worked" - they must specifically ask to CLOSE the ticket.
+DO use handoff_to_human_agent for ANY request to speak with a human, regardless of exact wording.
+
+Set confirmed=true for handoff_to_human_agent if:
+- User says "now", "immediately", "just do it", "right now"
+- User is confirming after being asked "would you like me to proceed?"
+- User simply says "yes", "yeah", "sure", "go ahead" after a handoff was offered`;
+
+  const intentSchema = `Return STRICT JSON only, with this exact shape:
+{ "tool": "handoff_to_human_agent" | "close_ticket" | "continue_troubleshooting", "args": { ... } }
+
+Args rules:
+- tool=handoff_to_human_agent => args: { "reason": string, "confirmed": boolean }
+- tool=close_ticket => args: { "resolution_summary": string }
+- tool=continue_troubleshooting => args: { "response_type": "greeting" | "troubleshooting" | "follow_up" | "clarification" | "acknowledgment" }`;
+
+  try {
+    const { output_text } = await createResponse({
+      model: DEFAULT_MODEL,
+      instructions: `${systemPrompt}\n\n${intentSchema}`,
+      input: `Conversation so far:\n${conversationHistory}\n\nUser's latest message: "${userMessage}"`,
+      temperature: 0.1,
+      text: { format: { type: 'json_object' } },
+      max_output_tokens: 220,
+    });
+
+    const parsed = JSON.parse(output_text || '{}');
+    if (parsed?.tool && parsed?.args) {
+      return { tool: parsed.tool, args: parsed.args };
+    }
+
+    return { tool: 'continue_troubleshooting', args: { response_type: 'troubleshooting' } };
+  } catch (error) {
+    console.error('Intent detection error:', error);
+    return { tool: 'continue_troubleshooting', args: { response_type: 'troubleshooting' } };
+  }
+}
+
 // Clean all internal markers from AI response before showing to user
 function cleanResponse(text: string): string {
   return text
@@ -79,70 +129,49 @@ ${multiAgentInput}
 
 Use this information to provide personalized support. Reference their devices, previous tickets, or organization when relevant.
 
-CONVERSATIONAL STYLE:
-- Be friendly, warm, and conversational - like a helpful colleague
-- Use the customer's name if available
-- Show empathy and understanding
-- Avoid robotic or overly formal language
-- Make the interaction feel natural and human-like
+RESPONSE STYLE (CRITICAL - FOLLOW STRICTLY):
+- Keep ALL responses to 2-3 lines maximum
+- Be conversational, like texting a helpful colleague
+- NO bullet points, NO numbered lists, NO step-by-step formatting
+- ONE thought per message, then wait for response
+- Use simple, natural language
 
-MULTI-AGENT CAPABILITIES:
-- You can suggest handing off to another specialist if the issue is outside your expertise
-- If you detect an issue in another domain, include "HANDOFF_TO:[agent_type]" in your message (e.g., HANDOFF_TO:network)
-- Available specialists: email, network, computer, printer, phone, security, general
+EXAMPLE GOOD RESPONSES:
+- "Got it, let's check your internet. Can you try restarting your router? Just unplug it for 30 seconds and plug it back in."
+- "Sounds like a connection issue. Are you on WiFi or connected with a cable?"
+- "Let me look into that for you. Is this happening on just your computer or other devices too?"
 
-CRITICAL INSTRUCTIONS FOR STEP-BY-STEP GUIDANCE:
-1. Provide ONLY ONE troubleshooting step at a time
-2. After giving a step, ask the user to try it and confirm if it worked
-3. Wait for user confirmation before providing the next step
-4. Keep steps simple and conversational
-5. Use this format:
-   "Let's try this step:
-   
-   **Step [N]:** [Clear instruction]
-   
-   Please try this and let me know:
-   - Did this step work? Is your issue resolved?
-   - Or should we continue to the next step?"
+EXAMPLE BAD RESPONSES (NEVER DO THIS):
+- Long paragraphs with multiple steps
+- Numbered steps like "Step 1: ... Step 2: ..."
+- Bullet point lists
+- Formal language like "I apologize for the inconvenience"
 
-5. WHEN USER SAYS THE PROBLEM IS FIXED (e.g., "it worked", "fixed", "thanks that resolved it"):
-   - DO NOT close the ticket yet
-   - Simply ask: "Great! I'm glad that worked. Would you like me to close this ticket?"
-   - STOP HERE and wait for their response
+CONVERSATION FLOW:
+1. Ask ONE clarifying question if needed
+2. Give ONE simple instruction
+3. Wait for user to respond before continuing
+4. Keep the back-and-forth natural
 
-6. CLOSE_TICKET_CONFIRMED RULES (VERY IMPORTANT):
-   - ONLY include "CLOSE_TICKET_CONFIRMED" if ALL of these are true:
-     a) Your PREVIOUS message asked "Would you like me to close this ticket?"
-     b) The user's CURRENT message explicitly says YES to closing (e.g., "yes", "yes close it", "please close", "go ahead")
-   - NEVER include CLOSE_TICKET_CONFIRMED if user just says "it worked" or "thanks" or "fixed"
-   - When in doubt, ask again: "Just to confirm, would you like me to close this ticket?"
+WHEN USER SAYS IT'S FIXED:
+- Just say: "Glad that worked! Should I close this ticket for you?"
+- Wait for their response
 
-7. ESCALATION RULES:
-   - ONLY use "ESCALATE_TO_HUMAN" for CRITICAL issues like security incidents or office-wide outages
-   - Do NOT use ESCALATE_TO_HUMAN when user simply asks for human help - the system handles that automatically
-   - If user says "transfer to human", "I want human help", "talk to a person", etc. - just acknowledge and be helpful, do NOT add ESCALATE_TO_HUMAN
-   - When in doubt, just provide helpful troubleshooting without escalation markers
+WHEN USER WANTS HUMAN HELP:
+- The system handles this automatically - don't interfere
+- Don't ask for device details when user wants transfer
 
-8. IMPORTANT - INTERNAL MARKERS:
-   - ESCALATE_TO_HUMAN, HANDOFF_TO:xxx, and CLOSE_TICKET_CONFIRMED are internal system markers
-   - Place them ONLY at the very END of your message on a separate line
-   - Do NOT repeat them multiple times
-   - Do NOT include them in visible conversation text
-   - NEVER add ESCALATE_TO_HUMAN just because user wants human help - the system handles that
-
-9. Be empathetic, professional, and patient
-10. Ask about device type (Windows 11 or macOS) if not already known from their device list
-11. NEVER dump all steps at once - one step, wait for feedback, then next step
-12. If you see relevant past tickets, you can reference them to understand recurring issues
-13. If issue is outside your specialty, suggest handoff to the right specialist
-14. READ THE CONVERSATION HISTORY CAREFULLY - check if you already asked to close and what the user responded`;
+INTERNAL MARKERS (place at END of message only):
+- ESCALATE_TO_HUMAN: ONLY for critical issues (security breach, office-wide outage)
+- CLOSE_TICKET_CONFIRMED: ONLY when user explicitly says "close", "yes close it"
+- HANDOFF_TO:[agent_type]: When issue needs different specialist`;
 
   const { output_text } = await createResponse({
     model: DEFAULT_MODEL,
     input: `Ticket Subject: ${ticket.subject}\n\nDescription: ${ticket.description || ''}\n\nConversation so far:\n${conversationHistory}`,
     instructions,
     temperature: 0.5,
-    max_output_tokens: 1000,
+    max_output_tokens: 200,
   });
 
   return output_text || 'I apologize, but I encountered an issue generating a response. Let me escalate this to a human agent.';
@@ -299,19 +328,29 @@ export async function POST(request: NextRequest) {
         updated_at: new Date().toISOString(),
       }).eq('ticket_id', ticketId);
 
-      // Generate initial response with full database context
-      const initialResponse = await generateSolution(
-        triage.category,
-        ticket,
-        ''
-      );
+      // Build customer context for greeting
+      const customerContext = await buildTicketContext(ticket);
+      
+      // Extract org name and manager from context
+      const orgMatch = customerContext.match(/Organization: (.+)/);
+      const managerMatch = customerContext.match(/Account Manager: (.+)/);
+      
+      const orgName = orgMatch ? orgMatch[1].trim() : 'your organization';
+      const managerName = managerMatch ? managerMatch[1].trim() : null;
+      
+      // Build simple greeting - org name, manager, and "how can I assist you?"
+      let greeting = `🤖 Hello! I'm the AI ${getAgentName(triage.category)}.\n\n`;
+      greeting += `✅ Organization verified: **${orgName}**\n`;
+      if (managerName) {
+        greeting += `👤 Your Account Manager: **${managerName}**\n`;
+      }
+      greeting += `\nHow can I assist you today?`;
 
-      // Add initial bot message with human help note
-      const cleanedResponse = cleanResponse(initialResponse);
+      // Add initial bot message - just greeting, no troubleshooting yet
       await supabase.from('ticket_messages').insert({
         ticket_id: ticketId,
         sender_agent_id: botId,
-        content: `🤖 Hello! I'm the ${getAgentName(triage.category)}. I've analyzed your issue and I'm here to help.\n\n${cleanedResponse}\n\n---\n💡 *Feel free to ask for human agent help at any time.*`,
+        content: greeting,
         message_type: 'text',
       });
 
@@ -319,7 +358,7 @@ export async function POST(request: NextRequest) {
         success: true,
         category: triage.category,
         botId,
-        initialResponse: cleanedResponse,
+        initialResponse: greeting,
       });
 
     } else if (action === 'respond') {
@@ -337,40 +376,20 @@ export async function POST(request: NextRequest) {
       const botId = assignment?.support_agent_id || AI_BOT_AGENTS.GENERAL;
       const category = (assignment?.support_agents as any)?.specialization?.toLowerCase().split(' ')[0] || 'general';
 
-      // PRIORITY CHECK: Direct human transfer keywords - handle BEFORE any AI processing
-      const lowerMessage = userMessage.toLowerCase();
-      const wantsHumanTransfer = lowerMessage.includes('transfer to human') ||
-                                  lowerMessage.includes('human agent') ||
-                                  lowerMessage.includes('talk to human') ||
-                                  lowerMessage.includes('speak to human') ||
-                                  lowerMessage.includes('real person') ||
-                                  lowerMessage.includes('live agent') ||
-                                  lowerMessage.includes('human help') ||
-                                  lowerMessage.includes('i need human') ||
-                                  lowerMessage.includes('want human') ||
-                                  lowerMessage.includes('get me a human') ||
-                                  lowerMessage.includes('human technician') ||
-                                  lowerMessage.includes('human support');
+      // Use LLM to detect user intent with tool calling
+      const intent = await detectUserIntent(userMessage, conversationHistory);
+      console.log('[AI Intent Detection]', { userMessage, intent });
 
-      // Check if previous bot message asked about human handoff
-      const lastBotMessage = (messages || [])
-        .filter((m: any) => m.sender_agent_id)
-        .pop();
-      const botAskedAboutHuman = lastBotMessage?.content?.toLowerCase().includes('transfer you to a human agent') ||
-                                  lastBotMessage?.content?.toLowerCase().includes('would you like me to transfer');
+      // Handle handoff_to_human_agent tool call
+      if (intent.tool === 'handoff_to_human_agent') {
+        const { confirmed } = intent.args;
 
-      // Check if user is confirming human transfer
-      const isConfirmingHuman = botAskedAboutHuman && 
-                                 lowerMessage.match(/^(yes|yeah|sure|please|ok|okay|go ahead|confirm|do it|yep|yup)\.?$/i);
-
-      // IMMEDIATE HUMAN TRANSFER if user confirms or explicitly requests
-      if (wantsHumanTransfer || isConfirmingHuman) {
-        // If first time asking, confirm with user
-        if (wantsHumanTransfer && !botAskedAboutHuman) {
+        // If not confirmed, ask for confirmation
+        if (!confirmed) {
           await supabase.from('ticket_messages').insert({
             ticket_id: ticketId,
             sender_agent_id: botId,
-            content: `I understand you'd like to speak with a human technician.\n\n**Would you like me to transfer you to a human agent now?**\n\nJust say "yes" to confirm, or let me know if you'd prefer to continue troubleshooting with me.`,
+            content: `I'll transfer you to a human technician.\n\n**Would you like me to proceed?** Just say "yes" to confirm.`,
             message_type: 'text',
           });
 
@@ -381,7 +400,7 @@ export async function POST(request: NextRequest) {
           });
         }
 
-        // User confirmed OR explicitly wants transfer - DO THE TRANSFER NOW
+        // User confirmed - DO THE TRANSFER NOW
         const { data: humanAgents } = await supabase
           .from('support_agents')
           .select('*')
@@ -456,11 +475,8 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Check user intent for other actions
-      const satisfaction = await checkSatisfaction(userMessage);
-
-      // Handle ticket close confirmation
-      if (satisfaction.shouldClose) {
+      // Handle close_ticket tool call
+      if (intent.tool === 'close_ticket') {
         await supabase.from('support_tickets').update({
           status_id: 5,
           closed_at: new Date().toISOString(),
@@ -481,6 +497,7 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      // Handle continue_troubleshooting - generate AI response
       // Generate next step response with full database context
       const response = await generateSolution(
         category,
@@ -513,7 +530,7 @@ export async function POST(request: NextRequest) {
           await supabase.from('ticket_messages').insert({
             ticket_id: ticketId,
             sender_agent_id: handoff.newAgentId,
-            content: cleanResponse(`👋 Hello! I'm the ${getAgentName(targetAgent)}. I've reviewed your conversation and I'm ready to help.\n\n${newAgentResponse}`),
+            content: cleanResponse(`👋 Hello! I'm the AI ${getAgentName(targetAgent)}. I've reviewed your conversation and I'm ready to help.\n\n${newAgentResponse}`),
             message_type: 'text',
           });
 
@@ -655,13 +672,12 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // Add bot response - clean all internal markers and add human help note
+      // Add bot response - clean all internal markers
       const finalResponse = cleanResponse(response);
-      const responseWithNote = finalResponse + `\n\n---\n💡 *Feel free to ask for human agent help at any time.*`;
       await supabase.from('ticket_messages').insert({
         ticket_id: ticketId,
         sender_agent_id: botId,
-        content: responseWithNote,
+        content: finalResponse,
         message_type: 'text',
       });
 
@@ -673,7 +689,7 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         success: true,
-        response: responseWithNote,
+        response: finalResponse,
       });
 
     } else if (action === 'escalate') {

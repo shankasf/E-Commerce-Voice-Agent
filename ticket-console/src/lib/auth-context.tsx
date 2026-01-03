@@ -6,29 +6,26 @@ import { CurrentUser, UserRole } from '@/lib/supabase';
 interface AuthContextType {
   user: CurrentUser | null;
   login: (role: UserRole) => void;
+  loginWithContact: (contact: CurrentUser) => void;
   logout: () => void;
   isLoading: boolean;
+  switchAgent?: (agentId: number, agentName: string) => void;
 }
 
 // Default context for SSR - prevents errors during prerendering
 const defaultContext: AuthContextType = {
   user: null,
   login: () => { },
+  loginWithContact: () => { },
   logout: () => { },
   isLoading: true,
+  switchAgent: () => { },
 };
 
 const AuthContext = createContext<AuthContextType>(defaultContext);
 
-// Hardcoded users for demo purposes
-const DEMO_USERS: Record<UserRole, CurrentUser> = {
-  requester: {
-    role: 'requester',
-    id: 1,
-    name: 'John Smith',
-    email: 'john.smith@acmecorp.com',
-    organization_id: 1,
-  },
+// Hardcoded users for demo purposes (Admin and Agent only)
+const DEMO_USERS: Record<'admin' | 'agent', CurrentUser> = {
   admin: {
     role: 'admin',
     id: 100,
@@ -65,10 +62,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = (role: UserRole) => {
-    const demoUser = DEMO_USERS[role];
-    setUser(demoUser);
+    // Only admin and agent can use demo login
+    if (role === 'admin' || role === 'agent') {
+      const demoUser = DEMO_USERS[role];
+      setUser(demoUser);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('urackit_user', JSON.stringify(demoUser));
+      }
+    }
+  };
+
+  const loginWithContact = (contact: CurrentUser) => {
+    setUser(contact);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('urackit_user', JSON.stringify(demoUser));
+      localStorage.setItem('urackit_user', JSON.stringify(contact));
     }
   };
 
@@ -79,13 +86,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const switchAgent = (agentId: number, agentName: string) => {
+    const newUser: CurrentUser = {
+      role: 'agent',
+      id: agentId,
+      name: agentName,
+      email: `agent${agentId}@urackit.com`,
+    };
+    setUser(newUser);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('urackit_user', JSON.stringify(newUser));
+    }
+  };
+
   // Prevent hydration mismatch
   if (!mounted) {
     return <>{children}</>;
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, login, loginWithContact, logout, isLoading, switchAgent }}>
       {children}
     </AuthContext.Provider>
   );

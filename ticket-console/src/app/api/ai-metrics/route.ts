@@ -6,7 +6,10 @@ export const dynamic = 'force-dynamic';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseServiceKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: { autoRefreshToken: false, persistSession: false },
+  global: { headers: { Authorization: `Bearer ${supabaseServiceKey}` } }
+});
 
 // Average time a human takes to resolve a ticket (in minutes) - industry benchmark
 const HUMAN_AVG_RESOLUTION_TIME_MINS = 45;
@@ -15,7 +18,29 @@ const AI_AVG_RESPONSE_TIME_SECS = 8;
 
 export async function GET(request: NextRequest) {
   try {
-    // Get all tickets with their assignments and messages
+    // Parse date range from query params
+    const searchParams = request.nextUrl.searchParams;
+    const days = parseInt(searchParams.get('days') || '30');
+    const startDateParam = searchParams.get('startDate');
+    const endDateParam = searchParams.get('endDate');
+
+    let startDate: Date;
+    let endDate: Date = new Date();
+
+    if (startDateParam && endDateParam) {
+      startDate = new Date(startDateParam);
+      endDate = new Date(endDateParam);
+      endDate.setHours(23, 59, 59, 999);
+    } else {
+      startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+      startDate.setHours(0, 0, 0, 0);
+    }
+
+    const startDateISO = startDate.toISOString();
+    const endDateISO = endDate.toISOString();
+
+    // Get all tickets with their assignments and messages within date range
     const { data: tickets, error: ticketsError } = await supabase
       .from('support_tickets')
       .select(`
@@ -27,7 +52,9 @@ export async function GET(request: NextRequest) {
         created_at,
         closed_at,
         organization:organization_id(name)
-      `);
+      `)
+      .gte('created_at', startDateISO)
+      .lte('created_at', endDateISO);
 
     if (ticketsError) throw ticketsError;
 
@@ -104,11 +131,11 @@ export async function GET(request: NextRequest) {
       orgAIPreference[org.organization_id] = { ai: 0, human: 0, name: org.name };
     });
 
-    // Daily resolution tracking (last 30 days)
+    // Daily resolution tracking (dynamic based on date range)
     const dailyResolutions: Record<string, { ai: number; human: number }> = {};
-    const now = new Date();
-    for (let i = 29; i >= 0; i--) {
-      const date = new Date(now);
+    const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    for (let i = daysDiff; i >= 0; i--) {
+      const date = new Date(endDate);
       date.setDate(date.getDate() - i);
       const dateStr = date.toISOString().split('T')[0];
       dailyResolutions[dateStr] = { ai: 0, human: 0 };

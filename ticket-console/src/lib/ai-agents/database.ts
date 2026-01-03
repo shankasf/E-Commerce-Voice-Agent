@@ -5,7 +5,10 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseServiceKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: { autoRefreshToken: false, persistSession: false },
+  global: { headers: { Authorization: `Bearer ${supabaseServiceKey}` } }
+});
 
 // Get full contact details
 export async function getContactDetails(contactId: number) {
@@ -22,11 +25,14 @@ export async function getContactDetails(contactId: number) {
   return data;
 }
 
-// Get organization details
+// Get organization details with manager
 export async function getOrganizationDetails(organizationId: number) {
   const { data, error } = await supabase
     .from('organizations')
-    .select('*')
+    .select(`
+      *,
+      manager:manager_id(full_name, email, phone)
+    `)
     .eq('organization_id', organizationId)
     .single();
   
@@ -172,6 +178,7 @@ export async function buildTicketContext(ticket: any): Promise<string> {
   if (organization) {
     context += `\nOrganization: ${organization.name}\n`;
     if (organization.u_e_code) context += `Company Code: ${organization.u_e_code}\n`;
+    if (organization.manager?.full_name) context += `Account Manager: ${organization.manager.full_name}\n`;
   }
 
   if (devices && devices.length > 0) {

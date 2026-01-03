@@ -90,7 +90,7 @@ export const requesterAPI = {
     
     // Automatically assign AI bot to the new ticket (fire and forget - don't block UI)
     if (data) {
-      fetch('/tms/api/ai-resolve', {
+      fetch('/api/ai-resolve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -123,7 +123,7 @@ export const requesterAPI = {
     if (error) throw error;
 
     // Trigger AI bot response (fire and forget - don't block UI)
-    fetch('/tms/api/ai-resolve', {
+    fetch('/api/ai-resolve', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -325,7 +325,7 @@ export const adminAPI = {
   // Assign AI Bot to resolve ticket
   async assignAIBot(ticketId: number): Promise<{ success: boolean; category?: string; error?: string }> {
     try {
-      const response = await fetch('/tms/api/ai-resolve', {
+      const response = await fetch('/api/ai-resolve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'assign', ticketId }),
@@ -346,7 +346,7 @@ export const adminAPI = {
   // Get AI bot assignment status
   async getAIBotStatus(ticketId: number): Promise<{ hasAIBot: boolean; botDetails?: any }> {
     try {
-      const response = await fetch(`/tms/api/ai-resolve?ticketId=${ticketId}`);
+      const response = await fetch(`/api/ai-resolve?ticketId=${ticketId}`);
       if (!response.ok) return { hasAIBot: false };
       return await response.json();
     } catch {
@@ -608,6 +608,18 @@ export const agentAPI = {
       humanRequiredTickets: humanRequired.length,
       criticalTickets: [...assigned, ...escalated].filter(t => t.priority_id === 4).length,
     };
+  },
+
+  // Get all human agents for profile switching
+  async getAllHumanAgents(): Promise<SupportAgent[]> {
+    const { data, error } = await supabase
+      .from('support_agents')
+      .select('*')
+      .eq('agent_type', 'Human')
+      .order('full_name');
+    
+    if (error) return [];
+    return data || [];
   },
 };
 

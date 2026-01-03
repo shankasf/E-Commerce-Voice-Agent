@@ -1,0 +1,630 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =====================================================
+// ENUMS
+// =====================================================
+
+enum UserRole {
+  admin
+  customer
+}
+
+enum AppointmentStatus {
+  pending
+  confirmed
+  in_progress
+  completed
+  cancelled
+  no_show
+}
+
+enum PaymentStatus {
+  pending
+  paid
+  partial
+  refunded
+  failed
+}
+
+enum PaymentMethod {
+  cash
+  card
+  online
+  wallet
+}
+
+enum DayOfWeek {
+  monday
+  tuesday
+  wednesday
+  thursday
+  friday
+  saturday
+  sunday
+}
+
+enum CallStatus {
+  in_progress
+  completed
+  failed
+  abandoned
+}
+
+enum CallDirection {
+  inbound
+  outbound
+}
+
+// =====================================================
+// USERS & AUTH
+// =====================================================
+
+model User {
+  user_id        String    @id @default(uuid()) @db.Uuid
+  auth_id        String?   @unique @db.Uuid
+  email          String    @unique @db.VarChar(255)
+  phone          String?   @unique @db.VarChar(20)
+  password_hash  String?   @db.VarChar(255)
+  full_name      String    @db.VarChar(255)
+  role           UserRole  @default(customer)
+  avatar_url     String?
+  is_active      Boolean   @default(true)
+  email_verified Boolean   @default(false)
+  phone_verified Boolean   @default(false)
+  created_at     DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+
+  customer      Customer?
+  notifications Notification[]
+  audit_logs    AuditLog[]
+
+  @@map("users")
+}
+
+// =====================================================
+// SALON CONFIGURATION
+// =====================================================
+
+model SalonSettings {
+  setting_id             Int      @id @default(autoincrement())
+  salon_name             String   @default("GlamBook Salon") @db.VarChar(255)
+  phone                  String?  @db.VarChar(20)
+  email                  String?  @db.VarChar(255)
+  address                String?
+  city                   String?  @db.VarChar(100)
+  state                  String?  @db.VarChar(100)
+  zip_code               String?  @db.VarChar(20)
+  country                String   @default("USA") @db.VarChar(100)
+  timezone               String   @default("America/New_York") @db.VarChar(50)
+  currency               String   @default("USD") @db.VarChar(3)
+  logo_url               String?
+  website                String?  @db.VarChar(255)
+  description            String?
+  booking_notice_hours   Int      @default(24)
+  cancellation_hours     Int      @default(24)
+  max_advance_booking_days Int    @default(60)
+  slot_duration_minutes  Int      @default(30)
+  created_at             DateTime @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@map("salon_settings")
+}
+
+model BusinessHours {
+  hours_id    Int       @id @default(autoincrement())
+  day_of_week DayOfWeek @unique
+  is_open     Boolean   @default(true)
+  open_time   DateTime  @default(dbgenerated("'09:00:00'::time")) @db.Time(6)
+  close_time  DateTime  @default(dbgenerated("'18:00:00'::time")) @db.Time(6)
+  break_start DateTime? @db.Time(6)
+  break_end   DateTime? @db.Time(6)
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@map("business_hours")
+}
+
+model SalonClosure {
+  closure_id   Int      @id @default(autoincrement())
+  closure_date DateTime @db.Date
+  reason       String?  @db.VarChar(255)
+  is_full_day  Boolean  @default(true)
+  close_from   DateTime? @db.Time(6)
+  close_until  DateTime? @db.Time(6)
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+
+  @@map("salon_closures")
+}
+
+// =====================================================
+// SERVICES
+// =====================================================
+
+model ServiceCategory {
+  category_id   Int       @id @default(autoincrement())
+  name          String    @db.VarChar(100)
+  description   String?
+  display_order Int       @default(0)
+  icon          String?   @db.VarChar(50)
+  is_active     Boolean   @default(true)
+  created_at    DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+
+  services Service[]
+
+  @@map("service_categories")
+}
+
+model Service {
+  service_id       Int       @id @default(autoincrement())
+  category_id      Int?
+  name             String    @db.VarChar(255)
+  description      String?
+  duration_minutes Int       @default(30)
+  price            Decimal   @db.Decimal(10, 2)
+  deposit_required Boolean   @default(false)
+  deposit_amount   Decimal?  @db.Decimal(10, 2)
+  max_per_slot     Int       @default(1)
+  is_active        Boolean   @default(true)
+  display_order    Int       @default(0)
+  image_url        String?
+  created_at       DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+
+  category           ServiceCategory?      @relation(fields: [category_id], references: [category_id])
+  addons             ServiceAddon[]
+  stylist_services   StylistService[]
+  customer_favorites CustomerFavorite[]
+  appointment_services AppointmentService[]
+
+  @@map("services")
+}
+
+model ServiceAddon {
+  addon_id         Int      @id @default(autoincrement())
+  service_id       Int
+  name             String   @db.VarChar(255)
+  description      String?
+  price            Decimal  @db.Decimal(10, 2)
+  duration_minutes Int      @default(0)
+  is_active        Boolean  @default(true)
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+
+  service Service @relation(fields: [service_id], references: [service_id], onDelete: Cascade)
+
+  @@map("service_addons")
+}
+
+// =====================================================
+// STYLISTS
+// =====================================================
+
+model Stylist {
+  stylist_id  Int       @id @default(autoincrement())
+  user_id     String?   @db.Uuid
+  full_name   String    @db.VarChar(255)
+  email       String?   @db.VarChar(255)
+  phone       String?   @db.VarChar(20)
+  bio         String?
+  specialties String[]
+  avatar_url  String?
+  is_active   Boolean   @default(true)
+  hire_date   DateTime? @db.Date
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+
+  schedules        StylistSchedule[]
+  time_off         StylistTimeOff[]
+  services         StylistService[]
+  appointments     Appointment[]
+  reviews          Review[]
+  preferred_by     Customer[]
+
+  @@map("stylists")
+}
+
+model StylistSchedule {
+  schedule_id Int       @id @default(autoincrement())
+  stylist_id  Int
+  day_of_week DayOfWeek
+  is_working  Boolean   @default(true)
+  start_time  DateTime  @default(dbgenerated("'09:00:00'::time")) @db.Time(6)
+  end_time    DateTime  @default(dbgenerated("'18:00:00'::time")) @db.Time(6)
+  break_start DateTime? @db.Time(6)
+  break_end   DateTime? @db.Time(6)
+  created_at  DateTime  @default(now()) @db.Timestamptz(6)
+
+  stylist Stylist @relation(fields: [stylist_id], references: [stylist_id], onDelete: Cascade)
+
+  @@unique([stylist_id, day_of_week])
+  @@map("stylist_schedules")
+}
+
+model StylistTimeOff {
+  time_off_id    Int      @id @default(autoincrement())
+  stylist_id     Int
+  start_datetime DateTime @db.Timestamptz(6)
+  end_datetime   DateTime @db.Timestamptz(6)
+  reason         String?  @db.VarChar(255)
+  is_approved    Boolean  @default(true)
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+
+  stylist Stylist @relation(fields: [stylist_id], references: [stylist_id], onDelete: Cascade)
+
+  @@map("stylist_time_off")
+}
+
+model StylistService {
+  stylist_id      Int
+  service_id      Int
+  custom_price    Decimal? @db.Decimal(10, 2)
+  custom_duration Int?
+
+  stylist Stylist @relation(fields: [stylist_id], references: [stylist_id], onDelete: Cascade)
+  service Service @relation(fields: [service_id], references: [service_id], onDelete: Cascade)
+
+  @@id([stylist_id, service_id])
+  @@map("stylist_services")
+}
+
+// =====================================================
+// CUSTOMERS
+// =====================================================
+
+model Customer {
+  customer_id          Int       @id @default(autoincrement())
+  user_id              String    @unique @db.Uuid
+  preferred_stylist_id Int?
+  notes                String?
+  allergies            String?
+  preferences          String?
+  birthday             DateTime? @db.Date
+  referral_source      String?   @db.VarChar(100)
+  total_visits         Int       @default(0)
+  total_spent          Decimal   @default(0) @db.Decimal(12, 2)
+  last_visit_at        DateTime? @db.Timestamptz(6)
+  loyalty_points       Int       @default(0)
+  is_vip               Boolean   @default(false)
+  created_at           DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+
+  user               User               @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+  preferred_stylist  Stylist?           @relation(fields: [preferred_stylist_id], references: [stylist_id])
+  favorites          CustomerFavorite[]
+  appointments       Appointment[]
+  payments           Payment[]
+  reviews            Review[]
+  call_logs          CallLog[]
+
+  @@map("customers")
+}
+
+model CustomerFavorite {
+  customer_id Int
+  service_id  Int
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+
+  customer Customer @relation(fields: [customer_id], references: [customer_id], onDelete: Cascade)
+  service  Service  @relation(fields: [service_id], references: [service_id], onDelete: Cascade)
+
+  @@id([customer_id, service_id])
+  @@map("customer_favorites")
+}
+
+// =====================================================
+// APPOINTMENTS
+// =====================================================
+
+model Appointment {
+  appointment_id      Int               @id @default(autoincrement())
+  booking_reference   String            @unique @db.VarChar(20)
+  customer_id         Int?
+  stylist_id          Int?
+  appointment_date    DateTime          @db.Date
+  start_time          DateTime          @db.Time(6)
+  end_time            DateTime          @db.Time(6)
+  duration_minutes    Int
+  status              AppointmentStatus @default(pending)
+  confirmed_at        DateTime?         @db.Timestamptz(6)
+  checked_in_at       DateTime?         @db.Timestamptz(6)
+  started_at          DateTime?         @db.Timestamptz(6)
+  completed_at        DateTime?         @db.Timestamptz(6)
+  cancelled_at        DateTime?         @db.Timestamptz(6)
+  cancellation_reason String?
+  cancelled_by        String?           @db.Uuid
+  subtotal            Decimal           @default(0) @db.Decimal(10, 2)
+  discount_amount     Decimal           @default(0) @db.Decimal(10, 2)
+  discount_code       String?           @db.VarChar(50)
+  tax_amount          Decimal           @default(0) @db.Decimal(10, 2)
+  total_amount        Decimal           @default(0) @db.Decimal(10, 2)
+  deposit_paid        Decimal           @default(0) @db.Decimal(10, 2)
+  payment_status      PaymentStatus     @default(pending)
+  payment_method      PaymentMethod?
+  paid_at             DateTime?         @db.Timestamptz(6)
+  customer_notes      String?
+  staff_notes         String?
+  booked_via          String            @default("website") @db.VarChar(50)
+  call_id             String?           @db.VarChar(100)
+  reminder_sent       Boolean           @default(false)
+  reminder_sent_at    DateTime?         @db.Timestamptz(6)
+  created_at          DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime          @default(now()) @updatedAt @db.Timestamptz(6)
+
+  customer  Customer?            @relation(fields: [customer_id], references: [customer_id])
+  stylist   Stylist?             @relation(fields: [stylist_id], references: [stylist_id])
+  services  AppointmentService[]
+  payments  Payment[]
+  review    Review?
+  call_logs CallLog[]
+
+  @@index([appointment_date])
+  @@index([customer_id])
+  @@index([stylist_id])
+  @@index([status])
+  @@map("appointments")
+}
+
+model AppointmentService {
+  appointment_service_id Int      @id @default(autoincrement())
+  appointment_id         Int
+  service_id             Int?
+  service_name           String   @db.VarChar(255)
+  price                  Decimal  @db.Decimal(10, 2)
+  duration_minutes       Int
+  sequence_order         Int      @default(1)
+  created_at             DateTime @default(now()) @db.Timestamptz(6)
+
+  appointment Appointment @relation(fields: [appointment_id], references: [appointment_id], onDelete: Cascade)
+  service     Service?    @relation(fields: [service_id], references: [service_id])
+
+  @@map("appointment_services")
+}
+
+// =====================================================
+// PAYMENTS
+// =====================================================
+
+model Payment {
+  payment_id      Int           @id @default(autoincrement())
+  appointment_id  Int?
+  customer_id     Int?
+  amount          Decimal       @db.Decimal(10, 2)
+  payment_method  PaymentMethod
+  payment_status  PaymentStatus @default(pending)
+  transaction_id  String?       @db.VarChar(255)
+  payment_gateway String?       @db.VarChar(50)
+  paid_at         DateTime?     @db.Timestamptz(6)
+  refunded_at     DateTime?     @db.Timestamptz(6)
+  refund_amount   Decimal?      @db.Decimal(10, 2)
+  notes           String?
+  created_at      DateTime      @default(now()) @db.Timestamptz(6)
+
+  appointment Appointment? @relation(fields: [appointment_id], references: [appointment_id])
+  customer    Customer?    @relation(fields: [customer_id], references: [customer_id])
+
+  @@map("payments")
+}
+
+// =====================================================
+// REVIEWS
+// =====================================================
+
+model Review {
+  review_id      Int       @id @default(autoincrement())
+  appointment_id Int       @unique
+  customer_id    Int?
+  stylist_id     Int?
+  rating         Int
+  comment        String?
+  is_public      Boolean   @default(true)
+  admin_response String?
+  responded_at   DateTime? @db.Timestamptz(6)
+  created_at     DateTime  @default(now()) @db.Timestamptz(6)
+
+  appointment Appointment @relation(fields: [appointment_id], references: [appointment_id], onDelete: Cascade)
+  customer    Customer?   @relation(fields: [customer_id], references: [customer_id])
+  stylist     Stylist?    @relation(fields: [stylist_id], references: [stylist_id])
+
+  @@map("reviews")
+}
+
+// =====================================================
+// PROMOTIONS
+// =====================================================
+
+model Promotion {
+  promotion_id       Int       @id @default(autoincrement())
+  code               String    @unique @db.VarChar(50)
+  name               String    @db.VarChar(255)
+  description        String?
+  discount_type      String    @db.VarChar(20)
+  discount_value     Decimal   @db.Decimal(10, 2)
+  min_purchase       Decimal   @default(0) @db.Decimal(10, 2)
+  max_discount       Decimal?  @db.Decimal(10, 2)
+  valid_from         DateTime  @db.Timestamptz(6)
+  valid_until        DateTime? @db.Timestamptz(6)
+  usage_limit        Int?
+  usage_count        Int       @default(0)
+  per_customer_limit Int       @default(1)
+  applicable_services Int[]
+  is_active          Boolean   @default(true)
+  created_at         DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@map("promotions")
+}
+
+// =====================================================
+// NOTIFICATIONS
+// =====================================================
+
+model Notification {
+  notification_id Int       @id @default(autoincrement())
+  user_id         String    @db.Uuid
+  type            String    @db.VarChar(50)
+  title           String    @db.VarChar(255)
+  message         String
+  data            Json?
+  is_read         Boolean   @default(false)
+  read_at         DateTime? @db.Timestamptz(6)
+  sent_via        String?   @db.VarChar(20)
+  sent_at         DateTime? @db.Timestamptz(6)
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+
+  user User @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
+
+  @@index([user_id, is_read])
+  @@map("notifications")
+}
+
+// =====================================================
+// CALL LOGS
+// =====================================================
+
+model CallLog {
+  call_id            String      @id @db.VarChar(100)
+  session_id         String?     @db.VarChar(100)
+  caller_phone       String?     @db.VarChar(50)
+  from_number        String?     @db.VarChar(50)
+  to_number          String?     @db.VarChar(50)
+  customer_id        Int?
+  started_at         DateTime    @default(now()) @db.Timestamptz(6)
+  answered_at        DateTime?   @db.Timestamptz(6)
+  ended_at           DateTime?   @db.Timestamptz(6)
+  duration_seconds   Int         @default(0)
+  status             CallStatus  @default(in_progress)
+  direction          CallDirection @default(inbound)
+  ai_resolved        Boolean     @default(true)
+  was_escalated      Boolean     @default(false)
+  escalation_reason  String?
+  action_taken       String?     @db.VarChar(100)
+  appointment_id     Int?
+  intent_detected    String?     @db.VarChar(100)
+  sentiment          String?     @db.VarChar(20)
+  transcript         String?
+  call_summary       String?
+  customer_satisfaction Int?
+  created_at         DateTime    @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime    @default(now()) @updatedAt @db.Timestamptz(6)
+
+  customer    Customer?    @relation(fields: [customer_id], references: [customer_id])
+  appointment Appointment? @relation(fields: [appointment_id], references: [appointment_id])
+  interactions AgentInteraction[]
+  usage_logs   ElevenLabsUsageLog[]
+
+  @@index([customer_id])
+  @@index([started_at])
+  @@map("call_logs")
+}
+
+model AgentInteraction {
+  interaction_id Int      @id @default(autoincrement())
+  call_id        String   @db.VarChar(100)
+  session_id     String   @db.VarChar(100)
+  agent_type     String   @db.VarChar(50)
+  agent_name     String?  @db.VarChar(100)
+  started_at     DateTime @default(now()) @db.Timestamptz(6)
+  ended_at       DateTime? @db.Timestamptz(6)
+  duration_ms    Int      @default(0)
+  turn_count     Int      @default(0)
+  user_message   String?
+  agent_response String?
+  tools_called   Json     @default("[]")
+  tool_call_count Int     @default(0)
+  was_handoff    Boolean  @default(false)
+  handoff_to     String?  @db.VarChar(100)
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+
+  call_log CallLog @relation(fields: [call_id], references: [call_id], onDelete: Cascade)
+
+  @@index([call_id])
+  @@map("agent_interactions")
+}
+
+model ElevenLabsUsageLog {
+  usage_id              Int      @id @default(autoincrement())
+  call_id               String   @db.VarChar(100)
+  session_id            String?  @db.VarChar(100)
+  voice_id              String?  @db.VarChar(100)
+  voice_name            String?  @db.VarChar(100)
+  model_id              String?  @db.VarChar(100)
+  characters_used       Int      @default(0)
+  audio_duration_seconds Decimal @default(0) @db.Decimal(10, 2)
+  cost_cents            Decimal  @default(0) @db.Decimal(10, 4)
+  usage_type            String?  @db.VarChar(20)
+  latency_ms            Int?
+  created_at            DateTime @default(now()) @db.Timestamptz(6)
+
+  call_log CallLog @relation(fields: [call_id], references: [call_id], onDelete: Cascade)
+
+  @@index([call_id])
+  @@map("elevenlabs_usage_logs")
+}
+
+// =====================================================
+// ANALYTICS
+// =====================================================
+
+model DailyMetric {
+  metric_id                  Int      @id @default(autoincrement())
+  metric_date                DateTime @unique @db.Date
+  total_appointments         Int      @default(0)
+  completed_appointments     Int      @default(0)
+  cancelled_appointments     Int      @default(0)
+  no_shows                   Int      @default(0)
+  total_revenue              Decimal  @default(0) @db.Decimal(12, 2)
+  average_ticket             Decimal  @default(0) @db.Decimal(10, 2)
+  new_customers              Int      @default(0)
+  returning_customers        Int      @default(0)
+  total_calls                Int      @default(0)
+  calls_resolved_by_ai       Int      @default(0)
+  calls_escalated            Int      @default(0)
+  bookings_via_voice         Int      @default(0)
+  average_call_duration_seconds Int   @default(0)
+  most_booked_service_id     Int?
+  most_booked_service_name   String?  @db.VarChar(255)
+  created_at                 DateTime @default(now()) @db.Timestamptz(6)
+  updated_at                 DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@map("daily_metrics")
+}
+
+model HourlyMetric {
+  metric_id          Int      @id @default(autoincrement())
+  metric_hour        DateTime @db.Timestamptz(6)
+  appointments_count Int      @default(0)
+  calls_count        Int      @default(0)
+  revenue            Decimal  @default(0) @db.Decimal(10, 2)
+  created_at         DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([metric_hour])
+  @@map("hourly_metrics")
+}
+
+// =====================================================
+// AUDIT LOGS
+// =====================================================
+
+model AuditLog {
+  log_id      Int      @id @default(autoincrement())
+  user_id     String?  @db.Uuid
+  action      String   @db.VarChar(100)
+  entity_type String   @db.VarChar(50)
+  entity_id   String?  @db.VarChar(100)
+  old_values  Json?
+  new_values  Json?
+  ip_address  String?  @db.VarChar(45)
+  user_agent  String?
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+
+  user User? @relation(fields: [user_id], references: [user_id])
+
+  @@index([user_id])
+  @@index([entity_type, entity_id])
+  @@map("audit_logs")
+}

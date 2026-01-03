@@ -33,6 +33,13 @@ export function getAgentName(type: string): string {
   return agent?.name || 'IT Support Agent';
 }
 
+// Get agent name with AI prefix
+export function getAIAgentName(type: string): string {
+  const agent = AGENT_DEFINITIONS[type as AgentType];
+  const baseName = agent?.name || 'IT Support Agent';
+  return `AI ${baseName}`;
+}
+
 // List all available agents
 export function listAgents(): { type: AgentType; name: string; description: string }[] {
   return Object.entries(AGENT_DEFINITIONS).map(([type, def]) => ({

@@ -90,9 +90,9 @@ export default function RequesterDashboard() {
 
   useEffect(() => {
     if (mounted && !isLoading && !user) {
-      window.location.href = '/tms';
+      window.location.href = '/';
     } else if (mounted && !isLoading && user?.role !== 'requester') {
-      window.location.href = `/tms/dashboard/${user?.role}`;
+      window.location.href = `/dashboard/${user?.role}`;
     }
   }, [user, isLoading, mounted]);
 
@@ -104,35 +104,50 @@ export default function RequesterDashboard() {
   }, [user, isLoading, mounted, loadTickets]);
 
   const handleCreateTicket = async () => {
-    if (!newTicket.subject.trim() || !user?.id) return;
+    if (!newTicket.subject.trim()) {
+      setError('Subject is required');
+      return;
+    }
+    if (!user?.id) {
+      setError('User not logged in');
+      return;
+    }
+    if (!user?.organization_id) {
+      setError('Organization not found. Please log out and log in again.');
+      return;
+    }
 
     // Close modal immediately (optimistic UI)
     const ticketData = { ...newTicket };
     setShowNewTicket(false);
     setNewTicket({ subject: '', description: '', priority: 2 });
+    setError(null);
 
     try {
-      await requesterAPI.createTicket(
+      console.log('Creating ticket:', { contactId: user.id, orgId: user.organization_id, subject: ticketData.subject });
+      const result = await requesterAPI.createTicket(
         user.id,
-        user.organization_id!,
+        user.organization_id,
         ticketData.subject,
         ticketData.description,
         ticketData.priority
       );
+      console.log('Ticket created:', result);
       // Refresh tickets list in background
       loadTickets(user.id);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error creating ticket:', err);
+      setError(err.message || 'Failed to create ticket');
     }
   };
 
   const handleLogout = () => {
     logout();
-    window.location.href = '/tms';
+    window.location.href = '/';
   };
 
   const navigateToTicket = (ticketId: number) => {
-    window.location.href = `/tms/dashboard/requester/ticket/${ticketId}`;
+    window.location.href = `/dashboard/requester/ticket/${ticketId}`;
   };
 
   if (isLoading || !user) {
@@ -180,6 +195,14 @@ export default function RequesterDashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-6">
+        {/* Error Alert */}
+        {error && (
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 flex items-center justify-between">
+            <span>{error}</span>
+            <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700">×</button>
+          </div>
+        )}
+
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4 mb-6">
           <div className="bg-white rounded-lg p-4 border border-gray-200">

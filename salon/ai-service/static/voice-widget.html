@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GlamBook Salon - Voice Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #ff6b9d 0%, #c44569 50%, #9b2c6b 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+            padding: 20px;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 30px;
+            font-size: 1rem;
+        }
+        
+        .info-box {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .info-box h3 {
+            font-size: 1rem;
+            margin-bottom: 15px;
+            color: rgba(255, 255, 255, 0.95);
+        }
+        
+        .info-box ul {
+            list-style: none;
+            text-align: left;
+        }
+        
+        .info-box li {
+            padding: 8px 0;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.85);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .info-box li::before {
+            content: "✨";
+        }
+        
+        .widget-container {
+            margin-top: 20px;
+        }
+        
+        .setup-notice {
+            background: rgba(255, 193, 7, 0.2);
+            border: 1px solid rgba(255, 193, 7, 0.5);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            font-size: 0.85rem;
+            display: none;
+        }
+        
+        .setup-notice.visible {
+            display: block;
+        }
+        
+        .setup-notice a {
+            color: #ffd54f;
+        }
+        
+        /* Custom styling for the ElevenLabs widget */
+        elevenlabs-convai {
+            --elevenlabs-convai-widget-color: #ff6b9d;
+        }
+        
+        .footer {
+            margin-top: 20px;
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💅 GlamBook Salon</h1>
+        <p class="subtitle">AI Voice Assistant</p>
+        
+        <div class="info-box">
+            <h3>I can help you with:</h3>
+            <ul>
+                <li>Book appointments</li>
+                <li>Check availability</li>
+                <li>Learn about our services</li>
+                <li>Reschedule or cancel bookings</li>
+                <li>Get pricing information</li>
+            </ul>
+        </div>
+        
+        <p id="status" style="margin-bottom: 15px; font-size: 0.95rem;">
+            Click to talk with our AI assistant
+        </p>
+        
+        <div class="widget-container" id="widgetContainer">
+            <button id="callButton" onclick="startVoiceCall()" style="
+                padding: 20px 40px;
+                font-size: 1.2rem;
+                background: linear-gradient(135deg, #4ade80, #22c55e);
+                border: none;
+                border-radius: 50px;
+                color: white;
+                cursor: pointer;
+                transition: all 0.3s;
+                box-shadow: 0 4px 15px rgba(74, 222, 128, 0.4);
+            ">
+                🎤 Start Voice Call
+            </button>
+        </div>
+        
+        <style>
+            #callButton:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 6px 20px rgba(74, 222, 128, 0.5);
+            }
+            #callButton.active {
+                background: linear-gradient(135deg, #f87171, #ef4444);
+                box-shadow: 0 4px 15px rgba(248, 113, 113, 0.4);
+            }
+            #callButton:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+            }
+        </style>
+        
+        <p class="footer">
+            Powered by ElevenLabs Conversational AI
+        </p>
+    </div>
+
+    <script>
+        // Get configuration from server and connect directly to ElevenLabs
+        let ws = null;
+        let audioContext = null;
+        let mediaStream = null;
+        let processor = null;
+        let isConnected = false;
+        
+        async function startVoiceCall() {
+            const button = document.getElementById('callButton');
+            const status = document.getElementById('status');
+            
+            if (isConnected) {
+                // Hang up
+                if (ws) ws.close();
+                if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+                if (audioContext) audioContext.close();
+                isConnected = false;
+                button.textContent = '🎤 Start Voice Call';
+                button.classList.remove('active');
+                status.textContent = 'Click to talk with our AI assistant';
+                return;
+            }
+            
+            try {
+                status.textContent = 'Connecting...';
+                button.disabled = true;
+                
+                const basePath = window.location.pathname.replace('/voice-widget.html', '').replace('/voice-widget', '').replace('/voice', '');
+                const response = await fetch(basePath + '/api/voice/signed-url');
+                
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail || 'Failed to connect');
+                }
+                
+                const config = await response.json();
+                
+                // Get microphone
+                mediaStream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: { echoCancellation: true, noiseSuppression: true } 
+                });
+                
+                // Create audio context
+                audioContext = new AudioContext({ sampleRate: 16000 });
+                
+                // Connect to ElevenLabs
+                ws = new WebSocket(config.websocketUrl);
+                
+                ws.onopen = () => {
+                    // Send init with config override and API key
+                    ws.send(JSON.stringify({
+                        type: 'conversation_initiation_client_data',
+                        conversation_config_override: {
+                            agent: {
+                                prompt: { prompt: config.systemPrompt },
+                                first_message: config.firstMessage,
+                                language: 'en'
+                            },
+                            tts: {
+                                voice_id: config.voiceId,
+                                model_id: config.modelId
+                            }
+                        },
+                        xi_api_key: config.apiKey
+                    }));
+                    
+                    isConnected = true;
+                    button.disabled = false;
+                    button.textContent = '📵 End Call';
+                    button.classList.add('active');
+                    status.textContent = 'Connected - Speak now!';
+                    
+                    // Start sending audio
+                    startAudioCapture();
+                };
+                
+                ws.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    
+                    if (data.type === 'audio' && data.audio_event?.audio_base_64) {
+                        playAudio(data.audio_event.audio_base_64);
+                    } else if (data.type === 'agent_response') {
+                        console.log('Agent:', data.agent_response_event?.agent_response);
+                    } else if (data.type === 'user_transcript') {
+                        console.log('You:', data.user_transcription_event?.user_transcript);
+                    } else if (data.type === 'ping') {
+                        ws.send(JSON.stringify({ type: 'pong', event_id: data.ping_event?.event_id }));
+                    }
+                };
+                
+                ws.onerror = (err) => {
+                    console.error('WebSocket error:', err);
+                    status.textContent = 'Connection error';
+                };
+                
+                ws.onclose = () => {
+                    isConnected = false;
+                    button.disabled = false;
+                    button.textContent = '🎤 Start Voice Call';
+                    button.classList.remove('active');
+                    status.textContent = 'Disconnected';
+                };
+                
+            } catch (error) {
+                console.error('Error:', error);
+                status.textContent = 'Error: ' + error.message;
+                button.disabled = false;
+            }
+        }
+        
+        function startAudioCapture() {
+            if (!audioContext || !mediaStream) return;
+            
+            const source = audioContext.createMediaStreamSource(mediaStream);
+            processor = audioContext.createScriptProcessor(4096, 1, 1);
+            
+            processor.onaudioprocess = (e) => {
+                if (!ws || ws.readyState !== WebSocket.OPEN) return;
+                
+                const inputData = e.inputBuffer.getChannelData(0);
+                const pcm16 = new Int16Array(inputData.length);
+                for (let i = 0; i < inputData.length; i++) {
+                    const s = Math.max(-1, Math.min(1, inputData[i]));
+                    pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                }
+                
+                const bytes = new Uint8Array(pcm16.buffer);
+                let binary = '';
+                for (let i = 0; i < bytes.length; i++) {
+                    binary += String.fromCharCode(bytes[i]);
+                }
+                
+                ws.send(JSON.stringify({ user_audio_chunk: btoa(binary) }));
+            };
+            
+            source.connect(processor);
+            processor.connect(audioContext.destination);
+        }
+        
+        function playAudio(base64) {
+            if (!audioContext) return;
+            
+            const binary = atob(base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                bytes[i] = binary.charCodeAt(i);
+            }
+            
+            const pcm16 = new Int16Array(bytes.buffer);
+            const float32 = new Float32Array(pcm16.length);
+            for (let i = 0; i < pcm16.length; i++) {
+                float32[i] = pcm16[i] / (pcm16[i] < 0 ? 0x8000 : 0x7FFF);
+            }
+            
+            const buffer = audioContext.createBuffer(1, float32.length, 16000);
+            buffer.getChannelData(0).set(float32);
+            
+            const source = audioContext.createBufferSource();
+            source.buffer = buffer;
+            source.connect(audioContext.destination);
+            source.start();
+        }
+    </script>
+</body>
+</html>
