@@ -1,0 +1,28 @@
+[Unit]
+Description=Ubuntu MCP Agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=YOUR_USERNAME
+Group=YOUR_USERNAME
+WorkingDirectory=/path/to/ubuntu-mcp-agent
+Environment="PATH=/path/to/ubuntu-mcp-agent/venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="PYTHONUNBUFFERED=1"
+ExecStart=/path/to/ubuntu-mcp-agent/venv/bin/python3 /path/to/ubuntu-mcp-agent/src/main.py --cli
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ubuntu-mcp-agent
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/YOUR_USERNAME/.config/ubuntu-mcp-agent /home/YOUR_USERNAME/.local/share/ubuntu-mcp-agent
+
+[Install]
+WantedBy=multi-user.target

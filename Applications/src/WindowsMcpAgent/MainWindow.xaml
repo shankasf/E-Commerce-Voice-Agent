@@ -1,0 +1,196 @@
+<Window x:Class="WindowsMcpAgent.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:WindowsMcpAgent"
+        Title="Windows MCP Agent" Height="700" Width="1000"
+        WindowState="Minimized" ShowInTaskbar="False" WindowStartupLocation="CenterScreen">
+    <Window.Resources>
+        <!-- Value converters for tool call log display -->
+        <local:StatusToBackgroundConverter x:Key="StatusToBackgroundConverter"/>
+        <local:StatusToBorderConverter x:Key="StatusToBorderConverter"/>
+        <local:StatusToBadgeBackgroundConverter x:Key="StatusToBadgeBackgroundConverter"/>
+        <local:StatusToTextColorConverter x:Key="StatusToTextColorConverter"/>
+        <local:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
+    </Window.Resources>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="20,20,20,10">
+            <TextBlock Text="Windows MCP Agent" FontSize="24" FontWeight="Bold" Margin="0,0,0,10"/>
+            <TextBlock x:Name="StatusText" Text="Initializing..." FontSize="14" FontWeight="SemiBold" Margin="0,0,0,5"/>
+            <TextBlock x:Name="ConnectionText" Text="Not Connected" FontSize="12" Foreground="Gray"/>
+        </StackPanel>
+
+        <!-- Error Display Area -->
+        <Border Grid.Row="1" x:Name="ErrorBorder" 
+                Background="#FFF4E6" BorderBrush="#FF6B00" BorderThickness="2" 
+                Margin="20,10,20,10" Padding="15" 
+                Visibility="Collapsed" CornerRadius="5">
+            <StackPanel>
+                <TextBlock Text="⚠ Error" FontSize="16" FontWeight="Bold" Foreground="#D32F2F" Margin="0,0,0,8"/>
+                <TextBlock x:Name="ErrorTextBlock" Text="" FontSize="13" TextWrapping="Wrap" Foreground="#B71C1C"/>
+                <TextBlock x:Name="ErrorDetailsTextBlock" Text="" FontSize="11" TextWrapping="Wrap" 
+                          Foreground="#666" Margin="0,8,0,0" FontFamily="Consolas"/>
+                <Button x:Name="DismissErrorButton" Content="Dismiss" Width="100" Height="30" 
+                       HorizontalAlignment="Right" Margin="0,10,0,0" 
+                       Click="DismissErrorButton_Click" 
+                       Background="#FF6B00" Foreground="White" BorderThickness="0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Status and Logs -->
+        <TabControl Grid.Row="2" Margin="20,10,20,10">
+            <TabItem Header="Status">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="10">
+                    <StackPanel>
+                        <GroupBox Header="Connection Information" Margin="0,0,0,15">
+                            <StackPanel Margin="10">
+                                <TextBlock Margin="0,5">
+                                    <Run Text="Device ID: " FontWeight="Bold"/>
+                                    <Run x:Name="DeviceIdText" Text="N/A"/>
+                                </TextBlock>
+                                <TextBlock Margin="0,5">
+                                    <Run Text="MCP URL: " FontWeight="Bold"/>
+                                    <Run x:Name="McpUrlText" Text="N/A" Foreground="Blue"/>
+                                </TextBlock>
+                                <TextBlock Margin="0,5">
+                                    <Run Text="Port: " FontWeight="Bold"/>
+                                    <Run x:Name="PortText" Text="N/A"/>
+                                </TextBlock>
+                                <TextBlock Margin="0,5">
+                                    <Run Text="Server Status: " FontWeight="Bold"/>
+                                    <Run x:Name="ServerStatusText" Text="Not Started" Foreground="Red"/>
+                                </TextBlock>
+                            </StackPanel>
+                        </GroupBox>
+
+                        <GroupBox Header="Recent Status Messages">
+                            <ListBox x:Name="StatusListBox" Height="200" Margin="10">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Margin="5">
+                                            <TextBlock Text="{Binding Time}" FontSize="10" Foreground="Gray"/>
+                                            <TextBlock Text="{Binding Message}" FontSize="12" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </GroupBox>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Error Log">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="10">
+                    <ListBox x:Name="ErrorListBox" Margin="10">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#FFF4E6" BorderBrush="#FF6B00" BorderThickness="1" 
+                                       Padding="10" Margin="0,5" CornerRadius="3">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Time}" FontSize="10" Foreground="Gray" Margin="0,0,0,5"/>
+                                        <TextBlock Text="{Binding Message}" FontSize="12" TextWrapping="Wrap" 
+                                                  Foreground="#B71C1C" FontWeight="SemiBold"/>
+                                        <TextBlock Text="{Binding Details}" FontSize="11" TextWrapping="Wrap" 
+                                                  Foreground="#666" Margin="0,5,0,0" FontFamily="Consolas"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Tool Call Logs">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="10">
+                    <ListBox x:Name="ToolCallLogListBox" Margin="10">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{Binding Status, Converter={StaticResource StatusToBackgroundConverter}}" 
+                                       BorderBrush="{Binding Status, Converter={StaticResource StatusToBorderConverter}}" 
+                                       BorderThickness="1" Padding="12" Margin="0,5" CornerRadius="3">
+                                    <StackPanel>
+                                        <!-- Header: Time, Tool Name, Role, Status -->
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            
+                                            <TextBlock Grid.Column="0" Text="{Binding Time}" FontSize="10" Foreground="Gray" 
+                                                      FontFamily="Consolas" Margin="0,0,10,0"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding ToolName}" FontSize="14" 
+                                                      FontWeight="Bold" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding Role}" FontSize="10" 
+                                                      Foreground="Gray" Margin="10,0,10,0" VerticalAlignment="Center"/>
+                                            <Border Grid.Column="3" Background="{Binding Status, Converter={StaticResource StatusToBadgeBackgroundConverter}}" 
+                                                   Padding="6,2" CornerRadius="3">
+                                                <TextBlock Text="{Binding Status}" FontSize="10" FontWeight="SemiBold" 
+                                                          Foreground="{Binding Status, Converter={StaticResource StatusToTextColorConverter}}"/>
+                                            </Border>
+                                        </Grid>
+
+                                        <!-- Arguments -->
+                                        <TextBlock Text="{Binding Arguments, StringFormat='Arguments: {0}'}" 
+                                                 FontSize="11" FontFamily="Consolas" Foreground="#555" 
+                                                 TextWrapping="Wrap" Margin="0,0,0,5"/>
+
+                                        <!-- Output (if success) -->
+                                        <Border Visibility="{Binding Output, Converter={StaticResource StringToVisibilityConverter}}" 
+                                               Background="#E8F5E9" Padding="8" Margin="0,5,0,5" CornerRadius="3">
+                                            <StackPanel>
+                                                <TextBlock Text="Output:" FontSize="11" FontWeight="SemiBold" 
+                                                          Foreground="#2E7D32" Margin="0,0,0,4"/>
+                                                <TextBlock Text="{Binding Output}" FontSize="11" 
+                                                          FontFamily="Consolas" TextWrapping="Wrap" 
+                                                          Foreground="#1B5E20"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- Error (if error) -->
+                                        <Border Visibility="{Binding Error, Converter={StaticResource StringToVisibilityConverter}}" 
+                                               Background="#FFEBEE" Padding="8" Margin="0,5,0,5" CornerRadius="3">
+                                            <StackPanel>
+                                                <TextBlock Text="Error:" FontSize="11" FontWeight="SemiBold" 
+                                                          Foreground="#C62828" Margin="0,0,0,4"/>
+                                                <TextBlock Text="{Binding Error}" FontSize="11" 
+                                                          FontFamily="Consolas" TextWrapping="Wrap" 
+                                                          Foreground="#B71C1C"/>
+                                            </StackPanel>
+                                        </Border>
+
+                                        <!-- Execution Time -->
+                                        <TextBlock Text="{Binding ExecutionTimeMs, StringFormat='Execution Time: {0} ms'}" 
+                                                 FontSize="10" Foreground="Gray" Margin="0,5,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+
+        <!-- Footer Buttons -->
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="20,10,20,20">
+            <Button Content="Refresh Status" Width="120" Height="35" Margin="0,0,10,0"
+                   Click="RefreshStatusButton_Click" 
+                   Background="#0078D4" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+            <Button Content="Clear Logs" Width="120" Height="35" Margin="0,0,10,0"
+                   Click="ClearLogsButton_Click" 
+                   Background="White" BorderBrush="#CCCCCC" BorderThickness="1" Cursor="Hand"/>
+            <Button Content="Close to Tray" Width="120" Height="35"
+                   Click="CloseToTrayButton_Click" 
+                   Background="White" BorderBrush="#CCCCCC" BorderThickness="1" Cursor="Hand"/>
+        </StackPanel>
+    </Grid>
+</Window>
+

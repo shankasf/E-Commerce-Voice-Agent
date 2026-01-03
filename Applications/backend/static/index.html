@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Windows MCP Agent - Chat Interface</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .chat-container {
+            width: 100%;
+            max-width: 900px;
+            height: 90vh;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .chat-header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .chat-header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .config-panel {
+            background: #f5f5f5;
+            padding: 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .config-panel .input-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .config-panel .input-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .config-panel input,
+        .config-panel select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .config-panel .input-row input[type="text"]:first-child {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .config-panel .input-row select.device-selector {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .config-panel .input-row input[type="text"]:last-of-type {
+            flex: 0 0 200px;
+        }
+
+        .config-panel .input-row select#roleSelect {
+            flex: 0 0 180px;
+        }
+
+        .config-panel .button-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .config-panel button {
+            padding: 8px 16px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .config-panel button:hover {
+            background: #5568d3;
+        }
+
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #fafafa;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user {
+            text-align: right;
+        }
+
+        .message.assistant {
+            text-align: left;
+        }
+
+        .message-bubble {
+            display: inline-block;
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            word-wrap: break-word;
+        }
+
+        .message.user .message-bubble {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .message.assistant .message-bubble {
+            background: white;
+            color: #333;
+            border: 1px solid #e0e0e0;
+        }
+
+        .message-time {
+            font-size: 11px;
+            color: #999;
+            margin-top: 5px;
+        }
+
+        .tools-executed {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 8px;
+            font-size: 12px;
+        }
+
+        .tool-item {
+            margin: 5px 0;
+            padding: 5px;
+            background: white;
+            border-radius: 4px;
+        }
+
+        .tool-item.success {
+            border-left: 3px solid #4caf50;
+        }
+
+        .tool-item.error {
+            border-left: 3px solid #f44336;
+        }
+
+        .input-area {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .input-container {
+            display: flex;
+            gap: 10px;
+        }
+
+        .input-container input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .input-container input:focus {
+            border-color: #667eea;
+        }
+
+        .input-container button {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+
+        .input-container button:hover {
+            transform: scale(1.05);
+        }
+
+        .input-container button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status {
+            text-align: center;
+            padding: 10px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .status.connected {
+            color: #4caf50;
+        }
+
+        .status.error {
+            color: #f44336;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Terminal UI Styles */
+        .terminal-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 700px;
+            max-height: 500px;
+            background: #1e1e1e;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            display: none;
+            flex-direction: column;
+            z-index: 1000;
+            animation: slideInUp 0.3s ease-out;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        }
+
+        .terminal-container.visible {
+            display: flex;
+        }
+
+        .terminal-container.visible ~ .terminal-toggle {
+            bottom: 530px; /* Move toggle above terminal when visible */
+        }
+
+        @keyframes slideInUp {
+            from {
+                transform: translateY(100px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .terminal-header {
+            background: linear-gradient(135deg, #2d2d2d 0%, #1e1e1e 100%);
+            color: #00ff00;
+            padding: 12px 16px;
+            border-radius: 12px 12px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #00ff00;
+            box-shadow: 0 2px 10px rgba(0, 255, 0, 0.3);
+        }
+
+        .terminal-header h3 {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .terminal-header h3::before {
+            content: '▸';
+            color: #00ff00;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        .terminal-close {
+            background: #ff4444;
+            color: white;
+            border: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s;
+        }
+
+        .terminal-close:hover {
+            transform: scale(1.1);
+        }
+
+        .terminal-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            color: #00ff00;
+            font-size: 13px;
+            line-height: 1.6;
+            background: #0d1117;
+            scrollbar-width: thin;
+            scrollbar-color: #00ff00 #1e1e1e;
+        }
+
+        .terminal-content::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .terminal-content::-webkit-scrollbar-track {
+            background: #1e1e1e;
+        }
+
+        .terminal-content::-webkit-scrollbar-thumb {
+            background: #00ff00;
+            border-radius: 4px;
+        }
+
+        .terminal-line {
+            margin-bottom: 8px;
+            animation: typeIn 0.1s ease-out;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+
+        @keyframes typeIn {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .terminal-prompt {
+            color: #00ff00;
+        }
+
+        .terminal-command {
+            color: #ffd700;
+            font-weight: 600;
+        }
+
+        .terminal-output {
+            color: #00ff88;
+            margin-left: 20px;
+        }
+
+        .terminal-error {
+            color: #ff4444;
+            margin-left: 20px;
+        }
+
+        .terminal-description {
+            color: #88ccff;
+            margin: 8px 0;
+            padding: 8px;
+            background: rgba(0, 255, 0, 0.1);
+            border-left: 3px solid #00ff00;
+            border-radius: 4px;
+        }
+
+        .terminal-consent {
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #ffd700;
+            border-radius: 8px;
+            padding: 12px;
+            margin: 12px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .terminal-consent-title {
+            color: #ffd700;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .terminal-consent-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .terminal-consent-button {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .terminal-consent-button.yes {
+            background: linear-gradient(135deg, #00ff00 0%, #00cc88 100%);
+            color: #000;
+        }
+
+        .terminal-consent-button.yes:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(0, 255, 0, 0.4);
+        }
+
+        .terminal-consent-button.no {
+            background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%);
+            color: white;
+        }
+
+        .terminal-consent-button.no:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(255, 68, 68, 0.4);
+        }
+
+        .terminal-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #00ff00 0%, #00cc88 100%);
+            border: none;
+            border-radius: 50%;
+            color: #000;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(0, 255, 0, 0.4);
+            transition: all 0.3s;
+            z-index: 999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .terminal-toggle:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 30px rgba(0, 255, 0, 0.6);
+        }
+
+        .terminal-separator {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #00ff00, transparent);
+            margin: 12px 0;
+        }
+
+        .terminal-timestamp {
+            color: #888;
+            font-size: 11px;
+            margin-left: 4px;
+        }
+
+        .command-pending {
+            opacity: 0.7;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1>🪟 Windows MCP Agent</h1>
+            <p>AI-Powered Windows Support Assistant</p>
+        </div>
+
+        <div class="config-panel">
+            <div class="input-row">
+                <input type="text" id="userIdInput" placeholder="User ID (from registration)" value="">
+                <select id="deviceSelect" class="device-selector" disabled>
+                    <option value="">Select a device...</option>
+                </select>
+                <input type="text" id="backendUrlInput" placeholder="Backend URL" value="http://localhost:9000">
+                <select id="roleSelect">
+                    <option value="ai_agent">AI Agent (Auto-approved)</option>
+                    <option value="human_agent">Human Agent (Testing)</option>
+                    <option value="admin">Admin (Testing)</option>
+                </select>
+            </div>
+            <div class="button-row">
+                <button onclick="checkConnection()">Check Connection</button>
+                <button onclick="listAllTools()" style="padding: 8px 16px; background: #ff9800; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;" title="TEST FEATURE: List all tools">🔧 List All Tools</button>
+                <span id="connectionStatus" class="status"></span>
+            </div>
+        </div>
+
+        <div class="messages" id="messages">
+            <div class="message assistant">
+                <div class="message-bubble">
+                    👋 Hello! I'm your Windows MCP Agent assistant. I can help you diagnose and fix Windows issues.
+                    <br><br>
+                    <strong>Quick examples:</strong><br>
+                    • "List my network configurations"<br>
+                    • "Check CPU and memory usage"<br>
+                    • "Show disk space usage"<br>
+                    • "Check system uptime"<br>
+                    • "Diagnose network connectivity issues"
+                </div>
+                <div class="message-time">System</div>
+            </div>
+        </div>
+
+        <div class="input-area">
+            <div class="input-container">
+                <input 
+                    type="text" 
+                    id="messageInput" 
+                    placeholder="Describe your Windows problem or request..."
+                    onkeypress="handleKeyPress(event)"
+                >
+                <button id="sendButton" onclick="sendMessage()">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Terminal UI -->
+    <button class="terminal-toggle" onclick="toggleTerminal()" title="Toggle Terminal">💻</button>
+    <div class="terminal-container" id="terminalContainer">
+        <div class="terminal-header">
+            <h3>Command Execution Terminal</h3>
+            <button class="terminal-close" onclick="toggleTerminal()">×</button>
+        </div>
+        <div class="terminal-content" id="terminalContent">
+            <div class="terminal-line">
+                <span class="terminal-prompt">$</span> Terminal ready. Command outputs will appear here...
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:9000';
+        let currentUserId = '';
+        let currentDeviceId = '';
+        let backendUrl = API_URL;
+        let currentRole = 'ai_agent';
+        let userDevices = [];
+
+        // Load saved configuration
+        window.onload = function() {
+            const savedUserId = localStorage.getItem('mcp_user_id');
+            const savedDeviceId = localStorage.getItem('mcp_device_id');
+            const savedBackendUrl = localStorage.getItem('mcp_backend_url');
+            const savedRole = localStorage.getItem('mcp_role');
+            
+            if (savedUserId) {
+                document.getElementById('userIdInput').value = savedUserId;
+                currentUserId = savedUserId;
+                loadUserDevices(savedUserId);
+            }
+            
+            if (savedBackendUrl) {
+                document.getElementById('backendUrlInput').value = savedBackendUrl;
+                backendUrl = savedBackendUrl;
+            }
+            
+            if (savedRole) {
+                document.getElementById('roleSelect').value = savedRole;
+                currentRole = savedRole;
+            }
+            
+            if (savedDeviceId) {
+                currentDeviceId = savedDeviceId;
+            }
+            
+            checkConnection();
+        };
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        function updateBackendUrl() {
+            backendUrl = document.getElementById('backendUrlInput').value || API_URL;
+            localStorage.setItem('mcp_backend_url', backendUrl);
+        }
+
+        function updateUserId() {
+            const newUserId = document.getElementById('userIdInput').value.trim();
+            if (newUserId !== currentUserId) {
+                currentUserId = newUserId;
+                localStorage.setItem('mcp_user_id', currentUserId);
+                
+                // Load devices for the new user
+                if (currentUserId) {
+                    loadUserDevices(currentUserId);
+                } else {
+                    // Clear device selector if no user ID
+                    const deviceSelect = document.getElementById('deviceSelect');
+                    deviceSelect.innerHTML = '<option value="">Select a device...</option>';
+                    deviceSelect.disabled = true;
+                    currentDeviceId = '';
+                    localStorage.removeItem('mcp_device_id');
+                }
+            }
+        }
+
+        function updateDeviceId() {
+            const deviceSelect = document.getElementById('deviceSelect');
+            currentDeviceId = deviceSelect.value;
+            localStorage.setItem('mcp_device_id', currentDeviceId);
+        }
+
+        async function loadUserDevices(userId) {
+            const deviceSelect = document.getElementById('deviceSelect');
+            deviceSelect.disabled = true;
+            deviceSelect.innerHTML = '<option value="">Loading devices...</option>';
+            
+            try {
+                const response = await fetch(`${backendUrl}/api/user/${userId}/devices`);
+                const data = await response.json();
+                
+                userDevices = data.devices || [];
+                
+                if (userDevices.length === 0) {
+                    deviceSelect.innerHTML = '<option value="">No devices found</option>';
+                    deviceSelect.disabled = true;
+                    currentDeviceId = '';
+                } else {
+                    deviceSelect.innerHTML = '<option value="">Select a device...</option>';
+                    userDevices.forEach(device => {
+                        const option = document.createElement('option');
+                        option.value = device.id;
+                        option.textContent = `${device.device_name} (${device.os_version || 'Unknown OS'})`;
+                        if (device.id === currentDeviceId) {
+                            option.selected = true;
+                        }
+                        deviceSelect.appendChild(option);
+                    });
+                    deviceSelect.disabled = false;
+                    
+                    // Restore saved device selection
+                    const savedDeviceId = localStorage.getItem('mcp_device_id');
+                    if (savedDeviceId && userDevices.some(d => d.id === savedDeviceId)) {
+                        deviceSelect.value = savedDeviceId;
+                        currentDeviceId = savedDeviceId;
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading devices:', error);
+                deviceSelect.innerHTML = '<option value="">Error loading devices</option>';
+                deviceSelect.disabled = true;
+                currentDeviceId = '';
+            }
+        }
+
+        function updateRole() {
+            currentRole = document.getElementById('roleSelect').value;
+            localStorage.setItem('mcp_role', currentRole);
+        }
+
+        async function checkConnection() {
+            updateBackendUrl();
+            const statusEl = document.getElementById('connectionStatus');
+            statusEl.textContent = 'Checking...';
+            statusEl.className = 'status';
+
+            try {
+                const response = await fetch(`${backendUrl}/api/health`);
+                const data = await response.json();
+                
+                if (data.status === 'healthy') {
+                    statusEl.textContent = '✓ Connected';
+                    statusEl.className = 'status connected';
+                } else {
+                    statusEl.textContent = '✗ Unhealthy';
+                    statusEl.className = 'status error';
+                }
+            } catch (error) {
+                statusEl.textContent = '✗ Connection Failed';
+                statusEl.className = 'status error';
+            }
+        }
+
+        function addMessage(text, isUser, tools = null, pendingCommand = null) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user' : 'assistant'}`;
+            
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble';
+            bubble.innerHTML = text.replace(/\n/g, '<br>');
+            
+            if (tools && tools.length > 0) {
+                const toolsDiv = document.createElement('div');
+                toolsDiv.className = 'tools-executed';
+                toolsDiv.innerHTML = '<strong>Tools Executed:</strong><br>';
+                
+                tools.forEach(tool => {
+                    const toolDiv = document.createElement('div');
+                    const status = tool.result?.status || tool.error ? 'error' : 'success';
+                    toolDiv.className = `tool-item ${status}`;
+                    
+                    const toolName = tool.tool || tool.error || 'Unknown';
+                    const output = tool.result?.output || tool.result?.error || tool.error || 'Completed';
+                    toolDiv.textContent = `🔧 ${toolName}: ${output.substring(0, 100)}${output.length > 100 ? '...' : ''}`;
+                    toolsDiv.appendChild(toolDiv);
+
+                    // Process command output in terminal
+                    if (tool.tool === 'execute_terminal_command') {
+                        processCommandOutput(tool);
+                    }
+                });
+                
+                bubble.appendChild(toolsDiv);
+            }
+
+            // Handle pending command consent request
+            if (pendingCommand) {
+                pendingCommandConsent = pendingCommand;
+                const commandId = pendingCommand.commandId || pendingCommand.command_id || `cmd_${Date.now()}`;
+                showCommandConsent(
+                    pendingCommand.command,
+                    pendingCommand.description || 'This command will be executed on your system.',
+                    commandId
+                );
+            }
+            
+            messageDiv.appendChild(bubble);
+            
+            const timeDiv = document.createElement('div');
+            timeDiv.className = 'message-time';
+            timeDiv.textContent = new Date().toLocaleTimeString();
+            messageDiv.appendChild(timeDiv);
+            
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function addLoadingMessage() {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message assistant';
+            messageDiv.id = 'loadingMessage';
+            
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble';
+            bubble.innerHTML = '<div class="loading"></div> Analyzing problem and executing tools...';
+            messageDiv.appendChild(bubble);
+            
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function removeLoadingMessage() {
+            const loadingMsg = document.getElementById('loadingMessage');
+            if (loadingMsg) {
+                loadingMsg.remove();
+            }
+        }
+
+        async function sendMessage() {
+            updateUserId();
+            updateDeviceId();
+            updateBackendUrl();
+            updateRole();
+            
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            if (!currentUserId) {
+                alert('Please enter your User ID first!');
+                return;
+            }
+            
+            if (!currentDeviceId) {
+                alert('Please select a device first!');
+                document.getElementById('deviceSelect').focus();
+                return;
+            }
+            
+            // Add user message with role indicator
+            const roleLabel = currentRole === 'ai_agent' ? '🤖 AI Agent' : 
+                             currentRole === 'human_agent' ? '👤 Human Agent' : 
+                             '🔐 Admin';
+            const device = userDevices.find(d => d.id === currentDeviceId);
+            const deviceLabel = device ? device.device_name : currentDeviceId;
+            addMessage(`${roleLabel} [${deviceLabel}]: ${message}`, true);
+            input.value = '';
+            
+            // Disable send button
+            const sendButton = document.getElementById('sendButton');
+            sendButton.disabled = true;
+            sendButton.textContent = 'Sending...';
+            
+            // Add loading message
+            addLoadingMessage();
+            
+            try {
+                const response = await fetch(`${backendUrl}/api/problem/solve`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        user_id: currentUserId,
+                        device_id: currentDeviceId,
+                        problem_description: message,
+                        role: currentRole
+                    })
+                });
+                
+                const data = await response.json();
+                removeLoadingMessage();
+                
+                if (data.success) {
+                    let responseText = data.solution || 'Problem resolved successfully.';
+                    
+                    // Handle pending commands requiring consent
+                    if (data.pending_commands && data.pending_commands.length > 0) {
+                        // Show first pending command for consent
+                        const pendingCmd = data.pending_commands[0];
+                        pendingCommandConsent = {
+                            commandId: pendingCmd.command_id,
+                            command: pendingCmd.command,
+                            description: pendingCmd.description,
+                            arguments: pendingCmd.arguments
+                        };
+                        addMessage(responseText, false, data.tools_executed, pendingCommandConsent);
+                    } else if (data.tools_executed && data.tools_executed.length > 0) {
+                        addMessage(responseText, false, data.tools_executed);
+                    } else {
+                        addMessage(responseText, false);
+                    }
+                } else {
+                    addMessage(`❌ Error: ${data.error || 'Unknown error occurred'}`, false);
+                }
+            } catch (error) {
+                removeLoadingMessage();
+                addMessage(`❌ Connection Error: ${error.message}`, false);
+            } finally {
+                sendButton.disabled = false;
+                sendButton.textContent = 'Send';
+            }
+        }
+
+        async function listAllTools() {
+            updateBackendUrl();
+            
+            // Add loading message
+            addLoadingMessage();
+            
+            try {
+                const response = await fetch(`${backendUrl}/api/tools/list-all`);
+                const data = await response.json();
+                removeLoadingMessage();
+                
+                if (data.enabled) {
+                    let toolList = `🔧 **All Available Tools (TEST FEATURE)**\n\n`;
+                    toolList += `Total Tools: ${data.total_tools}\n\n`;
+                    
+                    // Format by role
+                    for (const [role, risks] of Object.entries(data.tools_by_role)) {
+                        let roleTools = [];
+                        for (const [risk, tools] of Object.entries(risks)) {
+                            if (tools.length > 0) {
+                                roleTools.push(`\n**${risk.toUpperCase()}** (${tools.length}):`);
+                                tools.forEach(tool => {
+                                    let toolDesc = `  • ${tool.name}: ${tool.description}`;
+                                    if (tool.requires_user_notice) toolDesc += " [user notice]";
+                                    if (tool.requires_idle_check) toolDesc += " [idle check]";
+                                    if (tool.requires_admin) toolDesc += " [admin]";
+                                    if (tool.arguments && Object.keys(tool.arguments).length > 0) {
+                                        toolDesc += ` (args: ${Object.keys(tool.arguments).join(', ')})`;
+                                    }
+                                    roleTools.push(toolDesc);
+                                });
+                            }
+                        }
+                        if (roleTools.length > 0) {
+                            toolList += `\n**${role.toUpperCase().replace('_', ' ')}** (${roleTools.filter(t => t.startsWith('  •')).length} tools):`;
+                            toolList += roleTools.join('\n') + '\n';
+                        }
+                    }
+                    
+                    toolList += `\n\n*Note: ${data.note}*`;
+                    addMessage(toolList, false);
+                } else {
+                    addMessage(`❌ Test features are disabled. Set ENABLE_TEST_FEATURES=true in backend .env file.`, false);
+                }
+            } catch (error) {
+                removeLoadingMessage();
+                if (error.message.includes('403') || error.status === 403) {
+                    addMessage(`❌ Test features are disabled. Set ENABLE_TEST_FEATURES=true in backend .env file to enable this feature.`, false);
+                } else {
+                    addMessage(`❌ Error: ${error.message}`, false);
+                }
+            }
+        }
+
+        // Terminal UI Functions
+        let terminalVisible = false;
+        let pendingCommandConsent = null;
+
+        function toggleTerminal() {
+            terminalVisible = !terminalVisible;
+            const terminal = document.getElementById('terminalContainer');
+            if (terminalVisible) {
+                terminal.classList.add('visible');
+            } else {
+                terminal.classList.remove('visible');
+            }
+        }
+
+        function addTerminalLine(content, className = '') {
+            const terminalContent = document.getElementById('terminalContent');
+            const line = document.createElement('div');
+            line.className = `terminal-line ${className}`;
+            line.innerHTML = content;
+            terminalContent.appendChild(line);
+            terminalContent.scrollTop = terminalContent.scrollHeight;
+        }
+
+        function addCommandToTerminal(command, description, commandId) {
+            const timestamp = new Date().toLocaleTimeString();
+            addTerminalLine(`<span class="terminal-timestamp">[${timestamp}]</span>`, 'terminal-separator');
+            addTerminalLine('<div class="terminal-prompt">$</div> <span class="terminal-command">' + escapeHtml(command) + '</span>');
+            
+            if (description) {
+                // Preserve newlines in description (replace \n with <br>)
+                const formattedDescription = escapeHtml(description).replace(/\n/g, '<br>');
+                addTerminalLine(`<div class="terminal-description">🤖 Agent Description:<br>${formattedDescription}</div>`);
+            }
+
+            return commandId;
+        }
+
+        function addCommandOutput(output, isError = false) {
+            const className = isError ? 'terminal-error' : 'terminal-output';
+            addTerminalLine(`<div class="${className}">${escapeHtml(output)}</div>`);
+        }
+
+        function showCommandConsent(command, description, commandId) {
+            // Add command to terminal first
+            addCommandToTerminal(command, description, commandId);
+            
+            const terminalContent = document.getElementById('terminalContent');
+            const consentDiv = document.createElement('div');
+            consentDiv.className = 'terminal-consent';
+            consentDiv.id = `consent-${commandId}`;
+            
+            // Escape command ID for use in onclick
+            const safeCommandId = commandId.replace(/'/g, "\\'");
+            
+            // Format description with newlines
+            const formattedDescription = escapeHtml(description).replace(/\n/g, '<br>');
+            consentDiv.innerHTML = `
+                <div class="terminal-consent-title">⚠️ Command Execution Requires Consent</div>
+                <div class="terminal-description">${formattedDescription}</div>
+                <div class="terminal-consent-buttons">
+                    <button class="terminal-consent-button yes" onclick="handleCommandConsent('${safeCommandId}', true)">Yes, Execute</button>
+                    <button class="terminal-consent-button no" onclick="handleCommandConsent('${safeCommandId}', false)">No, Cancel</button>
+                </div>
+            `;
+            terminalContent.appendChild(consentDiv);
+            terminalContent.scrollTop = terminalContent.scrollHeight;
+
+            // Show terminal if hidden
+            if (!terminalVisible) {
+                toggleTerminal();
+            }
+        }
+
+        async function handleCommandConsent(commandId, approved) {
+            const consentDiv = document.getElementById(`consent-${commandId}`);
+            if (consentDiv) {
+                if (approved) {
+                    consentDiv.innerHTML = '<div style="color: #00ff00;">✓ Command approved. Executing...</div>';
+                    addTerminalLine('<div class="terminal-output">Executing command...</div>');
+                } else {
+                    consentDiv.innerHTML = '<div style="color: #ff4444;">✗ Command cancelled by user.</div>';
+                    addTerminalLine('<div class="terminal-error">Command execution cancelled.</div>');
+                }
+            }
+
+            // Execute command if approved
+            if (pendingCommandConsent && pendingCommandConsent.commandId === commandId && approved) {
+                try {
+                    const response = await fetch(`${backendUrl}/api/command/execute`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            command_id: commandId,
+                            user_id: currentUserId,
+                            device_id: currentDeviceId,
+                            command: pendingCommandConsent.command,
+                            arguments: pendingCommandConsent.arguments
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        // Command executed successfully
+                        addCommandOutput(data.output || 'Command completed successfully', false);
+                        if (data.result) {
+                            processCommandOutput({
+                                tool: 'execute_terminal_command',
+                                arguments: pendingCommandConsent.arguments,
+                                result: data.result,
+                                description: pendingCommandConsent.description
+                            });
+                        }
+                        pendingCommandConsent = null;
+                    } else {
+                        addCommandOutput(data.error || 'Command execution failed', true);
+                        pendingCommandConsent = null;
+                    }
+                } catch (error) {
+                    console.error('Error executing command:', error);
+                    addTerminalLine(`<div class="terminal-error">Error: ${error.message}</div>`);
+                    pendingCommandConsent = null;
+                }
+            } else if (!approved) {
+                pendingCommandConsent = null;
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function processCommandOutput(toolResult) {
+            if (toolResult.tool === 'execute_terminal_command') {
+                const command = toolResult.arguments?.command || 'Unknown command';
+                const description = toolResult.description || '';
+                const output = toolResult.result?.output || '';
+                const error = toolResult.result?.error || '';
+                const status = toolResult.result?.status || 'unknown';
+
+                // Add command to terminal
+                addCommandToTerminal(command, description);
+
+                // Add output or error
+                if (status === 'success' && output) {
+                    addCommandOutput(output, false);
+                } else if (error) {
+                    addCommandOutput(error, true);
+                }
+
+                addTerminalLine('', 'terminal-separator');
+            }
+        }
+
+        // Auto-update on input change
+        document.getElementById('userIdInput').addEventListener('change', updateUserId);
+        document.getElementById('userIdInput').addEventListener('blur', updateUserId);
+        document.getElementById('deviceSelect').addEventListener('change', updateDeviceId);
+        document.getElementById('backendUrlInput').addEventListener('change', updateBackendUrl);
+        document.getElementById('roleSelect').addEventListener('change', updateRole);
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,18 @@
+# Simplified requirements without Rust dependencies
+# Use this if the main requirements.txt fails
+
+fastapi
+uvicorn[standard]
+websockets
+openai
+python-dotenv
+pydantic
+email-validator
+aiohttp
+python-multipart
+
+
+
+
+
+

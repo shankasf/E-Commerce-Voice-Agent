@@ -1,0 +1,13 @@
+{
+  "BackendSettings": {
+    "ApiUrl": "http://localhost:9000",
+    "JwtSecret": "your-secret-key-here",
+    "ReconnectDelaySeconds": 5,
+    "ConnectionTimeoutSeconds": 30
+  },
+  "Logging": {
+    "LogLevel": "Information",
+    "EnableAuditLogging": true
+  }
+}
+

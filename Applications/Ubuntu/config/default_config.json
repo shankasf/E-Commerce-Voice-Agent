@@ -1,0 +1,11 @@
+{
+  "backend_api_url": "http://localhost:3000/api",
+  "reconnect_delay_seconds": 5,
+  "connection_timeout_seconds": 30,
+  "log_level": "INFO",
+  "enable_audit_logging": true,
+  "log_dir": "~/.local/share/ubuntu-mcp-agent/logs",
+  "config_dir": "~/.config/ubuntu-mcp-agent",
+  "enable_notifications": true,
+  "idle_threshold_seconds": 300
+}
