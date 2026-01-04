@@ -49,6 +49,7 @@ interface TicketEvent {
       'http://localhost:5173',
       'http://localhost:3003',
       'https://webhook.callsphere.tech',
+      'https://urackit.callsphere.tech',
     ],
     credentials: true,
   },
@@ -131,6 +132,22 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   emitCallEvent(event: CallEvent) {
     this.server.to('calls').emit('call:update', event);
     this.logger.log(`Call event emitted: ${event.callSid} - ${event.status}`);
+  }
+
+  /**
+   * Emit call end event
+   */
+  emitCallEnd(callSid: string) {
+    this.server.to('calls').emit('call:end', { callSid });
+    this.logger.log(`Call end emitted: ${callSid}`);
+  }
+
+  /**
+   * Emit live calls update (full list refresh)
+   */
+  emitLiveCallsUpdate(calls: unknown[], metrics: unknown) {
+    this.server.to('calls').emit('livecalls:update', { calls, metrics });
+    this.logger.debug(`Live calls update emitted: ${Array.isArray(calls) ? calls.length : 0} calls`);
   }
 
   /**

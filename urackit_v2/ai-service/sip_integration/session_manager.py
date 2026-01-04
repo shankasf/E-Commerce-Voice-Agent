@@ -43,6 +43,9 @@ class VoiceSession:
     callback_number: Optional[str] = None
     device_type: Optional[str] = None
     
+    # Call source: 'twilio' (PSTN via Twilio) or 'webrtc' (browser-based)
+    call_source: str = "twilio"  # Default to twilio for backwards compatibility
+    
     # Tool usage tracking
     tool_calls: list = field(default_factory=list)
     ticket_created: bool = False
@@ -55,6 +58,9 @@ class VoiceSession:
     output_tokens: int = 0
     ai_cost_usd: float = 0.0
     agent_type: str = "triage_agent"
+    
+    # Agent handoff tracking
+    agent_handoffs: list = field(default_factory=list)  # Track agent-to-agent handoffs
     
     # Conference call tracking
     conference_name: Optional[str] = None
@@ -74,12 +80,57 @@ class VoiceSession:
         self.last_activity = time.time()
     
     def add_message(self, role: str, content: str) -> None:
-        """Add a message to conversation history."""
+        """Add a message to conversation history and track token usage."""
         self.conversation_history.append({
             "role": role,
             "content": content,
             "timestamp": datetime.utcnow().isoformat()
         })
+        
+        # Estimate token count (roughly 4 chars per token for English)
+        estimated_tokens = max(1, len(content) // 4)
+        
+        if role == "user":
+            self.input_tokens += estimated_tokens
+        else:
+            self.output_tokens += estimated_tokens
+        
+        self.total_tokens = self.input_tokens + self.output_tokens
+        
+        # ═══════════════════════════════════════════════════════════════════════
+        # OPENAI REALTIME API PRICING (gpt-4o-realtime-preview-2024-12-17)
+        # Model: gpt-realtime-2025-08-28
+        # ═══════════════════════════════════════════════════════════════════════
+        # Text Tokens (per 1M):
+        #   - Input:  $4.00   | Cached: $0.50  | Output: $16.00
+        # Audio Tokens (per 1M):
+        #   - Input: $32.00   | Cached: $0.50  | Output: $64.00
+        # 
+        # For voice calls, the majority of tokens are AUDIO tokens.
+        # We estimate ~80% audio, ~20% text for realistic voice conversations.
+        # ═══════════════════════════════════════════════════════════════════════
+        
+        # Pricing per token (USD)
+        TEXT_INPUT_PER_TOKEN = 4.00 / 1_000_000      # $4.00 per 1M text input tokens
+        TEXT_OUTPUT_PER_TOKEN = 16.00 / 1_000_000   # $16.00 per 1M text output tokens
+        AUDIO_INPUT_PER_TOKEN = 32.00 / 1_000_000   # $32.00 per 1M audio input tokens
+        AUDIO_OUTPUT_PER_TOKEN = 64.00 / 1_000_000  # $64.00 per 1M audio output tokens
+        
+        # For voice calls: 80% audio, 20% text
+        AUDIO_RATIO = 0.80
+        TEXT_RATIO = 0.20
+        
+        # Calculate weighted costs
+        input_text_tokens = self.input_tokens * TEXT_RATIO
+        input_audio_tokens = self.input_tokens * AUDIO_RATIO
+        output_text_tokens = self.output_tokens * TEXT_RATIO
+        output_audio_tokens = self.output_tokens * AUDIO_RATIO
+        
+        input_cost = (input_text_tokens * TEXT_INPUT_PER_TOKEN) + (input_audio_tokens * AUDIO_INPUT_PER_TOKEN)
+        output_cost = (output_text_tokens * TEXT_OUTPUT_PER_TOKEN) + (output_audio_tokens * AUDIO_OUTPUT_PER_TOKEN)
+        
+        self.ai_cost_usd = input_cost + output_cost
+        
         self.touch()
     
     def add_conference_transcript(self, speaker: str, content: str) -> None:
@@ -104,9 +155,22 @@ class VoiceSession:
         # Track ticket creation and escalation
         if name == "create_ticket" and success:
             self.ticket_created = True
-        if name == "escalate_ticket" and success:
+        if name in ("escalate_ticket", "transfer_to_human", "escalate_to_human") and success:
             self.escalated = True
+            self.ai_resolution = False
         
+        self.touch()
+    
+    def add_agent_handoff(self, from_agent: str, to_agent: str, reason: Optional[str] = None) -> None:
+        """Record an agent-to-agent handoff."""
+        self.agent_handoffs.append({
+            "from_agent": from_agent,
+            "to_agent": to_agent,
+            "reason": reason,
+            "timestamp": datetime.utcnow().isoformat()
+        })
+        # Update current agent type
+        self.agent_type = to_agent
         self.touch()
 
 
@@ -155,8 +219,13 @@ class VoiceSessionManager(ISessionManager):
         
         logger.info("VoiceSessionManager stopped")
     
-    async def create_session(self, call_info: CallInfo) -> str:
-        """Create a new voice session."""
+    async def create_session(self, call_info: CallInfo, call_source: str = "twilio") -> str:
+        """Create a new voice session.
+        
+        Args:
+            call_info: Call information
+            call_source: 'twilio' for PSTN calls via Twilio, 'webrtc' for browser-based calls
+        """
         async with self._lock:
             # Check session limit
             if len(self._sessions) >= self.max_sessions:
@@ -169,16 +238,21 @@ class VoiceSessionManager(ISessionManager):
             # Generate unique session ID
             session_id = f"voice-{uuid.uuid4().hex[:12]}"
             
-            # Create session
+            # Create session with call source
             session = VoiceSession(
                 session_id=session_id,
                 call_info=call_info,
                 callback_number=call_info.from_number,
+                call_source=call_source,
             )
             
             self._sessions[session_id] = session
             
-            logger.info(f"Created session {session_id} for call {call_info.call_sid}")
+            logger.info(f"Created session {session_id} for call {call_info.call_sid} (source: {call_source})")
+            
+            # Notify backend of new call
+            await self._notify_call_update()
+            
             return session_id
     
     async def get_session(self, session_id: str) -> Optional[VoiceSession]:
@@ -201,22 +275,29 @@ class VoiceSessionManager(ISessionManager):
             session = self._sessions.pop(session_id, None)
         
         if session:
+            # Notify backend of call end
+            await self._notify_call_end(session.call_info.call_sid)
+            
             # Save call log to database
             await self._save_call_log(session)
             
-            # Cleanup resources
-            if session.realtime_connection:
+            # Cleanup resources (only if not already disconnected)
+            if session.realtime_connection and session.realtime_connection._ws:
                 try:
                     await session.realtime_connection.disconnect()
                 except Exception as e:
                     logger.error(f"Error disconnecting realtime: {e}")
             
             logger.info(f"Ended session {session_id}, duration: {time.time() - session.created_at:.1f}s")
+            
+            # Push updated live calls list (with this call removed)
+            await self._notify_call_update()
     
     async def _save_call_log(self, session: VoiceSession) -> None:
         """Save call log and transcript to database."""
         try:
-            from db.database import db
+            from db.connection import SupabaseDB
+            db = SupabaseDB()
             
             duration = int(time.time() - session.created_at)
             
@@ -247,12 +328,18 @@ class VoiceSessionManager(ISessionManager):
             # Determine AI resolution (resolved if not escalated and had conversation)
             ai_resolution = not session.escalated and len(session.conversation_history) > 0
             
+            # Generate a unique call_id (required primary key)
+            call_id = str(uuid.uuid4())
+            
             # Insert call log with all fields
             call_log_data = {
+                "call_id": call_id,
+                "session_id": session.session_id,
                 "call_sid": session.call_info.call_sid,
                 "from_number": session.call_info.from_number,
                 "to_number": session.call_info.to_number,
                 "direction": session.call_info.direction or "inbound",
+                "call_source": session.call_source,  # 'twilio' or 'webrtc'
                 "status": "completed",
                 "duration_seconds": duration,
                 "transcript": transcript if transcript else None,
@@ -260,7 +347,10 @@ class VoiceSessionManager(ISessionManager):
                 "caller_name": session.caller_name,
                 "company_name": session.company_name,
                 "ai_resolution": ai_resolution,
+                "was_resolved": ai_resolution,
                 "escalated": session.escalated,
+                "was_escalated": session.escalated,
+                "escalated_to": "human_agent" if session.escalated else None,
                 "ticket_created": session.ticket_created,
                 "agent_type": session.agent_type,
                 "started_at": datetime.utcfromtimestamp(session.created_at).isoformat(),
@@ -268,22 +358,73 @@ class VoiceSessionManager(ISessionManager):
             }
             
             result = db.insert("call_logs", call_log_data)
-            logger.info(f"Saved call log for session {session.session_id}: {result}")
+            logger.info(f"Saved call log for session {session.session_id}: call_id={call_id}")
             
             # Save AI usage log if tokens were used
             if session.total_tokens > 0:
-                ai_log_data = {
-                    "call_sid": session.call_info.call_sid,
-                    "model": "gpt-4o-realtime",
-                    "input_tokens": session.input_tokens,
-                    "output_tokens": session.output_tokens,
-                    "total_tokens": session.total_tokens,
-                    "cost_usd": session.ai_cost_usd,
-                    "response_time_ms": 0,
-                    "agent_type": session.agent_type
+                try:
+                    from .config import get_config
+                    config = get_config()
+                    # Use realtime model for voice sessions
+                    model = getattr(config, "openai_realtime_model", "gpt-realtime-2025-08-28")
+                    ai_log_data = {
+                        "call_id": call_id,
+                        "call_sid": session.call_info.call_sid,
+                        "session_id": session.session_id,
+                        "model": model,
+                        "input_tokens": session.input_tokens,
+                        "output_tokens": session.output_tokens,
+                        "total_tokens": session.total_tokens,
+                        "cost_usd": session.ai_cost_usd,
+                        "response_time_ms": 0,
+                        "agent_type": session.agent_type
+                    }
+                    db.insert("ai_usage_logs", ai_log_data)
+                    logger.info(f"Saved AI usage log: {session.total_tokens} tokens for model {model}")
+                except Exception as e:
+                    logger.error(f"Failed to save AI usage log: {e}")
+            
+            # Save agent_interactions with tool calls data
+            try:
+                import json as json_module
+                
+                # Count successful and failed tool calls
+                successful_tools = [tc for tc in session.tool_calls if tc.get("success", False)]
+                failed_tools = [tc for tc in session.tool_calls if not tc.get("success", False)]
+                
+                # Check if any tool call was a handoff
+                was_handoff = session.escalated or any(
+                    tc.get("name") in ("transfer_to_human", "escalate_ticket", "escalate_to_human")
+                    for tc in session.tool_calls
+                )
+                
+                # Get handoff destination if applicable
+                handoff_to = None
+                if was_handoff:
+                    for tc in session.tool_calls:
+                        if tc.get("name") in ("transfer_to_human", "escalate_ticket", "escalate_to_human"):
+                            handoff_to = tc.get("arguments", {}).get("reason", "human_agent")
+                            break
+                
+                interaction_data = {
+                    "call_id": call_id,
+                    "session_id": session.session_id,
+                    "agent_type": session.agent_type,
+                    "agent_name": session.agent_type,
+                    "started_at": datetime.utcfromtimestamp(session.created_at).isoformat(),
+                    "ended_at": datetime.utcnow().isoformat(),
+                    "duration_ms": duration * 1000,
+                    "turn_count": len(session.conversation_history),
+                    "tools_called": json_module.dumps(session.tool_calls) if session.tool_calls else "[]",
+                    "tool_call_count": len(session.tool_calls),
+                    "failed_tool_calls": len(failed_tools),
+                    "was_handoff": was_handoff,
+                    "handoff_to": handoff_to
                 }
-                db.insert("ai_usage_logs", ai_log_data)
-                logger.info(f"Saved AI usage log: {session.total_tokens} tokens")
+                db.insert("agent_interactions", interaction_data)
+                logger.info(f"Saved agent interaction: {len(session.tool_calls)} tool calls, handoff={was_handoff}")
+            except Exception as e:
+                logger.error(f"Failed to save agent interaction: {e}")
             
         except Exception as e:
             logger.error(f"Failed to save call log for session {session.session_id}: {e}")
@@ -313,6 +454,113 @@ class VoiceSessionManager(ISessionManager):
         
         return len(expired)
     
+    async def _notify_call_update(self) -> None:
+        """Notify backend of live calls update for WebSocket broadcast."""
+        try:
+            from .event_notifier import get_event_notifier
+            notifier = get_event_notifier()
+            
+            calls, metrics = self._build_live_calls_data()
+            await notifier.push_live_calls_update(calls, metrics)
+        except Exception as e:
+            logger.debug(f"Could not notify call update: {e}")
+    
+    async def _notify_call_end(self, call_sid: str) -> None:
+        """Notify backend when a call ends."""
+        try:
+            from .event_notifier import get_event_notifier
+            notifier = get_event_notifier()
+            await notifier.notify_call_end(call_sid)
+        except Exception as e:
+            logger.debug(f"Could not notify call end: {e}")
+    
+    async def notify_transcript_update(self, session_id: str, role: str, content: str) -> None:
+        """Notify backend of new transcript entry and push full update."""
+        try:
+            from .event_notifier import get_event_notifier
+            notifier = get_event_notifier()
+            await notifier.notify_transcript(session_id, role, content)
+            
+            # Also push full live calls update for the dashboard
+            calls, metrics = self._build_live_calls_data()
+            await notifier.push_live_calls_update(calls, metrics)
+        except Exception as e:
+            logger.debug(f"Could not notify transcript update: {e}")
+    
+    def _build_live_calls_data(self) -> tuple:
+        """Build the live calls data for WebSocket broadcast."""
+        from datetime import datetime
+        
+        calls = []
+        agents_set = set()
+        total_duration = 0
+        inbound_count = 0
+        outbound_count = 0
+        
+        for session in self._sessions.values():
+            duration = int(time.time() - session.created_at)
+            total_duration += duration
+            
+            direction = session.call_info.direction or "inbound"
+            if direction == "inbound":
+                inbound_count += 1
+            else:
+                outbound_count += 1
+            
+            if session.agent_type:
+                agents_set.add(session.agent_type)
+            
+            # Build transcript entries
+            transcript = []
+            for msg in session.conversation_history:
+                transcript.append({
+                    "role": msg.get("role", "assistant"),
+                    "content": msg.get("content", ""),
+                    "timestamp": msg.get("timestamp", datetime.utcnow().isoformat())
+                })
+            
+            # Build agent history
+            agent_history = []
+            current_agent = session.agent_type or "triage_agent"
+            agent_history.append({
+                "agentName": current_agent,
+                "action": "Started conversation",
+                "timestamp": datetime.utcfromtimestamp(session.created_at).isoformat()
+            })
+            
+            calls.append({
+                "callSid": session.call_info.call_sid,
+                "sessionId": session.session_id,
+                "from": session.call_info.from_number,
+                "to": session.call_info.to_number,
+                "direction": direction,
+                "status": "in-progress",
+                "startTime": datetime.utcfromtimestamp(session.created_at).isoformat(),
+                "startedAt": datetime.utcfromtimestamp(session.created_at).isoformat(),
+                "duration": duration,
+                "callerName": session.caller_name,
+                "companyName": session.company_name,
+                "currentAgent": current_agent,
+                "agentType": current_agent,
+                "transcript": transcript,
+                "agentHistory": agent_history,
+                "sentiment": "neutral",
+                "ticketCreated": session.ticket_created,
+                "escalated": session.escalated
+            })
+        
+        avg_duration = total_duration // len(self._sessions) if self._sessions else 0
+        
+        metrics = {
+            "activeCalls": len(self._sessions),
+            "inbound": inbound_count,
+            "outbound": outbound_count,
+            "avgDuration": avg_duration,
+            "activeAgents": list(agents_set)
+        }
+        
+        return calls, metrics
+    
     async def _cleanup_loop(self) -> None:
         """Background task to periodically cleanup expired sessions."""
         while self._running:
@@ -328,6 +576,10 @@ class VoiceSessionManager(ISessionManager):
     def active_session_count(self) -> int:
         """Get the number of active sessions."""
         return len(self._sessions)
+    
+    def get_all_sessions(self) -> list:
+        """Get all active sessions (for live monitoring)."""
+        return list(self._sessions.values())
 
 
 # Global session manager instance

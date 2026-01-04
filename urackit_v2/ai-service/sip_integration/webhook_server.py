@@ -126,6 +126,94 @@ def create_app(config: SIPConfig = None) -> FastAPI:
             "max_sessions": get_config().max_concurrent_sessions
         }
 
+    @app.get("/api/live-sessions")
+    async def get_live_sessions():
+        """Get all active live call sessions with their details."""
+        import time
+        from datetime import datetime
+        
+        session_manager = get_session_manager()
+        sessions = session_manager.get_all_sessions()
+        
+        calls = []
+        agents_set = set()
+        total_duration = 0
+        inbound_count = 0
+        outbound_count = 0
+        
+        for session in sessions:
+            duration = int(time.time() - session.created_at)
+            total_duration += duration
+            
+            direction = session.call_info.direction or "inbound"
+            if direction == "inbound":
+                inbound_count += 1
+            else:
+                outbound_count += 1
+            
+            if session.agent_type:
+                agents_set.add(session.agent_type)
+            
+            # Build transcript entries
+            transcript = []
+            for msg in session.conversation_history:
+                transcript.append({
+                    "role": msg.get("role", "assistant"),
+                    "content": msg.get("content", ""),
+                    "timestamp": msg.get("timestamp", datetime.utcnow().isoformat())
+                })
+            
+            # Build agent history
+            agent_history = []
+            current_agent = session.agent_type or "triage_agent"
+            agent_history.append({
+                "agentName": current_agent,
+                "action": "Started conversation",
+                "timestamp": datetime.utcfromtimestamp(session.created_at).isoformat()
+            })
+            
+            # Build tool calls
+            tool_calls = []
+            for tc in session.tool_calls:
+                tool_calls.append({
+                    "name": tc.get("name", "unknown"),
+                    "success": tc.get("success", False),
+                    "timestamp": tc.get("timestamp", datetime.utcnow().isoformat()),
+                    "result": str(tc.get("result", ""))[:100]  # Truncate result
+                })
+            
+            calls.append({
+                "callSid": session.call_info.call_sid,
+                "sessionId": session.session_id,
+                "status": session.state.value if hasattr(session.state, 'value') else str(session.state),
+                "from": session.call_info.from_number,
+                "to": session.call_info.to_number,
+                "direction": direction,
+                "startedAt": datetime.utcfromtimestamp(session.created_at).isoformat(),
+                "callerName": session.caller_name,
+                "companyName": session.company_name,
+                "agentType": session.agent_type or "triage_agent",
+                "duration": duration,
+                "transcript": transcript,
+                "agentHistory": agent_history,
+                "toolCalls": tool_calls,
+                "sentiment": "neutral",  # Could be derived from conversation analysis
+                "aiResolution": session.ai_resolution
+            })
+        
+        avg_duration = total_duration // len(calls) if calls else 0
+        
+        return {
+            "calls": calls,
+            "metrics": {
+                "activeCalls": len(calls),
+                "inboundCalls": inbound_count,
+                "outboundCalls": outbound_count,
+                "avgDuration": avg_duration,
+                "activeAgents": list(agents_set)
+            }
+        }
+
     @app.api_route("/get", methods=["GET", "HEAD"])
     async def uptime_check():
         """UptimeRobot health check endpoint."""

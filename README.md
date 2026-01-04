@@ -1,5 +1,7 @@
 # AI Agent Projects Workspace
 
+> **Last Updated:** December 28, 2025
+
 This workspace contains multiple AI-powered voice and chat agent projects.
 
 ## 📁 Projects

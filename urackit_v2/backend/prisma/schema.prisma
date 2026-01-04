@@ -100,6 +100,7 @@ model call_logs {
   wait_time_seconds     Int?                    @default(0)
   status                String?                 @default("in_progress") @db.VarChar(50)
   direction             String?                 @default("inbound") @db.VarChar(20)
+  call_source           String?                 @default("twilio") @db.VarChar(20)   // 'twilio' = PSTN via Twilio, 'webrtc' = browser direct
   was_abandoned         Boolean?                @default(false)
   abandon_reason        String?                 @db.VarChar(255)
   ai_resolution         Boolean?                @default(true)

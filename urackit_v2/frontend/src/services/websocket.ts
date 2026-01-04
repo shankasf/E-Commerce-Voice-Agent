@@ -66,6 +66,14 @@ class WebSocketService {
       this.emit('call:update', data);
     });
 
+    this.socket.on('call:end', (data) => {
+      this.emit('call:end', data);
+    });
+
+    this.socket.on('livecalls:update', (data) => {
+      this.emit('livecalls:update', data);
+    });
+
     this.socket.on('ticket:update', (data) => {
       this.emit('ticket:update', data);
     });

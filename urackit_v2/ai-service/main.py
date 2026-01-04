@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Body
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -547,8 +547,15 @@ try:
     from sip_integration.interfaces import CallInfo, CallState
     import os
     from fastapi import Form, Request
-    from fastapi.responses import Response
+    from fastapi.responses import Response, FileResponse
+    from fastapi.staticfiles import StaticFiles
     from twilio.twiml.voice_response import VoiceResponse, Connect
+    
+    # Serve static files (dialer page)
+    static_dir = os.path.join(os.path.dirname(__file__), 'static')
+    if os.path.exists(static_dir):
+        app.mount("/static", StaticFiles(directory=static_dir), name="static")
+        logger.info(f"Static files mounted from {static_dir}")
     
     # Initialize SIP session manager on startup
     @app.on_event("startup")
@@ -585,7 +592,8 @@ try:
             status=CallStatus or "ringing",
         )
         
-        session_id = await session_manager.create_session(call_info)
+        # Standard Twilio PSTN call
+        session_id = await session_manager.create_session(call_info, call_source="twilio")
         
         # Build WebSocket URL for media stream
         host = request.headers.get("host", "")
@@ -604,6 +612,102 @@ try:
         
         return Response(content=str(response), media_type="application/xml")
     
+    @app.post("/twiml-app/voice")
+    async def twiml_app_voice_webhook(request: Request):
+        """
+        TwiML Application webhook - handles browser calls from web dialer.
+        
+        When a browser client calls using device.connect():
+        - Twilio sends: CallSid, From (client:identity), To (app:APxxx or phone number)
+        - We connect the browser to the AI agent via WebSocket stream
+        """
+        sip_config = get_sip_config()
+        session_manager = get_session_manager()
+        
+        # Get form data (Twilio sends call info here)
+        try:
+            form_data = await request.form()
+            call_sid = form_data.get("CallSid", "")
+            from_number = form_data.get("From", "")
+            to_number = form_data.get("To", "")
+            direction = form_data.get("Direction", "")
+            caller_name = form_data.get("CallerName", "")
+            account_sid = form_data.get("AccountSid", sip_config.twilio_account_sid)
+        except:
+            call_sid = ""
+            from_number = ""
+            to_number = ""
+            direction = ""
+            caller_name = ""
+            account_sid = sip_config.twilio_account_sid
+        
+        logger.info(f"TwiML App webhook called:")
+        logger.info(f"  CallSid: {call_sid}")
+        logger.info(f"  From: {from_number}")
+        logger.info(f"  To: {to_number}")
+        logger.info(f"  Direction: {direction}")
+        
+        # Browser call (from client:xxx)
+        if from_number.startswith("client:"):
+            logger.info("📞 BROWSER CALL DETECTED - Connecting to AI agent (WebRTC source)")
+            
+            call_info = CallInfo(
+                call_sid=call_sid,
+                from_number=from_number,
+                to_number=to_number or sip_config.twilio_phone_number,
+                direction="inbound",
+                status="ringing",
+            )
+            # Browser calls via Twilio Client SDK = still goes through Twilio,
+            # but we track it as 'webrtc' since user is on browser
+            # For truly direct WebRTC (no Twilio), use the /webrtc endpoint
+            browser_session_id = await session_manager.create_session(call_info, call_source="webrtc")
+            logger.info(f"Created browser WebRTC session: {browser_session_id}")
+            
+            # Build WebSocket URL
+            ws_url = f"{sip_config.webhook_base_url.replace('https', 'wss').replace('http', 'ws')}/media-stream/{browser_session_id}"
+            
+            response = VoiceResponse()
+            connect = Connect()
+            connect.stream(url=ws_url)
+            response.append(connect)
+            
+            logger.info(f"Browser client connecting to stream: {ws_url}")
+            return Response(content=str(response), media_type="application/xml")
+        
+        # Outbound call to a phone number
+        if to_number and not to_number.startswith("app:"):
+            logger.info(f"📱 OUTBOUND CALL to {to_number}")
+            
+            response = VoiceResponse()
+            response.dial(to_number, caller_id=sip_config.twilio_phone_number)
+            
+            return Response(content=str(response), media_type="application/xml")
+        
+        # Fallback - connect to AI agent
+        logger.warning("TwiML App called with unknown parameters - connecting to AI")
+        import uuid
+        fallback_session_id = f"fallback-{uuid.uuid4().hex[:12]}"
+        
+        call_info = CallInfo(
+            call_sid=call_sid or fallback_session_id,
+            from_number=from_number or "unknown",
+            to_number=to_number or sip_config.twilio_phone_number,
+            direction="inbound",
+            status="ringing",
+        )
+        # Twilio fallback call
+        session_id = await session_manager.create_session(call_info, call_source="twilio")
+        
+        ws_url = f"{sip_config.webhook_base_url.replace('https', 'wss').replace('http', 'ws')}/media-stream/{session_id}"
+        
+        response = VoiceResponse()
+        connect = Connect()
+        connect.stream(url=ws_url)
+        response.append(connect)
+        
+        return Response(content=str(response), media_type="application/xml")
+
     @app.websocket("/media-stream/{session_id}")
     async def media_stream_websocket(websocket: WebSocket, session_id: str):
         """Handle Twilio media stream WebSocket."""
@@ -644,10 +748,249 @@ try:
         
         return {"token": token.to_jwt(), "identity": identity}
     
+    @app.get("/dialer")
+    async def get_dialer():
+        """Serve the web dialer page."""
+        dialer_path = os.path.join(static_dir, 'dialer.html')
+        if os.path.exists(dialer_path):
+            return FileResponse(dialer_path)
+        raise HTTPException(status_code=404, detail="Dialer page not found")
+    
+    @app.get("/dashboard")
+    async def get_dashboard():
+        """Serve the analytics dashboard."""
+        dashboard_path = os.path.join(static_dir, 'dashboard.html')
+        if os.path.exists(dashboard_path):
+            return FileResponse(dashboard_path)
+        raise HTTPException(status_code=404, detail="Dashboard page not found")
+    
+    @app.get("/api/live-sessions")
+    async def get_live_sessions():
+        """Get all active live call sessions with their details."""
+        import time
+        from datetime import datetime
+        
+        session_manager = get_session_manager()
+        sessions = session_manager.get_all_sessions()
+        
+        calls = []
+        agents_set = set()
+        total_duration = 0
+        inbound_count = 0
+        outbound_count = 0
+        
+        for session in sessions:
+            duration = int(time.time() - session.created_at)
+            total_duration += duration
+            
+            direction = session.call_info.direction or "inbound"
+            if direction == "inbound":
+                inbound_count += 1
+            else:
+                outbound_count += 1
+            
+            if session.agent_type:
+                agents_set.add(session.agent_type)
+            
+            # Build transcript entries
+            transcript = []
+            for msg in session.conversation_history:
+                transcript.append({
+                    "role": msg.get("role", "assistant"),
+                    "content": msg.get("content", ""),
+                    "timestamp": msg.get("timestamp", datetime.utcnow().isoformat())
+                })
+            
+            # Build agent history
+            agent_history = []
+            current_agent = session.agent_type or "triage_agent"
+            agent_history.append({
+                "agentName": current_agent,
+                "action": "Started conversation",
+                "timestamp": datetime.utcfromtimestamp(session.created_at).isoformat()
+            })
+            
+            calls.append({
+                "callSid": session.call_info.call_sid,
+                "from": session.call_info.from_number,
+                "to": session.call_info.to_number,
+                "direction": direction,
+                "status": "in-progress",
+                "startTime": datetime.utcfromtimestamp(session.created_at).isoformat(),
+                "duration": duration,
+                "callerName": session.caller_name,
+                "companyName": session.company_name,
+                "currentAgent": current_agent,
+                "transcript": transcript,
+                "agentHistory": agent_history,
+                "sentiment": "neutral",
+                "ticketCreated": session.ticket_created,
+                "escalated": session.escalated
+            })
+        
+        # Calculate metrics
+        avg_duration = total_duration // len(sessions) if sessions else 0
+        
+        return {
+            "calls": calls,
+            "metrics": {
+                "activeCalls": len(sessions),
+                "inbound": inbound_count,
+                "outbound": outbound_count,
+                "avgDuration": avg_duration,
+                "activeAgents": list(agents_set)
+            }
+        }
+    
     logger.info("SIP/Voice integration routes loaded")
     
 except ImportError as e:
     logger.warning(f"SIP integration not available: {e}")
+
+
+# ============================================
+# WebRTC Direct Connection (Browser-to-AI)
+# No Twilio involved - OpenAI costs only!
+# ============================================
+
+class WebRTCConnectRequest(BaseModel):
+    """Request model for WebRTC connection - Unified Interface (backend proxies SDP)."""
+    sdp: str = Field(..., description="WebRTC SDP offer from browser")
+    role: str = Field(default="requester", description="User role: admin, agent, requester")
+    maxDuration: Optional[int] = Field(default=15, description="Max call duration in minutes")
+    userId: Optional[int] = Field(None, description="User ID from auth")
+    userEmail: Optional[str] = Field(None, description="User email")
+
+
+class WebRTCConnectResponse(BaseModel):
+    """Response model for WebRTC connection - returns SDP answer from OpenAI."""
+    sdp: str = Field(..., description="WebRTC SDP answer from OpenAI")
+    sessionId: str = Field(..., description="Session ID for tracking the call")
+
+
+@app.post("/webrtc/connect", response_model=WebRTCConnectResponse)
+async def webrtc_connect(request: WebRTCConnectRequest):
+    """
+    Unified Interface: Backend proxies SDP to OpenAI Realtime API.
+    
+    Flow:
+    1. Browser sends SDP offer to our backend
+    2. Backend sends SDP to OpenAI /v1/realtime endpoint
+    3. Backend returns SDP answer to browser
+    4. Browser sets remote description and connects
+    
+    Role-based access:
+    - admin: Full access, 60 min max, all agents
+    - agent: Standard access, 30 min max, assigned agents  
+    - requester: Limited access, 15 min max, triage only
+    """
+    import aiohttp
+    import os
+    import uuid
+    
+    try:
+        from sip_integration.session_manager import get_session_manager
+        from sip_integration.interfaces import CallInfo
+        
+        session_manager = get_session_manager()
+        
+        # Create a WebRTC session for tracking
+        webrtc_id = f"webrtc-{uuid.uuid4().hex[:12]}"
+        
+        call_info = CallInfo(
+            call_sid=webrtc_id,
+            from_number=f"webrtc:{request.userEmail or 'anonymous'}",
+            to_number="ai-agent",
+            direction="inbound",
+            status="ringing",
+        )
+        
+        # Create session with webrtc source
+        session_id = await session_manager.create_session(call_info, call_source="webrtc")
+        
+        # Get the session and set metadata
+        session = await session_manager.get_session(session_id)
+        if session:
+            session.metadata['role'] = request.role
+            session.metadata['maxDuration'] = request.maxDuration
+            session.metadata['userId'] = request.userId
+            session.metadata['userEmail'] = request.userEmail
+            session.metadata['webrtc'] = True
+        
+        # Get OpenAI API key
+        openai_api_key = os.getenv("OPENAI_API_KEY")
+        realtime_model = os.getenv("OPENAI_REALTIME_MODEL", "gpt-4o-realtime-preview-2024-12-17")
+        
+        if not openai_api_key:
+            raise HTTPException(status_code=500, detail="OpenAI API key not configured")
+        
+        # OpenAI Realtime API - POST SDP offer, get SDP answer
+        async with aiohttp.ClientSession() as http_session:
+            sdp_response = await http_session.post(
+                f"https://api.openai.com/v1/realtime?model={realtime_model}",
+                headers={
+                    "Authorization": f"Bearer {openai_api_key}",
+                    "Content-Type": "application/sdp",
+                },
+                data=request.sdp,
+            )
+
+            if sdp_response.status != 200 and sdp_response.status != 201:
+                error_text = await sdp_response.text()
+                logger.error(f"OpenAI SDP error ({sdp_response.status}): {error_text}")
+                raise HTTPException(status_code=502, detail=f"OpenAI error: {error_text}")
+
+            sdp_answer = await sdp_response.text()
+        
+        logger.info(f"WebRTC session created: {session_id}, role={request.role}")
+        
+        return WebRTCConnectResponse(
+            sdp=sdp_answer,
+            sessionId=session_id,
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"WebRTC connect error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+def get_system_prompt_for_role(role: str) -> str:
+    """Get appropriate system prompt based on user role."""
+    if role == "admin":
+        return """You are an AI assistant for U Rack IT, a full-service IT support company. 
+        The user is an administrator with full access. Help them with any IT-related questions, 
+        system management, or support tasks. Be professional and thorough."""
+    elif role == "agent":
+        return """You are an AI assistant for U Rack IT, a full-service IT support company.
+        The user is a support agent. Help them handle customer inquiries, troubleshoot issues,
+        and manage support tickets efficiently."""
+    else:
+        return """You are a friendly AI support assistant for U Rack IT.
+        Help the user with their IT support needs. Be helpful, patient, and clear.
+        If you cannot resolve their issue, offer to create a support ticket or escalate to a human agent."""
+
+
+@app.post("/webrtc/disconnect")
+async def webrtc_disconnect(payload: dict = Body(...)):
+    """Disconnect a WebRTC session."""
+    try:
+        from sip_integration.session_manager import get_session_manager
+        
+        session_id = payload.get("sessionId") or payload.get("session_id")
+        if not session_id:
+            raise HTTPException(status_code=422, detail="Missing sessionId")
+
+        session_manager = get_session_manager()
+        await session_manager.end_session(session_id)
+        
+        logger.info(f"WebRTC session disconnected: {session_id}")
+        return {"success": True, "sessionId": session_id}
+        
+    except Exception as e:
+        logger.error(f"WebRTC disconnect error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ============================================
@@ -661,6 +1004,7 @@ def create_app() -> FastAPI:
 
 if __name__ == "__main__":
     import uvicorn
+    from port_utils import find_available_port
     
     config = get_config()
     errors = config.validate()
@@ -671,17 +1015,28 @@ if __name__ == "__main__":
         logger.info("Please set the required environment variables in .env file")
         exit(1)
     
-    logger.info("=" * 60)
-    logger.info("URackIT AI Service v2.0.0")
-    logger.info("=" * 60)
-    logger.info(f"Host: {config.host}")
-    logger.info(f"Port: {config.port}")
-    logger.info(f"OpenAI Model: {config.openai_model}")
-    logger.info("=" * 60)
+    preferred_port = config.port
     
-    uvicorn.run(
-        "main:app",
-        host=config.host,
-        port=config.port,
-        reload=config.debug,
-    )
+    try:
+        port = find_available_port(preferred_port)
+        
+        if port != preferred_port:
+            print(f"⚠️  Preferred port {preferred_port} was in use, using port {port} instead")
+        
+        logger.info("=" * 60)
+        logger.info("URackIT AI Service v2.0.0")
+        logger.info("=" * 60)
+        logger.info(f"Host: {config.host}")
+        logger.info(f"Port: {port}")
+        logger.info(f"OpenAI Model: {config.openai_model}")
+        logger.info("=" * 60)
+        
+        uvicorn.run(
+            "main:app",
+            host=config.host,
+            port=port,
+            reload=config.debug,
+        )
+    except RuntimeError as e:
+        logger.error(f"Failed to start server: {e}")
+        exit(1)

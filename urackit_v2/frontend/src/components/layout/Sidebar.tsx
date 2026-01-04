@@ -1,8 +1,12 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard,
     Phone,
+    Radio,
+    Gauge,
+    BarChart3,
+    ShieldCheck,
     Ticket,
     Monitor,
     Building2,
@@ -12,12 +16,21 @@ import {
     Settings,
     ChevronLeft,
     ChevronRight,
+    LogOut,
+    Shield,
+    Headphones,
+    User,
 } from 'lucide-react';
 import clsx from 'clsx';
+import { useAuth } from '../../context';
 
 const navItems = [
     { path: '/overview', label: 'Overview', icon: LayoutDashboard },
+    { path: '/live', label: 'Live Calls', icon: Radio },
     { path: '/calls', label: 'Calls', icon: Phone },
+    { path: '/quality', label: 'Quality & AI', icon: Gauge },
+    { path: '/analytics', label: 'Analytics', icon: BarChart3 },
+    { path: '/compliance', label: 'Compliance', icon: ShieldCheck },
     { path: '/tickets', label: 'Tickets', icon: Ticket },
     { path: '/devices', label: 'Devices', icon: Monitor },
     { path: '/organizations', label: 'Organizations', icon: Building2 },
@@ -26,9 +39,25 @@ const navItems = [
     { path: '/costs', label: 'Costs & ROI', icon: DollarSign },
 ];
 
+const roleConfig = {
+    admin: { icon: Shield, gradient: 'from-purple-500 to-indigo-600', label: 'Administrator' },
+    agent: { icon: Headphones, gradient: 'from-blue-500 to-cyan-600', label: 'Support Agent' },
+    requester: { icon: User, gradient: 'from-emerald-500 to-teal-600', label: 'Requester' },
+};
+
 export function Sidebar() {
     const [collapsed, setCollapsed] = useState(false);
     const location = useLocation();
+    const navigate = useNavigate();
+    const { user, role, logout } = useAuth();
+
+    const handleLogout = () => {
+        logout();
+        navigate('/login');
+    };
+
+    const roleInfo = roleConfig[role] || roleConfig.requester;
+    const RoleIcon = roleInfo.icon;
 
     return (
         <aside
@@ -101,16 +130,41 @@ export function Sidebar() {
                 </div>
             </nav>
 
-            {/* Status */}
-            <div className="absolute bottom-4 left-4 right-4">
+            {/* User Profile & Logout */}
+            <div className="absolute bottom-4 left-4 right-4 space-y-2">
+                {/* User Info */}
                 <div className="glass rounded-xl p-3">
-                    <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 bg-green-500 rounded-full pulse"></span>
+                    <div className="flex items-center gap-3">
+                        <div className={clsx(
+                            'w-10 h-10 rounded-lg flex items-center justify-center bg-gradient-to-br flex-shrink-0',
+                            roleInfo.gradient
+                        )}>
+                            <RoleIcon className="w-5 h-5 text-white" />
+                        </div>
                         {!collapsed && (
-                            <span className="text-xs text-dark-400">System Online</span>
+                            <div className="min-w-0 flex-1">
+                                <p className="text-sm font-medium text-white truncate">
+                                    {user?.fullName || 'User'}
+                                </p>
+                                <p className="text-xs text-dark-400 truncate">
+                                    {roleInfo.label}
+                                </p>
+                            </div>
                         )}
                     </div>
                 </div>
+
+                {/* Logout Button */}
+                <button
+                    onClick={handleLogout}
+                    className={clsx(
+                        'w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all',
+                        collapsed && 'justify-center px-0'
+                    )}
+                >
+                    <LogOut className="w-5 h-5" />
+                    {!collapsed && <span>Sign Out</span>}
+                </button>
             </div>
         </aside>
     );

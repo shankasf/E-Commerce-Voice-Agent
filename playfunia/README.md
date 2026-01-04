@@ -1,5 +1,7 @@
 # Playfunia Voice Agent (Kids4Fun)
 
+> **Last Updated:** December 28, 2025
+
 Production voice assistant for Kids4Fun at Poughkeepsie Galleria Mall. Twilio calls hit a Node gateway on port 4001, which proxies media to a Python FastAPI SIP server on port 8080 that drives an OpenAI Realtime multi-agent stack. All business data (catalog, tickets, parties, orders, payments, refunds, staff, promos, waivers, FAQs) is served from Supabase. A full analytics dashboard is served from the same Node process and managed by PM2 as `callsphere-webhook` behind nginx at `https://webhook.callsphere.tech`.
 
 ## Tech stack

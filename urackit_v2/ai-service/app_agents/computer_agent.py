@@ -6,6 +6,14 @@ Handles computer-related issues: performance, crashes, hardware.
 
 from agents import Agent
 from memory.knowledge_base import lookup_support_info
+from db.queries import (
+    create_ticket,
+    lookup_ticket,
+    escalate_ticket,
+    add_ticket_message,
+    get_device_details,
+    transfer_to_human,
+)
 
 
 computer_agent = Agent(
@@ -62,6 +70,12 @@ ESCALATE IF:
 """.strip(),
     tools=[
         lookup_support_info,
+        create_ticket,
+        lookup_ticket,
+        escalate_ticket,
+        add_ticket_message,
+        get_device_details,
+        transfer_to_human,
     ],
     handoffs=[],
 )

@@ -1,5 +1,7 @@
 # U Rack IT v2 - AI-Powered IT Support Platform
 
+> **Last Updated:** December 28, 2025
+
 A modern 3-tier architecture for AI-powered IT helpdesk with voice integration, real-time dashboard, and multi-agent LLM orchestration.
 
 ## 🌟 Overview
@@ -443,10 +445,10 @@ pm2 status
 
 | Service | URL |
 |---------|-----|
-| Dashboard | https://webhook.callsphere.tech/v2/dashboard/ |
-| API | https://webhook.callsphere.tech/v2/api/ |
-| Swagger Docs | https://webhook.callsphere.tech/v2/api/docs |
-| AI Health | https://webhook.callsphere.tech/v2/ai/health |
+| Dashboard | https://urackit.callsphere.tech/ |
+| API | https://urackit.callsphere.tech/api/ |
+| Swagger Docs | https://urackit.callsphere.tech/api/docs |
+| AI Health | https://urackit.callsphere.tech/ai/health |
 
 ## 📝 License
 

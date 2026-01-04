@@ -4,8 +4,15 @@ const bodyParser = require("body-parser");
 const { spawn } = require("child_process");
 const http = require("http");
 const path = require("path");
+const { v4: uuidv4 } = require("uuid");
 
 const app = express();
+
+// Serve local static assets (including the WebRTC voice widget)
+app.use("/assets", express.static(path.join(__dirname, "public")));
+
+// Active voice sessions store
+const voiceSessions = new Map();
 
 // --- Dashboard Auth (basic) ---
 const DASH_USER = process.env.DASH_USER || "admin";
@@ -1226,6 +1233,17 @@ app.get("/dashboard", requireDashboardAuth, async (req, res) => {
       });
     }
   </script>
+  
+  <!-- WebRTC Voice Widget -->
+  <script src="/assets/webrtc-voice-widget.js"></script>
+  <script>
+    VoiceWidget.init({
+      apiEndpoint: '/api/voice/webrtc',
+      aiProvider: 'openai',
+      agentName: 'PlayFunia Voice',
+      primaryColor: '#a855f7',
+    });
+  </script>
 </body>
 </html>`;
 
@@ -1460,45 +1478,180 @@ app.get("/dashboard/api/metrics", requireDashboardAuth, async (req, res) => {
   }
 });
 
-const PORT = 4001;
-const server = app.listen(PORT, () => {
-  console.log("=".repeat(60));
-  console.log("CallSphere Voice Agent Gateway");
-  console.log("=".repeat(60));
-  console.log(`Node.js gateway running on port ${PORT}`);
-  console.log(`Proxying to Python SIP server at ${PYTHON_SERVER_URL}`);
-  console.log("=".repeat(60));
-});
+const PREFERRED_PORT = parseInt(process.env.PORT || "4001", 10);
 
-// WebSocket upgrade handling for media-stream
-server.on("upgrade", (req, socket, head) => {
-  console.log(`WebSocket upgrade request: ${req.url}`);
+// ============================================
+// WebRTC Voice Routes (OpenAI Realtime API)
+// ============================================
 
-  if (req.url.startsWith("/media-stream")) {
-    const options = {
-      hostname: "127.0.0.1",
-      port: PYTHON_SERVER_PORT,
-      path: req.url,
-      method: "GET",
-      headers: req.headers
-    };
+const OPENAI_REALTIME_URL = 'https://api.openai.com/v1/realtime';
 
-    const proxyReq = http.request(options);
-    proxyReq.on("upgrade", (proxyRes, proxySocket, proxyHead) => {
-      socket.write("HTTP/1.1 101 Switching Protocols\r\n" +
-        "Upgrade: websocket\r\n" +
-        "Connection: Upgrade\r\n" +
-        `Sec-WebSocket-Accept: ${proxyRes.headers["sec-websocket-accept"]}\r\n` +
-        "\r\n");
-      proxySocket.pipe(socket);
-      socket.pipe(proxySocket);
+app.post("/api/voice/webrtc/connect", async (req, res) => {
+  const { sdp, provider = 'openai' } = req.body;
+
+  if (!sdp) {
+    return res.status(400).json({ error: 'SDP offer is required' });
+  }
+
+  const sessionId = uuidv4();
+  const apiKey = process.env.OPENAI_API_KEY;
+
+  if (!apiKey) {
+    return res.status(500).json({ error: 'OPENAI_API_KEY not configured' });
+  }
+
+  try {
+    if (provider === 'openai') {
+      const model = process.env.OPENAI_VOICE_MODEL || 'gpt-4o-realtime-preview-2024-12-17';
+
+      const response = await fetch(`${OPENAI_REALTIME_URL}?model=${model}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/sdp',
+        },
+        body: sdp,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('OpenAI Realtime API error:', errorText);
+        return res.status(response.status).json({
+          error: 'Failed to connect to OpenAI Realtime API',
+          details: errorText
+        });
+      }
+
+      const answerSdp = await response.text();
+
+      voiceSessions.set(sessionId, {
+        provider: 'openai',
+        startTime: new Date(),
+      });
+
+      console.log(`Voice session ${sessionId} created`);
+
+      return res.json({
+        sdp: answerSdp,
+        sessionId,
+        provider: 'openai',
+      });
+    }
+
+    return res.status(400).json({ error: `Provider ${provider} not supported` });
+  } catch (error) {
+    console.error('WebRTC connect error:', error);
+    return res.status(500).json({
+      error: 'Failed to establish voice connection',
+      details: error.message
     });
-    proxyReq.on("error", (err) => {
-      console.error("WebSocket proxy error:", err);
-      socket.destroy();
-    });
-    proxyReq.end();
-  } else {
-    socket.destroy();
   }
 });
+
+app.post("/api/voice/webrtc/disconnect", (req, res) => {
+  const { sessionId } = req.body;
+  if (sessionId && voiceSessions.has(sessionId)) {
+    voiceSessions.delete(sessionId);
+    console.log(`Voice session ${sessionId} disconnected`);
+  }
+  return res.json({ success: true, sessionId });
+});
+
+app.get("/api/voice/webrtc/sessions", (req, res) => {
+  const sessions = Array.from(voiceSessions.entries()).map(([id, session]) => ({
+    sessionId: id,
+    provider: session.provider,
+    startTime: session.startTime,
+    duration: Math.floor((Date.now() - session.startTime.getTime()) / 1000),
+  }));
+  return res.json({ count: sessions.length, sessions });
+});
+
+/**
+ * Check if a port is available
+ */
+function isPortAvailable(port) {
+  return new Promise((resolve) => {
+    const testServer = require("net").createServer();
+    testServer.once("error", () => resolve(false));
+    testServer.once("listening", () => {
+      testServer.close();
+      resolve(true);
+    });
+    testServer.listen(port, "0.0.0.0");
+  });
+}
+
+/**
+ * Find an available port starting from the preferred port
+ */
+async function findAvailablePort(startPort, maxAttempts = 100) {
+  for (let i = 0; i < maxAttempts; i++) {
+    const port = startPort + i;
+    if (await isPortAvailable(port)) {
+      return port;
+    }
+    console.log(`Port ${port} is in use, trying next...`);
+  }
+  throw new Error(`Could not find an available port after ${maxAttempts} attempts`);
+}
+
+/**
+ * Start server with dynamic port allocation
+ */
+async function startServer() {
+  try {
+    const PORT = await findAvailablePort(PREFERRED_PORT);
+
+    if (PORT !== PREFERRED_PORT) {
+      console.log(`⚠️  Preferred port ${PREFERRED_PORT} was in use, using port ${PORT} instead`);
+    }
+
+    const server = app.listen(PORT, () => {
+      console.log("=".repeat(60));
+      console.log("CallSphere Voice Agent Gateway");
+      console.log("=".repeat(60));
+      console.log(`Node.js gateway running on port ${PORT}`);
+      console.log(`Proxying to Python SIP server at ${PYTHON_SERVER_URL}`);
+      console.log("=".repeat(60));
+    });
+
+    // WebSocket upgrade handling for media-stream
+    server.on("upgrade", (req, socket, head) => {
+      console.log(`WebSocket upgrade request: ${req.url}`);
+
+      if (req.url.startsWith("/media-stream")) {
+        const options = {
+          hostname: "127.0.0.1",
+          port: PYTHON_SERVER_PORT,
+          path: req.url,
+          method: "GET",
+          headers: req.headers
+        };
+
+        const proxyReq = http.request(options);
+        proxyReq.on("upgrade", (proxyRes, proxySocket, proxyHead) => {
+          socket.write("HTTP/1.1 101 Switching Protocols\r\n" +
+            "Upgrade: websocket\r\n" +
+            "Connection: Upgrade\r\n" +
+            `Sec-WebSocket-Accept: ${proxyRes.headers["sec-websocket-accept"]}\r\n` +
+            "\r\n");
+          proxySocket.pipe(socket);
+          socket.pipe(proxySocket);
+        });
+        proxyReq.on("error", (err) => {
+          console.error("WebSocket proxy error:", err);
+          socket.destroy();
+        });
+        proxyReq.end();
+      } else {
+        socket.destroy();
+      }
+    });
+  } catch (error) {
+    console.error("Failed to start server:", error);
+    process.exit(1);
+  }
+}
+
+startServer();

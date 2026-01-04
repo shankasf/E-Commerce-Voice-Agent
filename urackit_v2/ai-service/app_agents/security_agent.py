@@ -5,7 +5,7 @@ Handles security-related issues: suspicious emails, potential threats.
 """
 
 from agents import Agent
-from db.queries import create_ticket, escalate_ticket
+from db.queries import create_ticket, escalate_ticket, transfer_to_human
 from memory.knowledge_base import lookup_support_info
 
 
@@ -73,6 +73,7 @@ ALWAYS CREATE TICKET for security issues - even if resolved.
         create_ticket,
         escalate_ticket,
         lookup_support_info,
+        transfer_to_human,
     ],
     handoffs=[],
 )

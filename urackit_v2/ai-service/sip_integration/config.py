@@ -50,7 +50,7 @@ class SIPConfig:
         """Get the domain from webhook_base_url."""
         if self.webhook_base_url:
             return self.webhook_base_url.replace("https://", "").replace("http://", "")
-        return "webhook.callsphere.tech"
+        return "urackit.callsphere.tech"
     
     # System prompt is now loaded from triage_agent.py to avoid duplication
     # See app_agents/triage_agent.py for the voice agent prompt

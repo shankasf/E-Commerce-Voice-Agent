@@ -1,0 +1,111 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 220 13% 13%;
+  --muted: 220 14% 96%;
+  --muted-foreground: 220 9% 46%;
+  --accent: 220 13% 91%;
+  --accent-foreground: 220 13% 13%;
+  --primary: 220 13% 18%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 14% 96%;
+  --secondary-foreground: 220 13% 18%;
+  --card: 0 0% 100%;
+  --card-foreground: 220 13% 13%;
+  --border: 220 13% 91%;
+  --input: 220 13% 91%;
+  --ring: 220 13% 18%;
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: 220 13% 8%;
+  --foreground: 220 14% 96%;
+  --muted: 220 13% 15%;
+  --muted-foreground: 220 9% 60%;
+  --accent: 220 13% 20%;
+  --accent-foreground: 220 14% 96%;
+  --primary: 0 0% 100%;
+  --primary-foreground: 220 13% 13%;
+  --secondary: 220 13% 15%;
+  --secondary-foreground: 220 14% 96%;
+  --card: 220 13% 10%;
+  --card-foreground: 220 14% 96%;
+  --border: 220 13% 20%;
+  --input: 220 13% 20%;
+  --ring: 0 0% 100%;
+}
+
+body {
+  @apply bg-background text-foreground antialiased;
+  background-color: hsl(var(--background));
+}
+
+main {
+  @apply relative overflow-hidden;
+}
+
+a {
+  @apply transition-colors;
+}
+
+.glass-card {
+  @apply rounded-2xl border border-border bg-card shadow-sm;
+}
+
+.focus-visible {
+  @apply outline-none ring-2 ring-offset-2 ring-offset-background ring-primary;
+}
+
+.noise-overlay {
+  display: none;
+}
+
+.radial-divider {
+  position: relative;
+  isolation: isolate;
+}
+
+.radial-divider::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: -2px;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    hsl(220 13% 91%) 20%,
+    hsl(220 13% 85%) 50%,
+    hsl(220 13% 91%) 80%,
+    transparent 100%
+  );
+  opacity: 0.8;
+}
+
+.section-shell {
+  @apply relative z-10 mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8;
+}
+
+.section-stack {
+  @apply relative z-10 mx-auto mt-8 w-full max-w-6xl px-4 sm:mt-10 sm:px-6 lg:px-8;
+}
+
+/* Fade-in animation for chat/voice demos */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out forwards;
+}

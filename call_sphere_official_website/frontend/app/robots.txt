@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://callsphere.tech/sitemap.xml

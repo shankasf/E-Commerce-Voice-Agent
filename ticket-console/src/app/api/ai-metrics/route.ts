@@ -6,7 +6,10 @@ export const dynamic = 'force-dynamic';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseServiceKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: { autoRefreshToken: false, persistSession: false },
+  global: { headers: { Authorization: `Bearer ${supabaseServiceKey}` } }
+});
 
 // Average time a human takes to resolve a ticket (in minutes) - industry benchmark
 const HUMAN_AVG_RESOLUTION_TIME_MINS = 45;

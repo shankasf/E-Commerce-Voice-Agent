@@ -33,7 +33,8 @@ class CallInfo:
     from_number: str
     to_number: str
     direction: str
-    account_sid: str
+    account_sid: Optional[str] = None
+    status: Optional[str] = None
     caller_name: Optional[str] = None
     caller_city: Optional[str] = None
     caller_state: Optional[str] = None

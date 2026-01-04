@@ -6,6 +6,7 @@ Handles printer-related issues: printing, jams, connectivity.
 
 from agents import Agent
 from memory.knowledge_base import lookup_support_info
+from db.queries import create_ticket, escalate_ticket, transfer_to_human
 
 
 printer_agent = Agent(
@@ -65,6 +66,9 @@ ESCALATE IF:
 """.strip(),
     tools=[
         lookup_support_info,
+        create_ticket,
+        escalate_ticket,
+        transfer_to_human,
     ],
     handoffs=[],
 )

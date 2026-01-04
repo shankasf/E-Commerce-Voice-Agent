@@ -61,6 +61,9 @@ class MediaStreamHandler:
         # Grace period to prevent echo-triggered interruptions at call start
         self._call_start_time: Optional[float] = None
         self._grace_period_seconds = 4.0  # Ignore interruptions for first 4 seconds
+        
+        # Flag to track when AI is speaking (to avoid echo)
+        self._ai_is_speaking = False
     
     async def handle(self) -> None:
         """Main handler for the WebSocket connection."""
@@ -103,6 +106,7 @@ class MediaStreamHandler:
             self.openai_connection.set_text_callback(self._on_openai_text)
             self.openai_connection.set_function_callback(self._on_openai_function)
             self.openai_connection.set_interrupt_callback(self._on_user_interrupt)
+            self.openai_connection.set_speaking_callback(self._on_ai_speaking)
             
             # Update to silent mode for conference
             await self.openai_connection.update_for_silent_mode()
@@ -127,6 +131,7 @@ class MediaStreamHandler:
         self.openai_connection.set_text_callback(self._on_openai_text)
         self.openai_connection.set_function_callback(self._on_openai_function)
         self.openai_connection.set_interrupt_callback(self._on_user_interrupt)
+        self.openai_connection.set_speaking_callback(self._on_ai_speaking)
         
         # Connect
         connected = await self.openai_connection.connect(self.session.session_id)
@@ -181,6 +186,12 @@ class MediaStreamHandler:
                 payload = media_data.get("payload", "")
                 
                 if payload and self.openai_connection:
+                    # Skip sending audio if AI is currently speaking to avoid echo
+                    # The VAD will handle interruptions properly
+                    if self._ai_is_speaking:
+                        # Still send audio but OpenAI's VAD will handle echo cancellation
+                        pass
+                    
                     # Decode base64 audio and send to OpenAI
                     audio_bytes = base64.b64decode(payload)
                     chunk = AudioChunk(
@@ -252,11 +263,22 @@ class MediaStreamHandler:
         except Exception as e:
             logger.error(f"Error clearing Twilio audio: {e}")
     
+    def _on_ai_speaking(self, is_speaking: bool) -> None:
+        """Callback when AI starts or stops speaking."""
+        self._ai_is_speaking = is_speaking
+        if is_speaking:
+            logger.debug("AI started speaking - may suppress echo")
+        else:
+            logger.debug("AI stopped speaking")
+    
     def _on_openai_text(self, role: str, text: str) -> None:
         """Callback when text transcript is received from OpenAI."""
         if text:
             self.session.add_message(role, text)
             logger.info(f"[{role}]: {text[:100]}...")
+            
+            # Notify backend for real-time WebSocket updates
+            asyncio.create_task(self._notify_transcript(role, text))
             
             # If in conference, also add to conference transcript
             if self.session.in_conference:
@@ -337,9 +359,9 @@ class MediaStreamHandler:
             result = await self.agent_adapter.execute_tool(name, arguments)
             result_str = str(result)
             
-            # Check if this is a transfer request
-            if result_str.startswith("TRANSFER_TO_HUMAN:"):
-                reason = result_str.replace("TRANSFER_TO_HUMAN:", "").strip()
+            # Check if this is a transfer request (handle both | and : separators)
+            if result_str.startswith("TRANSFER_TO_HUMAN|") or result_str.startswith("TRANSFER_TO_HUMAN:"):
+                reason = result_str.replace("TRANSFER_TO_HUMAN|", "").replace("TRANSFER_TO_HUMAN:", "").strip()
                 logger.info(f"Transfer to human requested: {reason}")
                 # Initiate transfer in background
                 asyncio.create_task(self._initiate_transfer(reason))
@@ -584,6 +606,16 @@ class MediaStreamHandler:
         # Clear Twilio's audio buffer
         await self._clear_twilio_audio()
     
+    async def _notify_transcript(self, role: str, content: str) -> None:
+        """Notify backend of transcript update for WebSocket broadcast."""
+        try:
+            session_manager = get_session_manager()
+            await session_manager.notify_transcript_update(
+                self.session.session_id, role, content
+            )
+        except Exception as e:
+            logger.debug(f"Could not notify transcript: {e}")
+    
     async def _cleanup(self) -> None:
         """Cleanup resources when connection ends."""
         self._running = False
@@ -601,5 +633,12 @@ class MediaStreamHandler:
         if self.openai_connection:
             await self.openai_connection.disconnect()
             self.openai_connection = None
+        
+        # End the session in session manager (this saves to DB and notifies backend)
+        try:
+            session_manager = get_session_manager()
+            await session_manager.end_session(self.session.session_id)
+        except Exception as e:
+            logger.error(f"Error ending session: {e}")
         
         logger.info(f"Cleaned up session {self.session.session_id}")
