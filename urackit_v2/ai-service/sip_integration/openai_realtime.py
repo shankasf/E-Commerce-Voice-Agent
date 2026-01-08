@@ -12,6 +12,7 @@ import websockets
 
 from .interfaces import IRealtimeConnection, AudioChunk, AudioFormat
 from .config import get_config
+from prompt_scripts import UE_OPENING_GREETING_TEXT
 
 logger = logging.getLogger(__name__)
 
@@ -39,10 +40,14 @@ class OpenAIRealtimeConnection(IRealtimeConnection):
         # Background task for receiving messages
         self._receive_task: Optional[asyncio.Task] = None
         self._assistant_transcript_buffer: str = ""
-        
+
         # Track current response for interruption handling
         self._current_response_id: Optional[str] = None
         self._is_responding = False
+
+        # Echo detection - track recent assistant transcripts
+        self._recent_assistant_transcripts: list[str] = []
+        self._max_recent_transcripts = 5  # Keep last 5 assistant utterances for echo detection
         
         # Event to signal session is ready
         self._session_ready = asyncio.Event()
@@ -209,43 +214,44 @@ Remember: You are a background assistant. The human technician is leading the ca
 
     async def start_greeting(self, caller_phone: str = None) -> None:
         """Trigger the assistant to greet immediately after connect.
-        
+
         If caller_phone is provided, inject it as context so AI can look up the caller.
         """
         if not self._is_connected or not self._ws:
             logger.warning("Cannot start greeting: not connected")
             return
-        
+
         if self._greeting_sent:
             return
-        
+
         # Wait for session to be configured before sending greeting
         try:
             await asyncio.wait_for(self._session_ready.wait(), timeout=5.0)
         except asyncio.TimeoutError:
             logger.warning("Timeout waiting for session.updated - sending greeting anyway")
-        
+
         self._greeting_sent = True
-        
-        # If we have the caller's phone, we DO NOT use it for authentication.
-        # Caller must provide U&E code for organization verification.
-        if caller_phone:
-            context_event = {
-                "type": "conversation.item.create",
-                "item": {
-                    "type": "message",
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "input_text",
-                            "text": f"[SYSTEM: Incoming call from phone number: {caller_phone}. Do NOT attempt phone-based lookup. Ask for the caller's U E code and verify the organization using the U&E code only.]"
-                        }
-                    ]
-                }
-            }
-            await self._send_event(context_event)
-        
-        await self._send_event({"type": "response.create"})
+
+        # Force a single, exact greeting response.
+        # Using response-level instructions is more reliable than injecting a "SYSTEM:" user message.
+        greeting_instructions = (
+            "You are starting a live phone call. Your next response MUST be EXACTLY the following greeting, "
+            "word for word, with the same line breaks, and NOTHING ELSE. Do not add extra words. "
+            "Do not ask for the U-E code yet. After you finish speaking the greeting, STOP and wait silently.\n\n"
+            f"{UE_OPENING_GREETING_TEXT}"
+        )
+
+        response_event = {
+            "type": "response.create",
+            "response": {
+                "instructions": greeting_instructions,
+                "output_modalities": ["audio", "text"],
+                # Keep it tight so it doesn't continue into UE-code questions.
+                "max_output_tokens": 120,
+            },
+        }
+
+        await self._send_event(response_event)
         logger.info(f"Triggered initial greeting with caller phone: {caller_phone}")
     
     def set_audio_callback(self, callback: Callable[[AudioChunk], None]) -> None:
@@ -346,13 +352,38 @@ Remember: You are a background assistant. The human technician is leading the ca
             transcript = event.get("transcript", self._assistant_transcript_buffer)
             if transcript and self._text_callback:
                 self._text_callback("assistant", transcript)
+                # Store for echo detection
+                self._recent_assistant_transcripts.append(transcript.lower().strip())
+                # Keep only recent transcripts
+                if len(self._recent_assistant_transcripts) > self._max_recent_transcripts:
+                    self._recent_assistant_transcripts.pop(0)
             self._assistant_transcript_buffer = ""
-        
+
         elif event_type == "conversation.item.input_audio_transcription.completed":
             # User speech transcribed
             transcript = event.get("transcript", "")
             if transcript and self._text_callback:
-                self._text_callback("user", transcript)
+                # Echo detection: check if user transcript matches recent assistant speech
+                user_text_lower = transcript.lower().strip()
+                is_echo = False
+
+                for assistant_text in self._recent_assistant_transcripts:
+                    # Check if user transcript is contained in or matches assistant transcript
+                    # This catches cases like assistant saying "Is that correct?" and echo picking it up
+                    if user_text_lower in assistant_text or assistant_text in user_text_lower:
+                        # Check similarity - if more than 60% of words match, it's likely echo
+                        user_words = set(user_text_lower.split())
+                        assistant_words = set(assistant_text.split())
+                        if user_words and assistant_words:
+                            overlap = len(user_words & assistant_words)
+                            similarity = overlap / min(len(user_words), len(assistant_words))
+                            if similarity > 0.6:
+                                is_echo = True
+                                logger.warning(f"Echo detected - discarding user transcript that matches assistant: '{transcript}'")
+                                break
+
+                if not is_echo:
+                    self._text_callback("user", transcript)
         
         elif event_type == "response.function_call_arguments.done":
             # Function call from AI
