@@ -84,6 +84,7 @@ async function findAvailablePort(startPort, maxAttempts = 100) {
     throw new Error(`Could not find an available port after ${maxAttempts} attempts`);
 }
 
+
 async function main() {
     try {
         // Find an available port

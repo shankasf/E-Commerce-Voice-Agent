@@ -19,9 +19,11 @@ import {
   Plus,
   Filter,
   RefreshCw,
-  BarChart3
+  BarChart3,
+  MessageSquare
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { ChatWidget } from '@/components/ChatWidget';
 
 const priorityColors: Record<string, string> = {
   Low: 'bg-gray-100 text-gray-700',
@@ -186,6 +188,13 @@ export default function AdminDashboard() {
             <p className="text-sm text-purple-200">U Rack IT Management Console</p>
           </div>
           <div className="flex items-center gap-4">
+            <button
+              onClick={() => window.location.href = '/dashboard/admin/chat'}
+              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg transition-colors"
+            >
+              <MessageSquare className="w-4 h-4" />
+              AI Chat
+            </button>
             <button
               onClick={() => setShowMetrics(true)}
               className="flex items-center gap-2 bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg transition-colors"
@@ -452,6 +461,9 @@ export default function AdminDashboard() {
 
       {/* AI Metrics Modal */}
       <AIMetricsModal isOpen={showMetrics} onClose={() => setShowMetrics(false)} />
+
+      {/* Chat Widget - Bottom Right */}
+      <ChatWidget />
     </div>
   );
 }

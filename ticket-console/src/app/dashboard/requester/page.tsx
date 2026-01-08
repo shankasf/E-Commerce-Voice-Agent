@@ -19,6 +19,7 @@ import {
   WifiOff
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { ChatWidget } from '@/components/ChatWidget';
 
 const priorityColors: Record<string, string> = {
   Low: 'bg-gray-100 text-gray-700',
@@ -168,6 +169,13 @@ export default function RequesterDashboard() {
             <p className="text-sm text-gray-500">Welcome, {user.name}</p>
           </div>
           <div className="flex items-center gap-4">
+            <button
+              onClick={() => window.location.href = '/dashboard/requester/chat'}
+              className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+            >
+              <MessageSquare className="w-4 h-4" />
+              AI Chat
+            </button>
             <button
               onClick={() => user?.id && loadTickets(user.id)}
               disabled={loading}
@@ -359,6 +367,9 @@ export default function RequesterDashboard() {
           </div>
         </div>
       )}
+
+      {/* Chat Widget - Bottom Right */}
+      <ChatWidget />
     </div>
   );
 }
