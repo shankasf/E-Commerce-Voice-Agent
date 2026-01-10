@@ -131,7 +131,19 @@ export const requesterAPI = {
         ticketId,
         userMessage: content,
       }),
-    }).catch(e => console.log('AI bot response not triggered:', e));
+    })
+    .then(async (res) => {
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('[AI Resolve] API Error:', res.status, res.statusText, errorText);
+      } else {
+        const result = await res.json();
+        console.log('[AI Resolve] Success:', result);
+      }
+    })
+    .catch(e => {
+      console.error('[AI Resolve] Request failed:', e);
+    });
 
     return data;
   },

@@ -19,24 +19,25 @@ import {
   Plus,
   Filter,
   RefreshCw,
-  BarChart3
+  BarChart3,
+  Shield
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 const priorityColors: Record<string, string> = {
-  Low: 'bg-gray-100 text-gray-700',
-  Medium: 'bg-blue-100 text-blue-700',
-  High: 'bg-orange-100 text-orange-700',
-  Critical: 'bg-red-100 text-red-700',
+  Low: 'badge-gray',
+  Medium: 'badge-blue',
+  High: 'badge-yellow',
+  Critical: 'badge-red',
 };
 
 const statusColors: Record<string, string> = {
-  Open: 'bg-yellow-100 text-yellow-700',
-  'In Progress': 'bg-blue-100 text-blue-700',
-  'Awaiting Customer': 'bg-purple-100 text-purple-700',
-  Escalated: 'bg-orange-100 text-orange-700',
-  Resolved: 'bg-green-100 text-green-700',
-  Closed: 'bg-gray-100 text-gray-700',
+  Open: 'badge-yellow',
+  'In Progress': 'badge-blue',
+  'Awaiting Customer': 'badge-purple',
+  Escalated: 'badge-yellow',
+  Resolved: 'badge-green',
+  Closed: 'badge-gray',
 };
 
 type Tab = 'tickets' | 'organizations' | 'contacts' | 'agents';
@@ -120,16 +121,16 @@ export default function AdminDashboard() {
     if (activeTab === 'tickets') loadTickets();
   });
 
-  // Polling fallback every 10 seconds
+  // Polling fallback every 15 seconds
   useEffect(() => {
     const pollInterval = setInterval(() => {
       console.log('[Polling] Refreshing data...');
       loadDashboardData();
       if (activeTab === 'tickets') loadTickets();
-    }, 10000);
+    }, 15000); // Increased to 15s to reduce flickering
 
     return () => clearInterval(pollInterval);
-  }, [activeTab, loadDashboardData, loadTickets]);
+  }, [activeTab]); // Removed callbacks from dependencies to prevent constant re-creation
 
   useEffect(() => {
     setMounted(true);
@@ -166,39 +167,61 @@ export default function AdminDashboard() {
   };
 
   if (isLoading || !user) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    return (
+      <div className="min-h-screen relative overflow-hidden bg-layered flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative w-16 h-16">
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-purple-700 rounded-2xl animate-pulse shadow-2xl glow-purple"></div>
+            <div className="absolute inset-2 bg-gradient-to-br from-purple-400 to-purple-600 rounded-2xl flex items-center justify-center">
+              <BarChart3 className="w-8 h-8 text-white animate-spin" />
+            </div>
+          </div>
+          <p className="text-slate-700 font-semibold text-lg">Loading...</p>
+        </div>
+      </div>
+    );
   }
 
   const tabs = [
-    { id: 'tickets' as Tab, label: 'All Tickets', icon: Ticket, count: stats?.totalTickets },
-    { id: 'organizations' as Tab, label: 'Organizations', icon: Building2, count: stats?.totalOrganizations },
-    { id: 'contacts' as Tab, label: 'Contacts', icon: Users, count: stats?.totalContacts },
-    { id: 'agents' as Tab, label: 'Agents', icon: Headphones, count: stats?.totalAgents },
+    { id: 'tickets' as Tab, label: 'All Tickets', icon: Ticket, count: stats?.totalTickets, color: 'blue' },
+    { id: 'organizations' as Tab, label: 'Organizations', icon: Building2, count: stats?.totalOrganizations, color: 'purple' },
+    { id: 'contacts' as Tab, label: 'Contacts', icon: Users, count: stats?.totalContacts, color: 'green' },
+    { id: 'agents' as Tab, label: 'Agents', icon: Headphones, count: stats?.totalAgents, color: 'orange' },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-purple-600 text-white">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold">Admin Dashboard</h1>
-            <p className="text-sm text-purple-200">U Rack IT Management Console</p>
-          </div>
+    <div className="min-h-screen relative overflow-hidden bg-layered">
+      {/* Animated Background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-400/8 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '10s' }}></div>
+        <div className="absolute bottom-0 right-1/3 w-96 h-96 bg-blue-400/8 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '12s', animationDelay: '3s' }}></div>
+      </div>
+
+      {/* Header - Enhanced */}
+      <header className="relative bg-gradient-to-r from-purple-600 via-purple-700 to-indigo-700 text-white shadow-2xl sticky top-0 z-50 border-b border-purple-800/40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex items-center justify-between">
           <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center shadow-lg">
+              <Shield className="w-7 h-7 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">Admin Dashboard</h1>
+              <p className="text-sm text-purple-100 mt-0.5 font-medium">U Rack IT Management Console</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
             <button
               onClick={() => setShowMetrics(true)}
-              className="flex items-center gap-2 bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg transition-colors"
+              className="btn bg-white/20 hover:bg-white/30 text-white border border-white/30 backdrop-blur-sm shadow-lg hover:shadow-xl"
             >
-              <BarChart3 className="w-4 h-4" />
-              AI Metrics
+              <BarChart3 className="w-5 h-5" />
+              <span className="hidden sm:inline">AI Metrics</span>
             </button>
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 text-purple-200 hover:text-white"
+              className="btn btn-ghost text-purple-100 hover:text-white hover:bg-white/10 p-3"
             >
-              <LogOut className="w-4 h-4" />
-              Logout
+              <LogOut className="w-5 h-5" />
             </button>
           </div>
         </div>
@@ -206,7 +229,7 @@ export default function AdminDashboard() {
 
       {/* Stats */}
       {stats && (
-        <div className="bg-white border-b border-gray-200">
+        <div className="bg-slate-800/50 border-b border-slate-700/50">
           <div className="max-w-7xl mx-auto px-4 py-4">
             <div className="grid grid-cols-5 gap-4">
               <div className="flex items-center gap-3">
@@ -214,8 +237,8 @@ export default function AdminDashboard() {
                   <AlertTriangle className="w-5 h-5 text-yellow-600" />
                 </div>
                 <div>
-                  <p className="text-xl font-bold text-gray-900">{stats.openTickets}</p>
-                  <p className="text-xs text-gray-500">Open</p>
+                  <p className="text-xl font-bold text-slate-100">{stats.openTickets}</p>
+                  <p className="text-xs text-slate-400">Open</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -223,8 +246,8 @@ export default function AdminDashboard() {
                   <Clock className="w-5 h-5 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-xl font-bold text-gray-900">{stats.inProgressTickets}</p>
-                  <p className="text-xs text-gray-500">In Progress</p>
+                  <p className="text-xl font-bold text-slate-100">{stats.inProgressTickets}</p>
+                  <p className="text-xs text-slate-400">In Progress</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -232,8 +255,8 @@ export default function AdminDashboard() {
                   <AlertTriangle className="w-5 h-5 text-orange-600" />
                 </div>
                 <div>
-                  <p className="text-xl font-bold text-gray-900">{stats.escalatedTickets}</p>
-                  <p className="text-xs text-gray-500">Escalated</p>
+                  <p className="text-xl font-bold text-slate-100">{stats.escalatedTickets}</p>
+                  <p className="text-xs text-slate-400">Escalated</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -241,8 +264,8 @@ export default function AdminDashboard() {
                   <AlertTriangle className="w-5 h-5 text-red-600" />
                 </div>
                 <div>
-                  <p className="text-xl font-bold text-gray-900">{stats.criticalTickets}</p>
-                  <p className="text-xs text-gray-500">Critical</p>
+                  <p className="text-xl font-bold text-slate-100">{stats.criticalTickets}</p>
+                  <p className="text-xs text-slate-400">Critical</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -250,8 +273,8 @@ export default function AdminDashboard() {
                   <CheckCircle className="w-5 h-5 text-green-600" />
                 </div>
                 <div>
-                  <p className="text-xl font-bold text-gray-900">{stats.availableAgents}/{stats.totalAgents}</p>
-                  <p className="text-xs text-gray-500">Agents Available</p>
+                  <p className="text-xl font-bold text-slate-100">{stats.availableAgents}/{stats.totalAgents}</p>
+                  <p className="text-xs text-slate-400">Agents Available</p>
                 </div>
               </div>
             </div>
@@ -260,7 +283,7 @@ export default function AdminDashboard() {
       )}
 
       {/* Tabs */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white border-b border-slate-700/50">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex gap-1">
             {tabs.map((tab) => (
@@ -269,13 +292,13 @@ export default function AdminDashboard() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${activeTab === tab.id
                   ? 'border-purple-600 text-purple-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                  : 'border-transparent text-slate-400 hover:text-slate-300'
                   }`}
               >
                 <tab.icon className="w-4 h-4" />
                 {tab.label}
                 {tab.count !== undefined && (
-                  <span className="text-xs bg-gray-100 px-2 py-0.5 rounded-full">{tab.count}</span>
+                  <span className="text-xs bg-slate-800/50 border border-slate-700/50 px-2 py-0.5 rounded-full">{tab.count}</span>
                 )}
               </button>
             ))}
@@ -286,15 +309,15 @@ export default function AdminDashboard() {
       <main className="max-w-7xl mx-auto px-4 py-6">
         {/* Tickets Tab */}
         {activeTab === 'tickets' && (
-          <div className="bg-white rounded-lg border border-gray-200">
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="font-semibold text-gray-900">All Tickets</h2>
+          <div className="bg-slate-800/50 rounded-lg border border-slate-700/50">
+            <div className="p-4 border-b border-slate-700/50 flex items-center justify-between">
+              <h2 className="font-semibold text-slate-100">All Tickets</h2>
               <div className="flex items-center gap-2">
-                <Filter className="w-4 h-4 text-gray-400" />
+                <Filter className="w-4 h-4 text-slate-400" />
                 <select
                   value={statusFilter || ''}
                   onChange={(e) => setStatusFilter(e.target.value ? parseInt(e.target.value) : undefined)}
-                  className="text-sm border border-gray-300 rounded-lg px-3 py-1"
+                  className="text-sm border border-slate-700/50 rounded-lg px-3 py-1"
                 >
                   <option value="">All Statuses</option>
                   <option value="1">Open</option>
@@ -308,24 +331,24 @@ export default function AdminDashboard() {
             </div>
 
             {loading ? (
-              <div className="p-8 text-center text-gray-500">Loading...</div>
+              <div className="p-8 text-center text-slate-400">Loading...</div>
             ) : tickets.length === 0 ? (
-              <div className="p-8 text-center text-gray-500">No tickets found</div>
+              <div className="p-8 text-center text-slate-400">No tickets found</div>
             ) : (
-              <div className="divide-y divide-gray-100">
+              <div className="divide-y divide-slate-700/50">
                 {tickets.map((ticket) => (
                   <div
                     key={ticket.ticket_id}
                     onClick={() => navigateToTicket(ticket.ticket_id)}
-                    className="p-4 hover:bg-gray-50 cursor-pointer flex items-center justify-between"
+                    className="p-4 hover:bg-slate-800/70 cursor-pointer flex items-center justify-between"
                   >
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm text-gray-500">#{ticket.ticket_id}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${statusColors[(ticket.status as any)?.name] || 'bg-gray-100'}`}>
+                        <span className="text-sm text-slate-400">#{ticket.ticket_id}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${statusColors[(ticket.status as any)?.name] || 'bg-slate-800/50 border border-slate-700/50'}`}>
                           {(ticket.status as any)?.name}
                         </span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${priorityColors[(ticket.priority as any)?.name] || 'bg-gray-100'}`}>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${priorityColors[(ticket.priority as any)?.name] || 'bg-slate-800/50 border border-slate-700/50'}`}>
                           {(ticket.priority as any)?.name}
                         </span>
                         {ticket.requires_human_agent && (
@@ -334,12 +357,12 @@ export default function AdminDashboard() {
                           </span>
                         )}
                       </div>
-                      <p className="font-medium text-gray-900">{ticket.subject}</p>
-                      <p className="text-sm text-gray-500">
+                      <p className="font-medium text-slate-100">{ticket.subject}</p>
+                      <p className="text-sm text-slate-400">
                         {(ticket.contact as any)?.full_name} • {(ticket.organization as any)?.name} • {formatDistanceToNow(new Date(ticket.created_at), { addSuffix: true })}
                       </p>
                     </div>
-                    <ChevronRight className="w-5 h-5 text-gray-400" />
+                    <ChevronRight className="w-5 h-5 text-slate-400" />
                   </div>
                 ))}
               </div>
@@ -349,17 +372,17 @@ export default function AdminDashboard() {
 
         {/* Organizations Tab */}
         {activeTab === 'organizations' && (
-          <div className="bg-white rounded-lg border border-gray-200">
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="font-semibold text-gray-900">Organizations</h2>
+          <div className="bg-slate-800/50 rounded-lg border border-slate-700/50">
+            <div className="p-4 border-b border-slate-700/50 flex items-center justify-between">
+              <h2 className="font-semibold text-slate-100">Organizations</h2>
             </div>
 
             {loading ? (
-              <div className="p-8 text-center text-gray-500">Loading...</div>
+              <div className="p-8 text-center text-slate-400">Loading...</div>
             ) : organizations.length === 0 ? (
-              <div className="p-8 text-center text-gray-500">No organizations found</div>
+              <div className="p-8 text-center text-slate-400">No organizations found</div>
             ) : (
-              <div className="divide-y divide-gray-100">
+              <div className="divide-y divide-slate-700/50">
                 {organizations.map((org) => (
                   <div key={org.organization_id} className="p-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -367,8 +390,8 @@ export default function AdminDashboard() {
                         <Building2 className="w-5 h-5 text-purple-600" />
                       </div>
                       <div>
-                        <p className="font-medium text-gray-900">{org.name}</p>
-                        <p className="text-sm text-gray-500">U&E Code: {org.u_e_code}</p>
+                        <p className="font-medium text-slate-100">{org.name}</p>
+                        <p className="text-sm text-slate-400">U&E Code: {org.u_e_code}</p>
                       </div>
                     </div>
                   </div>
@@ -380,17 +403,17 @@ export default function AdminDashboard() {
 
         {/* Contacts Tab */}
         {activeTab === 'contacts' && (
-          <div className="bg-white rounded-lg border border-gray-200">
-            <div className="p-4 border-b border-gray-200">
-              <h2 className="font-semibold text-gray-900">Contacts</h2>
+          <div className="bg-slate-800/50 rounded-lg border border-slate-700/50">
+            <div className="p-4 border-b border-slate-700/50">
+              <h2 className="font-semibold text-slate-100">Contacts</h2>
             </div>
 
             {loading ? (
-              <div className="p-8 text-center text-gray-500">Loading...</div>
+              <div className="p-8 text-center text-slate-400">Loading...</div>
             ) : contacts.length === 0 ? (
-              <div className="p-8 text-center text-gray-500">No contacts found</div>
+              <div className="p-8 text-center text-slate-400">No contacts found</div>
             ) : (
-              <div className="divide-y divide-gray-100">
+              <div className="divide-y divide-slate-700/50">
                 {contacts.map((contact) => (
                   <div key={contact.contact_id} className="p-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -398,9 +421,9 @@ export default function AdminDashboard() {
                         <Users className="w-5 h-5 text-blue-600" />
                       </div>
                       <div>
-                        <p className="font-medium text-gray-900">{contact.full_name}</p>
-                        <p className="text-sm text-gray-500">{contact.email} • {contact.phone}</p>
-                        <p className="text-xs text-gray-400">{(contact.organization as any)?.name}</p>
+                        <p className="font-medium text-slate-100">{contact.full_name}</p>
+                        <p className="text-sm text-slate-400">{contact.email} • {contact.phone}</p>
+                        <p className="text-xs text-slate-400">{(contact.organization as any)?.name}</p>
                       </div>
                     </div>
                   </div>
@@ -412,17 +435,17 @@ export default function AdminDashboard() {
 
         {/* Agents Tab */}
         {activeTab === 'agents' && (
-          <div className="bg-white rounded-lg border border-gray-200">
-            <div className="p-4 border-b border-gray-200">
-              <h2 className="font-semibold text-gray-900">Support Agents</h2>
+          <div className="bg-slate-800/50 rounded-lg border border-slate-700/50">
+            <div className="p-4 border-b border-slate-700/50">
+              <h2 className="font-semibold text-slate-100">Support Agents</h2>
             </div>
 
             {loading ? (
-              <div className="p-8 text-center text-gray-500">Loading...</div>
+              <div className="p-8 text-center text-slate-400">Loading...</div>
             ) : agents.length === 0 ? (
-              <div className="p-8 text-center text-gray-500">No agents found</div>
+              <div className="p-8 text-center text-slate-400">No agents found</div>
             ) : (
-              <div className="divide-y divide-gray-100">
+              <div className="divide-y divide-slate-700/50">
                 {agents.map((agent) => (
                   <div key={agent.support_agent_id} className="p-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -432,13 +455,13 @@ export default function AdminDashboard() {
                           }`} />
                       </div>
                       <div>
-                        <p className="font-medium text-gray-900">{agent.full_name}</p>
-                        <p className="text-sm text-gray-500">
+                        <p className="font-medium text-slate-100">{agent.full_name}</p>
+                        <p className="text-sm text-slate-400">
                           {agent.agent_type} • {agent.specialization || 'General'}
                         </p>
                       </div>
                     </div>
-                    <span className={`text-xs px-2 py-1 rounded-full ${agent.is_available ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+                    <span className={`text-xs px-2 py-1 rounded-full ${agent.is_available ? 'bg-green-600/20 border border-green-500/50 text-green-300' : 'bg-slate-800/50 border border-slate-700/50 text-slate-300'
                       }`}>
                       {agent.is_available ? 'Available' : 'Offline'}
                     </span>

@@ -58,8 +58,8 @@ function BarChart({ data, aiColor = '#8B5CF6', humanColor = '#10B981' }: {
             {data.map((item, idx) => (
                 <div key={idx} className="space-y-1">
                     <div className="flex justify-between text-sm">
-                        <span className="text-gray-600 font-medium">{item.label}</span>
-                        <span className="text-xs text-gray-500">AI: {item.ai} | Human: {item.human}</span>
+                        <span className="text-slate-300 font-medium">{item.label}</span>
+                        <span className="text-xs text-slate-400">AI: {item.ai} | Human: {item.human}</span>
                     </div>
                     <div className="flex gap-1 h-6">
                         <div
@@ -101,7 +101,7 @@ function MultiLineChart({
 }) {
     const [hoveredPoint, setHoveredPoint] = useState<{ x: number; y: number; ai: number; human: number; label: string } | null>(null);
 
-    if (data.length === 0) return <div className="text-gray-400 text-center py-8">No data available</div>;
+    if (data.length === 0) return <div className="text-slate-400 text-center py-8">No data available</div>;
 
     const padding = { top: 20, right: 20, bottom: 40, left: 50 };
     const width = 100; // percentage-based
@@ -244,14 +244,14 @@ function MultiLineChart({
             </svg>
 
             {/* Y-axis labels */}
-            <div className="absolute left-0 top-0 h-full flex flex-col justify-between text-[10px] text-gray-400 -ml-8">
+            <div className="absolute left-0 top-0 h-full flex flex-col justify-between text-[10px] text-slate-400 -ml-8">
                 {yAxisTicks.map((tick, i) => (
                     <span key={i}>{tick.value}</span>
                 ))}
             </div>
 
             {/* X-axis labels */}
-            <div className="absolute bottom-0 left-0 right-0 flex justify-between text-[10px] text-gray-400 -mb-5">
+            <div className="absolute bottom-0 left-0 right-0 flex justify-between text-[10px] text-slate-400 -mb-5">
                 {data.filter((_, i) => i % 7 === 0 || i === data.length - 1).map((d, i) => (
                     <span key={i}>{d.label}</span>
                 ))}
@@ -286,7 +286,7 @@ function MultiLineChart({
 function ResponseTimeChart({ data }: { data: { label: string; ai: number; human: number }[] }) {
     const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
-    if (data.length === 0) return <div className="text-gray-400 text-center py-8">No data available</div>;
+    if (data.length === 0) return <div className="text-slate-400 text-center py-8">No data available</div>;
 
     const maxAI = Math.max(...data.map(d => d.ai), 1);
     const maxHuman = Math.max(...data.map(d => d.human), 1);
@@ -326,7 +326,7 @@ function ResponseTimeChart({ data }: { data: { label: string; ai: number; human:
                     );
                 })}
             </div>
-            <div className="absolute bottom-0 left-0 right-0 flex justify-between text-[10px] text-gray-400">
+            <div className="absolute bottom-0 left-0 right-0 flex justify-between text-[10px] text-slate-400">
                 {data.filter((_, i) => i % 7 === 0 || i === data.length - 1).map((d, i) => (
                     <span key={i}>{d.label}</span>
                 ))}
@@ -339,7 +339,7 @@ function ResponseTimeChart({ data }: { data: { label: string; ai: number; human:
 function CumulativeChart({ data }: { data: { label: string; ai: number; human: number }[] }) {
     const [hoveredPoint, setHoveredPoint] = useState<{ idx: number; x: number; y: number } | null>(null);
 
-    if (data.length === 0) return <div className="text-gray-400 text-center py-8">No data available</div>;
+    if (data.length === 0) return <div className="text-slate-400 text-center py-8">No data available</div>;
 
     // Calculate cumulative values
     let cumulativeAI = 0;
@@ -414,7 +414,7 @@ function CumulativeChart({ data }: { data: { label: string; ai: number; human: n
             </svg>
 
             {/* Y-axis */}
-            <div className="absolute left-0 top-0 h-full flex flex-col justify-between text-[10px] text-gray-400 -ml-6">
+            <div className="absolute left-0 top-0 h-full flex flex-col justify-between text-[10px] text-slate-400 -ml-6">
                 <span>{maxValue}</span>
                 <span>{Math.round(maxValue / 2)}</span>
                 <span>0</span>
@@ -472,7 +472,7 @@ function CircularProgress({ value, size = 80, strokeWidth = 8, color = '#8B5CF6'
                 />
             </svg>
             <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-xl font-bold text-gray-800">{value}%</span>
+                <span className="text-xl font-bold text-slate-100">{value}%</span>
             </div>
         </div>
     );
@@ -524,7 +524,7 @@ export function AIMetricsModal({ isOpen, onClose }: AIMetricsModalProps) {
 
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden">
+            <div className="bg-slate-800/90 border border-slate-700/50 rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden">
                 {/* Header */}
                 <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-6 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -544,12 +544,12 @@ export function AIMetricsModal({ isOpen, onClose }: AIMetricsModalProps) {
                     </button>
                 </div>
 
-                {/* Date Range Filter */}
-                <div className="bg-gray-50 border-b border-gray-200 px-6 py-3">
+                {/* Date Range Filter - Dark Theme */}
+                <div className="bg-slate-800/70 border-b border-slate-700/50 px-6 py-3">
                     <div className="flex items-center justify-between flex-wrap gap-3">
                         <div className="flex items-center gap-2">
-                            <Calendar className="w-4 h-4 text-gray-500" />
-                            <span className="text-sm text-gray-600 font-medium">Date Range:</span>
+                            <Calendar className="w-4 h-4 text-slate-400" />
+                            <span className="text-sm text-slate-300 font-medium">Date Range:</span>
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
                             {(['7d', '14d', '30d', '60d', '90d'] as DateRange[]).map((range) => (
@@ -559,10 +559,11 @@ export function AIMetricsModal({ isOpen, onClose }: AIMetricsModalProps) {
                                         setDateRange(range);
                                         setShowCustomRange(false);
                                     }}
-                                    className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${dateRange === range && !showCustomRange
-                                            ? 'bg-purple-600 text-white'
-                                            : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-                                        }`}
+                                    className={`px-3 py-1.5 text-sm rounded-lg transition-colors border ${
+                                        dateRange === range && !showCustomRange
+                                            ? 'bg-purple-600/50 border-purple-500/50 text-purple-200'
+                                            : 'bg-slate-800/50 border-slate-700/50 text-slate-300 hover:bg-slate-800/70'
+                                    }`}
                                 >
                                     {range.replace('d', ' Days')}
                                 </button>
@@ -571,7 +572,7 @@ export function AIMetricsModal({ isOpen, onClose }: AIMetricsModalProps) {
                                 onClick={() => setShowCustomRange(!showCustomRange)}
                                 className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${showCustomRange
                                         ? 'bg-purple-600 text-white'
-                                        : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+                                            : 'bg-slate-800/50 border border-slate-700/50 text-slate-300 hover:bg-slate-800/70'
                                     }`}
                             >
                                 Custom
@@ -579,23 +580,23 @@ export function AIMetricsModal({ isOpen, onClose }: AIMetricsModalProps) {
                         </div>
                     </div>
                     {showCustomRange && (
-                        <div className="flex items-center gap-3 mt-3 pt-3 border-t border-gray-200">
+                        <div className="flex items-center gap-3 mt-3 pt-3 border-t border-slate-700/50">
                             <div className="flex items-center gap-2">
-                                <label className="text-sm text-gray-500">From:</label>
+                                <label className="text-sm text-slate-400">From:</label>
                                 <input
                                     type="date"
                                     value={customStartDate}
                                     onChange={(e) => setCustomStartDate(e.target.value)}
-                                    className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    className="px-3 py-1.5 text-sm border border-slate-700/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                                 />
                             </div>
                             <div className="flex items-center gap-2">
-                                <label className="text-sm text-gray-500">To:</label>
+                                <label className="text-sm text-slate-400">To:</label>
                                 <input
                                     type="date"
                                     value={customEndDate}
                                     onChange={(e) => setCustomEndDate(e.target.value)}
-                                    className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                    className="px-3 py-1.5 text-sm border border-slate-700/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                                 />
                             </div>
                             <button
@@ -618,7 +619,7 @@ export function AIMetricsModal({ isOpen, onClose }: AIMetricsModalProps) {
                     {loading ? (
                         <div className="flex flex-col items-center justify-center py-20">
                             <Loader2 className="w-10 h-10 text-purple-600 animate-spin mb-4" />
-                            <p className="text-gray-500">Loading AI metrics...</p>
+                            <p className="text-slate-400">Loading AI metrics...</p>
                         </div>
                     ) : error ? (
                         <div className="text-center py-20">
@@ -638,9 +639,9 @@ export function AIMetricsModal({ isOpen, onClose }: AIMetricsModalProps) {
                                 <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-xl p-4 border border-purple-100">
                                     <div className="flex items-center justify-between">
                                         <div>
-                                            <p className="text-sm text-gray-500 mb-1">AI Resolution Rate</p>
+                                            <p className="text-sm text-slate-400 mb-1">AI Resolution Rate</p>
                                             <p className="text-3xl font-bold text-purple-600">{metrics.summary.aiResolutionRate}%</p>
-                                            <p className="text-xs text-gray-400 mt-1">of all resolved tickets</p>
+                                            <p className="text-xs text-slate-400 mt-1">of all resolved tickets</p>
                                         </div>
                                         <CircularProgress value={metrics.summary.aiResolutionRate} />
                                     </div>
@@ -653,9 +654,9 @@ export function AIMetricsModal({ isOpen, onClose }: AIMetricsModalProps) {
                                             <Clock className="w-6 h-6 text-green-600" />
                                         </div>
                                         <div>
-                                            <p className="text-sm text-gray-500">Time Saved by AI</p>
+                                            <p className="text-sm text-slate-400">Time Saved by AI</p>
                                             <p className="text-2xl font-bold text-green-600">{metrics.summary.timeSavedByAI}h</p>
-                                            <p className="text-xs text-gray-400">total hours saved</p>
+                                            <p className="text-xs text-slate-400">total hours saved</p>
                                         </div>
                                     </div>
                                 </div>
@@ -667,9 +668,9 @@ export function AIMetricsModal({ isOpen, onClose }: AIMetricsModalProps) {
                                             <DollarSign className="w-6 h-6 text-blue-600" />
                                         </div>
                                         <div>
-                                            <p className="text-sm text-gray-500">Cost Savings</p>
+                                            <p className="text-sm text-slate-400">Cost Savings</p>
                                             <p className="text-2xl font-bold text-blue-600">${metrics.summary.costSavedByAI.toLocaleString()}</p>
-                                            <p className="text-xs text-gray-400">at $25/hr agent rate</p>
+                                            <p className="text-xs text-slate-400">at $25/hr agent rate</p>
                                         </div>
                                     </div>
                                 </div>
@@ -681,9 +682,9 @@ export function AIMetricsModal({ isOpen, onClose }: AIMetricsModalProps) {
                                             <Zap className="w-6 h-6 text-orange-600" />
                                         </div>
                                         <div>
-                                            <p className="text-sm text-gray-500">AI Response Speed</p>
+                                            <p className="text-sm text-slate-400">AI Response Speed</p>
                                             <p className="text-2xl font-bold text-orange-600">{metrics.summary.avgAIResponseTime}s</p>
-                                            <p className="text-xs text-gray-400">vs {metrics.summary.avgHumanResponseTime}min human</p>
+                                            <p className="text-xs text-slate-400">vs {metrics.summary.avgHumanResponseTime}min human</p>
                                         </div>
                                     </div>
                                 </div>
@@ -691,49 +692,49 @@ export function AIMetricsModal({ isOpen, onClose }: AIMetricsModalProps) {
 
                             {/* Resolution Stats */}
                             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                                <div className="bg-white rounded-xl p-4 border border-gray-200 text-center">
-                                    <Target className="w-5 h-5 text-gray-400 mx-auto mb-2" />
-                                    <p className="text-2xl font-bold text-gray-800">{metrics.summary.totalTickets}</p>
-                                    <p className="text-xs text-gray-500">Total Tickets</p>
+                                <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50 text-center">
+                                    <Target className="w-5 h-5 text-slate-400 mx-auto mb-2" />
+                                    <p className="text-2xl font-bold text-slate-100">{metrics.summary.totalTickets}</p>
+                                    <p className="text-xs text-slate-400">Total Tickets</p>
                                 </div>
-                                <div className="bg-white rounded-xl p-4 border border-gray-200 text-center">
+                                <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50 text-center">
                                     <Bot className="w-5 h-5 text-purple-500 mx-auto mb-2" />
                                     <p className="text-2xl font-bold text-purple-600">{metrics.summary.resolvedByAI}</p>
-                                    <p className="text-xs text-gray-500">Resolved by AI</p>
+                                    <p className="text-xs text-slate-400">Resolved by AI</p>
                                 </div>
-                                <div className="bg-white rounded-xl p-4 border border-gray-200 text-center">
+                                <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50 text-center">
                                     <Users className="w-5 h-5 text-green-500 mx-auto mb-2" />
                                     <p className="text-2xl font-bold text-green-600">{metrics.summary.resolvedByHuman}</p>
-                                    <p className="text-xs text-gray-500">Resolved by Human</p>
+                                    <p className="text-xs text-slate-400">Resolved by Human</p>
                                 </div>
-                                <div className="bg-white rounded-xl p-4 border border-gray-200 text-center">
+                                <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50 text-center">
                                     <ArrowUp className="w-5 h-5 text-orange-500 mx-auto mb-2" />
                                     <p className="text-2xl font-bold text-orange-600">{metrics.summary.escalatedToHuman}</p>
-                                    <p className="text-xs text-gray-500">Escalated to Human</p>
+                                    <p className="text-xs text-slate-400">Escalated to Human</p>
                                 </div>
-                                <div className="bg-white rounded-xl p-4 border border-gray-200 text-center">
+                                <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50 text-center">
                                     <MessageSquare className="w-5 h-5 text-blue-500 mx-auto mb-2" />
                                     <p className="text-2xl font-bold text-blue-600">{metrics.summary.aiMessagesCount}</p>
-                                    <p className="text-xs text-gray-500">AI Messages Sent</p>
+                                    <p className="text-xs text-slate-400">AI Messages Sent</p>
                                 </div>
                             </div>
 
                             {/* Charts Row */}
                             <div className="grid md:grid-cols-2 gap-6">
                                 {/* Daily Resolution Trend - Line Chart */}
-                                <div className="bg-white rounded-xl p-5 border border-gray-200">
+                                <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50">
                                     <div className="flex items-center gap-2 mb-4">
                                         <TrendingUp className="w-5 h-5 text-purple-600" />
-                                        <h3 className="font-semibold text-gray-800">Daily Resolution Trend</h3>
+                                        <h3 className="font-semibold text-slate-100">Daily Resolution Trend</h3>
                                     </div>
                                     <div className="flex items-center gap-4 mb-4">
                                         <div className="flex items-center gap-2">
                                             <div className="w-3 h-3 bg-purple-500 rounded" />
-                                            <span className="text-sm text-gray-500">AI Resolved</span>
+                                            <span className="text-sm text-slate-400">AI Resolved</span>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <div className="w-3 h-3 bg-green-500 rounded" />
-                                            <span className="text-sm text-gray-500">Human Resolved</span>
+                                            <span className="text-sm text-slate-400">Human Resolved</span>
                                         </div>
                                     </div>
                                     <div className="pl-8 pr-2">
@@ -746,19 +747,19 @@ export function AIMetricsModal({ isOpen, onClose }: AIMetricsModalProps) {
                                 </div>
 
                                 {/* Cumulative Resolutions - Area Chart */}
-                                <div className="bg-white rounded-xl p-5 border border-gray-200">
+                                <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50">
                                     <div className="flex items-center gap-2 mb-4">
                                         <Target className="w-5 h-5 text-purple-600" />
-                                        <h3 className="font-semibold text-gray-800">Cumulative Resolutions</h3>
+                                        <h3 className="font-semibold text-slate-100">Cumulative Resolutions</h3>
                                     </div>
                                     <div className="flex items-center gap-4 mb-4">
                                         <div className="flex items-center gap-2">
                                             <div className="w-3 h-3 bg-purple-500 rounded" />
-                                            <span className="text-sm text-gray-500">AI Total</span>
+                                            <span className="text-sm text-slate-400">AI Total</span>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <div className="w-3 h-3 bg-green-500 rounded" />
-                                            <span className="text-sm text-gray-500">Human Total</span>
+                                            <span className="text-sm text-slate-400">Human Total</span>
                                         </div>
                                     </div>
                                     <div className="pl-8 pr-2">
@@ -772,19 +773,19 @@ export function AIMetricsModal({ isOpen, onClose }: AIMetricsModalProps) {
                             {/* Second Row of Charts */}
                             <div className="grid md:grid-cols-2 gap-6">
                                 {/* Priority Breakdown */}
-                                <div className="bg-white rounded-xl p-5 border border-gray-200">
+                                <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50">
                                     <div className="flex items-center gap-2 mb-4">
                                         <Award className="w-5 h-5 text-purple-600" />
-                                        <h3 className="font-semibold text-gray-800">Resolution by Priority</h3>
+                                        <h3 className="font-semibold text-slate-100">Resolution by Priority</h3>
                                     </div>
                                     <div className="flex items-center gap-4 mb-4">
                                         <div className="flex items-center gap-2">
                                             <div className="w-3 h-3 bg-purple-500 rounded" />
-                                            <span className="text-sm text-gray-500">AI</span>
+                                            <span className="text-sm text-slate-400">AI</span>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <div className="w-3 h-3 bg-green-500 rounded" />
-                                            <span className="text-sm text-gray-500">Human</span>
+                                            <span className="text-sm text-slate-400">Human</span>
                                         </div>
                                     </div>
                                     <BarChart
@@ -797,17 +798,17 @@ export function AIMetricsModal({ isOpen, onClose }: AIMetricsModalProps) {
                                 </div>
 
                                 {/* Messages Activity Comparison */}
-                                <div className="bg-white rounded-xl p-5 border border-gray-200">
+                                <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50">
                                     <div className="flex items-center gap-2 mb-4">
                                         <MessageSquare className="w-5 h-5 text-purple-600" />
-                                        <h3 className="font-semibold text-gray-800">Messages Activity</h3>
+                                        <h3 className="font-semibold text-slate-100">Messages Activity</h3>
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         {/* AI Messages */}
                                         <div className="bg-purple-50 rounded-xl p-4 text-center">
                                             <Bot className="w-8 h-8 text-purple-500 mx-auto mb-2" />
                                             <p className="text-3xl font-bold text-purple-600">{metrics.summary.aiMessagesCount}</p>
-                                            <p className="text-sm text-gray-500 mt-1">AI Messages</p>
+                                            <p className="text-sm text-slate-400 mt-1">AI Messages</p>
                                             <div className="mt-3 bg-purple-200 rounded-full h-2">
                                                 <div
                                                     className="bg-purple-500 h-2 rounded-full transition-all duration-500"
@@ -819,7 +820,7 @@ export function AIMetricsModal({ isOpen, onClose }: AIMetricsModalProps) {
                                         <div className="bg-green-50 rounded-xl p-4 text-center">
                                             <Users className="w-8 h-8 text-green-500 mx-auto mb-2" />
                                             <p className="text-3xl font-bold text-green-600">{metrics.summary.humanMessagesCount}</p>
-                                            <p className="text-sm text-gray-500 mt-1">Human Messages</p>
+                                            <p className="text-sm text-slate-400 mt-1">Human Messages</p>
                                             <div className="mt-3 bg-green-200 rounded-full h-2">
                                                 <div
                                                     className="bg-green-500 h-2 rounded-full transition-all duration-500"
@@ -829,9 +830,9 @@ export function AIMetricsModal({ isOpen, onClose }: AIMetricsModalProps) {
                                         </div>
                                     </div>
                                     {/* Efficiency Comparison */}
-                                    <div className="mt-4 pt-4 border-t border-gray-100">
+                                    <div className="mt-4 pt-4 border-t border-slate-700/50">
                                         <div className="flex justify-between items-center text-sm">
-                                            <span className="text-gray-500">AI Response Ratio</span>
+                                            <span className="text-slate-400">AI Response Ratio</span>
                                             <span className="font-semibold text-purple-600">
                                                 {Math.round((metrics.summary.aiMessagesCount / (metrics.summary.aiMessagesCount + metrics.summary.humanMessagesCount || 1)) * 100)}%
                                             </span>
@@ -841,22 +842,22 @@ export function AIMetricsModal({ isOpen, onClose }: AIMetricsModalProps) {
                             </div>
 
                             {/* Organization Preference */}
-                            <div className="bg-white rounded-xl p-5 border border-gray-200">
+                            <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50">
                                 <div className="flex items-center gap-2 mb-4">
                                     <Users className="w-5 h-5 text-purple-600" />
-                                    <h3 className="font-semibold text-gray-800">Organization Support Preference</h3>
-                                    <span className="text-sm text-gray-400 ml-auto">AI vs Human Resolution Rate by Organization</span>
+                                    <h3 className="font-semibold text-slate-100">Organization Support Preference</h3>
+                                    <span className="text-sm text-slate-400 ml-auto">AI vs Human Resolution Rate by Organization</span>
                                 </div>
                                 {metrics.charts.orgPreference.length === 0 ? (
-                                    <p className="text-gray-500 text-center py-4">No organization data available yet</p>
+                                    <p className="text-slate-400 text-center py-4">No organization data available yet</p>
                                 ) : (
                                     <div className="space-y-3">
                                         {metrics.charts.orgPreference.map((org, idx) => (
                                             <div key={idx} className="flex items-center gap-4">
-                                                <div className="w-32 text-sm text-gray-600 truncate" title={org.name}>
+                                                <div className="w-32 text-sm text-slate-300 truncate" title={org.name}>
                                                     {org.name}
                                                 </div>
-                                                <div className="flex-1 h-8 bg-gray-100 rounded-lg overflow-hidden flex">
+                                                <div className="flex-1 h-8 bg-slate-800/50 border border-slate-700/50 rounded-lg overflow-hidden flex">
                                                     <div
                                                         className="bg-gradient-to-r from-purple-500 to-purple-400 flex items-center justify-center text-xs text-white font-medium transition-all duration-500"
                                                         style={{ width: `${org.aiPercentage}%` }}
@@ -872,7 +873,7 @@ export function AIMetricsModal({ isOpen, onClose }: AIMetricsModalProps) {
                                                 </div>
                                                 <div className="w-24 text-right">
                                                     <span className="text-xs text-purple-600 font-medium">{org.ai} AI</span>
-                                                    <span className="text-gray-300 mx-1">|</span>
+                                                    <span className="text-slate-300 mx-1">|</span>
                                                     <span className="text-xs text-green-600 font-medium">{org.human} Human</span>
                                                 </div>
                                             </div>
@@ -888,7 +889,7 @@ export function AIMetricsModal({ isOpen, onClose }: AIMetricsModalProps) {
                                     Response Time Advantage
                                 </h3>
                                 <div className="grid md:grid-cols-2 gap-6">
-                                    <div className="bg-white/10 rounded-lg p-4">
+                                    <div className="bg-slate-800/30 rounded-lg p-4 border border-slate-700/50">
                                         <div className="flex items-center gap-3">
                                             <Bot className="w-8 h-8" />
                                             <div>
@@ -897,7 +898,7 @@ export function AIMetricsModal({ isOpen, onClose }: AIMetricsModalProps) {
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="bg-white/10 rounded-lg p-4">
+                                    <div className="bg-slate-800/30 rounded-lg p-4 border border-slate-700/50">
                                         <div className="flex items-center gap-3">
                                             <Users className="w-8 h-8" />
                                             <div>
@@ -919,16 +920,16 @@ export function AIMetricsModal({ isOpen, onClose }: AIMetricsModalProps) {
                             </div>
 
                             {/* AI Benefits Summary */}
-                            <div className="bg-gray-50 rounded-xl p-5 border border-gray-200">
-                                <h3 className="font-semibold text-gray-800 mb-4">🚀 AI Support Benefits Summary</h3>
+                            <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50">
+                                <h3 className="font-semibold text-slate-100 mb-4">🚀 AI Support Benefits Summary</h3>
                                 <div className="grid md:grid-cols-3 gap-4">
                                     <div className="flex items-start gap-3">
                                         <div className="p-2 bg-purple-100 rounded-lg shrink-0">
                                             <Clock className="w-5 h-5 text-purple-600" />
                                         </div>
                                         <div>
-                                            <p className="font-medium text-gray-800">24/7 Availability</p>
-                                            <p className="text-sm text-gray-500">AI never sleeps, instant responses anytime</p>
+                                            <p className="font-medium text-slate-100">24/7 Availability</p>
+                                            <p className="text-sm text-slate-400">AI never sleeps, instant responses anytime</p>
                                         </div>
                                     </div>
                                     <div className="flex items-start gap-3">
@@ -936,8 +937,8 @@ export function AIMetricsModal({ isOpen, onClose }: AIMetricsModalProps) {
                                             <TrendingUp className="w-5 h-5 text-green-600" />
                                         </div>
                                         <div>
-                                            <p className="font-medium text-gray-800">Scalable Support</p>
-                                            <p className="text-sm text-gray-500">Handle unlimited tickets simultaneously</p>
+                                            <p className="font-medium text-slate-100">Scalable Support</p>
+                                            <p className="text-sm text-slate-400">Handle unlimited tickets simultaneously</p>
                                         </div>
                                     </div>
                                     <div className="flex items-start gap-3">
@@ -945,8 +946,8 @@ export function AIMetricsModal({ isOpen, onClose }: AIMetricsModalProps) {
                                             <DollarSign className="w-5 h-5 text-blue-600" />
                                         </div>
                                         <div>
-                                            <p className="font-medium text-gray-800">Cost Effective</p>
-                                            <p className="text-sm text-gray-500">Reduce support costs by up to 70%</p>
+                                            <p className="font-medium text-slate-100">Cost Effective</p>
+                                            <p className="text-sm text-slate-400">Reduce support costs by up to 70%</p>
                                         </div>
                                     </div>
                                 </div>

@@ -82,33 +82,55 @@ Respond with JSON:
 
 // Get or create AI bot for a category
 export async function getOrCreateAIBot(category: string): Promise<number> {
-  // Check if bot exists
-  const { data: existingBot } = await supabase
+  const agentDef = AGENT_DEFINITIONS[category as AgentType] || AGENT_DEFINITIONS.general;
+  
+  // Normalize category for lookup (email, network, computer, printer, phone, security, general, triage)
+  const normalizedCategory = category.toLowerCase().trim();
+  
+  // Check if bot exists - try multiple ways to find it
+  const { data: existingBot, error: lookupError } = await supabase
     .from('support_agents')
     .select('support_agent_id')
     .eq('agent_type', 'Bot')
-    .ilike('specialization', `%${category}%`)
-    .single();
+    .or(`specialization.ilike.%${normalizedCategory}%,full_name.ilike.%${agentDef.name}%`)
+    .maybeSingle(); // Use maybeSingle() to avoid error when no bot exists
 
-  if (existingBot) {
+  if (existingBot && !lookupError) {
+    console.log('[Orchestrator] Found existing bot:', existingBot.support_agent_id, 'for category:', category);
     return existingBot.support_agent_id;
   }
 
-  // Create new bot
-  const agentDef = AGENT_DEFINITIONS[category as AgentType] || AGENT_DEFINITIONS.general;
-  const { data: newBot, error } = await supabase
+  // Create new bot if it doesn't exist
+  console.log('[Orchestrator] Creating new bot for category:', category);
+  const { data: newBot, error: createError } = await supabase
     .from('support_agents')
     .insert({
-      full_name: agentDef.name,
-      email: `${category}-bot@urackit.ai`,
+      full_name: `AI ${agentDef.name}`,
+      email: `${normalizedCategory}-bot@urackit.ai`,
       agent_type: 'Bot',
-      specialization: agentDef.description,
+      specialization: normalizedCategory,
       is_available: true,
     })
     .select()
     .single();
 
-  if (error) throw error;
+  if (createError) {
+    console.error('[Orchestrator] Error creating bot:', createError);
+    // If creation fails, try to find any general bot as fallback
+    const { data: fallbackBot } = await supabase
+      .from('support_agents')
+      .select('support_agent_id')
+      .eq('agent_type', 'Bot')
+      .maybeSingle();
+    
+    if (fallbackBot) {
+      console.log('[Orchestrator] Using fallback bot:', fallbackBot.support_agent_id);
+      return fallbackBot.support_agent_id;
+    }
+    throw createError;
+  }
+  
+  console.log('[Orchestrator] Created new bot:', newBot.support_agent_id);
   return newBot.support_agent_id;
 }
 
