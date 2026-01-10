@@ -8,23 +8,24 @@ import { SupportTicket, TicketMessage } from '@/lib/supabase';
 import { useTicketRealtime } from '@/lib/useRealtime';
 import { useMessageNotification } from '@/lib/useNotificationSound';
 import { ChatContainer, ChatInput } from '@/components/ChatUI';
-import { ArrowLeft, CheckCircle } from 'lucide-react';
+import { Terminal } from '@/components/Terminal';
+import { ArrowLeft, CheckCircle, Terminal as TerminalIcon } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 
 const priorityColors: Record<string, string> = {
-  Low: 'bg-gray-100 text-gray-700',
-  Medium: 'bg-blue-100 text-blue-700',
-  High: 'bg-orange-100 text-orange-700',
-  Critical: 'bg-red-100 text-red-700',
+  Low: 'badge-gray',
+  Medium: 'badge-blue',
+  High: 'badge-yellow',
+  Critical: 'badge-red',
 };
 
 const statusColors: Record<string, string> = {
-  Open: 'bg-yellow-100 text-yellow-700',
-  'In Progress': 'bg-blue-100 text-blue-700',
-  'Awaiting Customer': 'bg-purple-100 text-purple-700',
-  Escalated: 'bg-orange-100 text-orange-700',
-  Resolved: 'bg-green-100 text-green-700',
-  Closed: 'bg-gray-100 text-gray-700',
+  Open: 'badge-yellow',
+  'In Progress': 'badge-blue',
+  'Awaiting Customer': 'badge-purple',
+  Escalated: 'badge-yellow',
+  Resolved: 'badge-green',
+  Closed: 'badge-gray',
 };
 
 export default function AgentTicketDetail() {
@@ -37,6 +38,8 @@ export default function AgentTicketDetail() {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [showTerminal, setShowTerminal] = useState(false);
+  const [terminalMinimized, setTerminalMinimized] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prevMessageCountRef = useRef<number>(0);
 
@@ -85,17 +88,17 @@ export default function AgentTicketDetail() {
   // Real-time WebSocket subscription for chat
   useTicketRealtime(ticketId, loadTicket, loadMessages);
 
-  // Polling fallback for chat - every 3 seconds for responsive chat
+  // Polling fallback for chat - every 10 seconds (reduced frequency to prevent flickering)
   useEffect(() => {
     if (!user?.id || !ticketId) return;
 
     const pollInterval = setInterval(() => {
       console.log('[Polling] Refreshing messages...');
       loadMessages();
-    }, 3000);
+    }, 10000); // Increased from 3s to 10s to reduce flickering
 
     return () => clearInterval(pollInterval);
-  }, [user?.id, ticketId, loadMessages]);
+  }, [user?.id, ticketId]); // Removed loadMessages from dependencies to prevent constant re-creation
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -118,7 +121,10 @@ export default function AgentTicketDetail() {
       setSending(true);
       await agentAPI.addMessage(ticketId, user!.id, newMessage);
       setNewMessage('');
-      loadTicketData();
+      // Only reload messages, not the entire ticket (prevents loading screen)
+      loadMessages();
+      // Also reload ticket to get updated status, but don't show loading screen
+      loadTicket();
     } catch (err) {
       console.error('Error sending message:', err);
     } finally {
@@ -151,7 +157,7 @@ export default function AgentTicketDetail() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-500 mb-4">Ticket not found or you don't have access</p>
+          <p className="text-slate-400 mb-4">Ticket not found or you don't have access</p>
           <button onClick={() => window.history.back()} className="text-green-600 hover:text-green-700">
             Go back
           </button>
@@ -165,36 +171,36 @@ export default function AgentTicketDetail() {
   const isClosed = ['Resolved', 'Closed'].includes(statusName);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-slate-900 flex flex-col">
       {/* Header */}
-      <header className="bg-green-600 text-white shrink-0">
-        <div className="max-w-5xl mx-auto px-4 py-4">
+      <header className="bg-gradient-to-r from-green-600 via-green-700 to-emerald-700 text-white shrink-0 border-b-2 border-green-800/40" style={{ boxShadow: 'none' }}>
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
           <button
             onClick={() => window.history.back()}
-            className="flex items-center gap-2 text-green-200 hover:text-white mb-3"
+            className="flex items-center gap-2.5 text-green-100 hover:text-white mb-6 transition-colors group font-medium"
           >
-            <ArrowLeft className="w-4 h-4" />
-            Back to dashboard
+            <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+            <span>Back to dashboard</span>
           </button>
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-sm text-green-200">#{ticket.ticket_id}</span>
-                <span className={`text-xs px-2 py-0.5 rounded-full ${statusColors[statusName]}`}>
+          <div className="flex items-start justify-between gap-6">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-4 flex-wrap">
+                <span className="text-xs font-mono font-bold text-green-200 bg-white/10 px-3 py-1.5 rounded-lg">#{ticket.ticket_id}</span>
+                <span className={`badge ${statusColors[statusName] || 'badge-gray'}`}>
                   {statusName}
                 </span>
-                <span className={`text-xs px-2 py-0.5 rounded-full ${priorityColors[priorityName]}`}>
+                <span className={`badge ${priorityColors[priorityName] || 'badge-gray'}`}>
                   {priorityName}
                 </span>
               </div>
-              <h1 className="text-xl font-bold">{ticket.subject}</h1>
+              <h1 className="text-2xl font-bold tracking-tight">{ticket.subject}</h1>
             </div>
             {!isClosed && (
               <button
                 onClick={handleResolve}
-                className="flex items-center gap-2 bg-green-500 hover:bg-green-400 px-4 py-2 rounded-lg text-sm"
+                className="btn bg-white/20 hover:bg-white/30 text-white border border-white/30 backdrop-blur-sm shadow-lg"
               >
-                <CheckCircle className="w-4 h-4" />
+                <CheckCircle className="w-5 h-5" />
                 Mark Resolved
               </button>
             )}
@@ -202,31 +208,31 @@ export default function AgentTicketDetail() {
         </div>
       </header>
 
-      {/* Ticket Info */}
-      <div className="bg-white border-b border-gray-200 shrink-0">
-        <div className="max-w-5xl mx-auto px-4 py-4">
+      {/* Ticket Info - Dark Theme */}
+      <div className="bg-slate-800/50 border-b border-slate-700/50 shrink-0">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="grid grid-cols-4 gap-4 text-sm">
             <div>
-              <p className="text-gray-500">Contact</p>
-              <p className="font-medium">{(ticket.contact as any)?.full_name}</p>
-              <p className="text-gray-400">{(ticket.contact as any)?.phone}</p>
+              <p className="text-slate-400 font-medium mb-1">Contact</p>
+              <p className="font-semibold text-slate-100">{(ticket.contact as any)?.full_name}</p>
+              <p className="text-slate-400 text-xs mt-0.5">{(ticket.contact as any)?.phone || 'N/A'}</p>
             </div>
             <div>
-              <p className="text-gray-500">Organization</p>
-              <p className="font-medium">{(ticket.organization as any)?.name}</p>
+              <p className="text-slate-400 font-medium mb-1">Organization</p>
+              <p className="font-semibold text-slate-100">{(ticket.organization as any)?.name}</p>
             </div>
             <div>
-              <p className="text-gray-500">Created</p>
-              <p className="font-medium">{format(new Date(ticket.created_at), 'MMM d, yyyy')}</p>
-              <p className="text-gray-400">{formatDistanceToNow(new Date(ticket.created_at), { addSuffix: true })}</p>
+              <p className="text-slate-400 font-medium mb-1">Created</p>
+              <p className="font-semibold text-slate-100">{format(new Date(ticket.created_at), 'MMM d, yyyy')}</p>
+              <p className="text-slate-400 text-xs mt-0.5">{formatDistanceToNow(new Date(ticket.created_at), { addSuffix: true })}</p>
             </div>
             <div>
-              <p className="text-gray-500">Update Status</p>
+              <p className="text-slate-400 font-medium mb-1">Update Status</p>
               <select
                 value={ticket.status_id}
                 onChange={(e) => handleStatusChange(parseInt(e.target.value))}
                 disabled={isClosed}
-                className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm disabled:bg-gray-100"
+                className="input text-sm py-2 disabled:bg-slate-800/30"
               >
                 <option value={1}>Open</option>
                 <option value={2}>In Progress</option>
@@ -238,32 +244,67 @@ export default function AgentTicketDetail() {
             </div>
           </div>
           {ticket.description && (
-            <div className="mt-4 pt-4 border-t border-gray-100">
-              <p className="text-gray-500 text-sm mb-1">Description</p>
-              <p className="text-gray-700">{ticket.description}</p>
+            <div className="mt-4 pt-4 border-t border-slate-700/50">
+              <p className="text-slate-400 text-xs font-semibold uppercase tracking-wide mb-2">Description</p>
+              <p className="text-slate-200 leading-relaxed">{ticket.description}</p>
             </div>
           )}
         </div>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-auto bg-gray-50">
-        <div className="max-w-5xl mx-auto px-4 py-6">
-          <h3 className="text-sm font-medium text-gray-500 mb-4">Conversation</h3>
-          <ChatContainer
-            messages={messages}
-            currentUserId={user.id}
-            userRole="agent"
-            messagesEndRef={messagesEndRef as React.RefObject<HTMLDivElement>}
-            emptyMessage="No messages yet. Start the conversation below."
-          />
+      {/* Messages - Dark Theme */}
+      <div className="flex-1 overflow-auto bg-slate-900">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wide mb-1">Conversation</h3>
+              <div className="h-1 w-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full"></div>
+            </div>
+            <button
+              onClick={() => {
+                setShowTerminal(!showTerminal);
+                setTerminalMinimized(false);
+              }}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-medium border ${
+                showTerminal
+                  ? 'bg-green-600/50 border-green-500/50 text-green-200 hover:bg-green-600/70'
+                  : 'bg-slate-800/50 border-slate-700/50 text-slate-300 hover:bg-slate-800/70'
+              }`}
+            >
+              <TerminalIcon className="w-4 h-4" />
+              {showTerminal ? 'Hide Terminal' : 'Open Terminal'}
+            </button>
+          </div>
+          
+          {/* Terminal Panel */}
+          {showTerminal && (
+            <div className="mb-6">
+              <Terminal
+                ticketId={ticketId}
+                userId={user.id}
+                userRole="agent"
+                isMinimized={terminalMinimized}
+                onMinimize={setTerminalMinimized}
+              />
+            </div>
+          )}
+
+          <div>
+            <ChatContainer
+              messages={messages}
+              currentUserId={user.id}
+              userRole="agent"
+              messagesEndRef={messagesEndRef as React.RefObject<HTMLDivElement>}
+              emptyMessage="No messages yet. Start the conversation below."
+            />
+          </div>
         </div>
       </div>
 
-      {/* Message Input */}
+      {/* Message Input - Dark Theme */}
       {!isClosed && (
-        <div className="bg-white border-t border-gray-200 shrink-0 shadow-lg">
-          <div className="max-w-5xl mx-auto px-4 py-4">
+        <div className="bg-slate-900 border-t border-slate-700/50 shrink-0">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <ChatInput
               value={newMessage}
               onChange={setNewMessage}
@@ -277,9 +318,12 @@ export default function AgentTicketDetail() {
       )}
 
       {isClosed && (
-        <div className="bg-gray-100 border-t border-gray-200 shrink-0">
-          <div className="max-w-5xl mx-auto px-4 py-4 text-center text-gray-500">
-            This ticket is {statusName.toLowerCase()}.
+        <div className="bg-slate-900 border-t border-slate-700/50 shrink-0 z-20">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 text-center">
+            <div className="inline-flex items-center gap-3 px-6 py-3 bg-slate-800/50 border border-slate-700/50 rounded-xl">
+              <CheckCircle className="w-5 h-5 text-slate-400" />
+              <p className="text-slate-300 font-semibold">This ticket is {statusName.toLowerCase()}. You cannot add new messages.</p>
+            </div>
           </div>
         </div>
       )}

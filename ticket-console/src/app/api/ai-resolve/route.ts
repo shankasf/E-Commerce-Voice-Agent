@@ -19,7 +19,7 @@ import {
   SatisfactionResult,
 } from '@/lib/ai-agents';
 
-// Detect user intent using Responses API (JSON output)
+// Detect user intent using Chat Completions API (JSON output)
 async function detectUserIntent(userMessage: string, conversationHistory: string): Promise<{
   tool: string;
   args: any;
@@ -37,9 +37,9 @@ DO use handoff_to_human_agent for ANY request to speak with a human, regardless 
 Set confirmed=true for handoff_to_human_agent if:
 - User says "now", "immediately", "just do it", "right now"
 - User is confirming after being asked "would you like me to proceed?"
-- User simply says "yes", "yeah", "sure", "go ahead" after a handoff was offered`;
+- User simply says "yes", "yeah", "sure", "go ahead" after a handoff was offered
 
-  const intentSchema = `Return STRICT JSON only, with this exact shape:
+Return STRICT JSON only, with this exact shape:
 { "tool": "handoff_to_human_agent" | "close_ticket" | "continue_troubleshooting", "args": { ... } }
 
 Args rules:
@@ -48,23 +48,29 @@ Args rules:
 - tool=continue_troubleshooting => args: { "response_type": "greeting" | "troubleshooting" | "follow_up" | "clarification" | "acknowledgment" }`;
 
   try {
+    console.log('[Intent Detection] Starting intent detection for message:', userMessage.substring(0, 50));
     const { output_text } = await createResponse({
       model: DEFAULT_MODEL,
-      instructions: `${systemPrompt}\n\n${intentSchema}`,
-      input: `Conversation so far:\n${conversationHistory}\n\nUser's latest message: "${userMessage}"`,
+      instructions: systemPrompt,
+      input: `Conversation so far:\n${conversationHistory || 'No previous messages'}\n\nUser's latest message: "${userMessage}"`,
       temperature: 0.1,
       text: { format: { type: 'json_object' } },
       max_output_tokens: 220,
     });
 
+    console.log('[Intent Detection] Raw output:', output_text);
     const parsed = JSON.parse(output_text || '{}');
+    console.log('[Intent Detection] Parsed intent:', parsed);
+    
     if (parsed?.tool && parsed?.args) {
       return { tool: parsed.tool, args: parsed.args };
     }
 
+    console.warn('[Intent Detection] Invalid response format, defaulting to continue_troubleshooting');
     return { tool: 'continue_troubleshooting', args: { response_type: 'troubleshooting' } };
-  } catch (error) {
-    console.error('Intent detection error:', error);
+  } catch (error: any) {
+    console.error('[Intent Detection] Error:', error.message, error.stack);
+    // Return default intent on error so the flow continues
     return { tool: 'continue_troubleshooting', args: { response_type: 'troubleshooting' } };
   }
 }
@@ -75,23 +81,44 @@ function cleanResponse(text: string): string {
     .replace(/ESCALATE_TO_HUMAN/g, '')
     .replace(/HANDOFF_TO:\w+/g, '')
     .replace(/CLOSE_TICKET_CONFIRMED/g, '')
+    .replace(/EXECUTE_COMMAND:\s*.+?(?:\n|$)/g, '')
+    .replace(/<TERMINAL_COMMAND>.+?<\/TERMINAL_COMMAND>/g, '')
     .replace(/\n{3,}/g, '\n\n')  // Remove excessive newlines
     .trim();
 }
 
 // Triage ticket to determine category and urgency
 async function triageTicket(subject: string, description: string): Promise<TriageResult> {
-  const { output_text } = await createResponse({
-    model: DEFAULT_MODEL,
-    input: `Analyze this ticket and respond in json format.\n\nSubject: ${subject}\n\nDescription: ${description}`,
-    instructions: AGENT_DEFINITIONS.triage.systemPrompt,
-    temperature: 0.3,
-    text: { format: { type: 'json_object' } },
-  });
-
   try {
-    return JSON.parse(output_text || '{}');
-  } catch {
+    console.log('[Triage] Starting triage for ticket:', subject);
+    const { output_text } = await createResponse({
+      model: DEFAULT_MODEL,
+      input: `Analyze this ticket and respond in json format.\n\nSubject: ${subject}\n\nDescription: ${description || 'N/A'}`,
+      instructions: AGENT_DEFINITIONS.triage.systemPrompt,
+      temperature: 0.3,
+      text: { format: { type: 'json_object' } },
+      max_output_tokens: 300,
+    });
+
+    console.log('[Triage] Raw output:', output_text);
+    const parsed = JSON.parse(output_text || '{}');
+    console.log('[Triage] Parsed result:', parsed);
+    
+    // Validate and return triage result
+    if (parsed.category && parsed.urgency) {
+      return {
+        category: parsed.category.toLowerCase(),
+        urgency: parsed.urgency,
+        initialSteps: parsed.initialSteps || [],
+        requiresEscalation: parsed.requiresEscalation || false
+      };
+    }
+    
+    console.warn('[Triage] Invalid response format, using defaults');
+    return { category: 'general', urgency: 'medium', initialSteps: [] };
+  } catch (error: any) {
+    console.error('[Triage] Error:', error.message, error.stack);
+    // Return safe defaults on error
     return { category: 'general', urgency: 'medium', initialSteps: [] };
   }
 }
@@ -161,20 +188,48 @@ WHEN USER WANTS HUMAN HELP:
 - The system handles this automatically - don't interfere
 - Don't ask for device details when user wants transfer
 
+TERMINAL ACCESS (CRITICAL):
+You have DIRECT access to the user's terminal through the web interface. When the user asks you to:
+- Check directories ("show me files", "list directory", "what's in this folder")
+- Check system info ("what's my current directory", "check system info")
+- Run diagnostic commands ("check network", "see what processes are running")
+- Install packages ("install npm package", "download something")
+
+Use this format to execute commands directly:
+EXECUTE_COMMAND: [command here]
+
+Examples:
+- User: "show me what's in my current directory" → EXECUTE_COMMAND: ls -la
+- User: "what's my current directory?" → EXECUTE_COMMAND: pwd
+- User: "check my system info" → EXECUTE_COMMAND: uname -a
+- User: "install express" → EXECUTE_COMMAND: npm install express
+
+DO NOT tell the user to "type ls" or "run this command". EXECUTE IT DIRECTLY.
+After executing, show the output naturally in your response.
+
 INTERNAL MARKERS (place at END of message only):
 - ESCALATE_TO_HUMAN: ONLY for critical issues (security breach, office-wide outage)
 - CLOSE_TICKET_CONFIRMED: ONLY when user explicitly says "close", "yes close it"
 - HANDOFF_TO:[agent_type]: When issue needs different specialist`;
 
-  const { output_text } = await createResponse({
-    model: DEFAULT_MODEL,
-    input: `Ticket Subject: ${ticket.subject}\n\nDescription: ${ticket.description || ''}\n\nConversation so far:\n${conversationHistory}`,
-    instructions,
-    temperature: 0.5,
-    max_output_tokens: 200,
-  });
+  try {
+    console.log('[Generate Solution] Starting solution generation for category:', category);
+    console.log('[Generate Solution] Conversation history length:', conversationHistory.length);
+    
+    const { output_text } = await createResponse({
+      model: DEFAULT_MODEL,
+      input: `Ticket Subject: ${ticket.subject}\n\nDescription: ${ticket.description || ''}\n\nConversation so far:\n${conversationHistory || 'No previous messages'}`,
+      instructions,
+      temperature: 0.5,
+      max_output_tokens: 200,
+    });
 
-  return output_text || 'I apologize, but I encountered an issue generating a response. Let me escalate this to a human agent.';
+    console.log('[Generate Solution] Generated response:', output_text?.substring(0, 100));
+    return output_text || 'I encountered an issue generating a response. Let me escalate this to a human agent.';
+  } catch (error: any) {
+    console.error('[Generate Solution] Error:', error.message, error.stack);
+    throw error; // Re-throw so caller can handle escalation
+  }
 }
 
 // Check user satisfaction and intent
@@ -226,6 +281,16 @@ Be VERY strict about shouldClose - it requires explicit mention of closing the t
 }
 
 export async function POST(request: NextRequest) {
+  // Check if OpenAI API key is configured
+  const openaiApiKey = process.env.OPENAI_API_KEY || '';
+  if (!openaiApiKey || openaiApiKey.trim() === '') {
+    console.error('OPENAI_API_KEY is not configured');
+    return NextResponse.json({ 
+      error: 'AI service is not configured. Please add OPENAI_API_KEY to your environment variables.',
+      details: 'The OpenAI API key is missing. AI responses cannot be generated without it.'
+    }, { status: 503 });
+  }
+
   try {
     const body = await request.json();
     const { action, ticketId, userMessage } = body;
@@ -366,15 +431,78 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'User message is required' }, { status: 400 });
       }
 
-      // Get assigned bot
-      const { data: assignment } = await supabase
+      // Get assigned bot - if no assignment, assign one first
+      let { data: assignment, error: assignmentError } = await supabase
         .from('ticket_assignments')
         .select('support_agent_id, support_agents(agent_type, specialization)')
         .eq('ticket_id', ticketId)
-        .single();
+        .eq('is_primary', true)
+        .maybeSingle(); // Use maybeSingle() to avoid error when no assignment exists
+
+      // If no bot assigned yet, assign one automatically
+      if (assignmentError || !assignment || !assignment.support_agent_id) {
+        console.log('[AI Resolve] No bot assigned, triaging and assigning bot...');
+        
+        // Triage the ticket to determine category
+        const triage = await triageTicket(ticket.subject, ticket.description || '');
+        console.log('[AI Resolve] Triage result:', triage);
+        
+        // Get or create appropriate AI bot
+        const botId = await getOrCreateAIBot(triage.category);
+        console.log('[AI Resolve] Assigned bot ID:', botId, 'category:', triage.category);
+        
+        // Assign bot to ticket
+        await supabase.from('ticket_assignments').insert({
+          ticket_id: ticketId,
+          support_agent_id: botId,
+          is_primary: true,
+        });
+
+        // Update ticket status to In Progress
+        await supabase.from('support_tickets').update({
+          status_id: 2,
+          updated_at: new Date().toISOString(),
+        }).eq('ticket_id', ticketId);
+
+        // Build customer context for greeting
+        const customerContext = await buildTicketContext(ticket);
+        const orgMatch = customerContext.match(/Organization: (.+)/);
+        const managerMatch = customerContext.match(/Account Manager: (.+)/);
+        const orgName = orgMatch ? orgMatch[1].trim() : 'your organization';
+        const managerName = managerMatch ? managerMatch[1].trim() : null;
+        
+        // Build simple greeting
+        let greeting = `🤖 Hello! I'm the AI ${getAgentName(triage.category)}.\n\n`;
+        greeting += `✅ Organization verified: **${orgName}**\n`;
+        if (managerName) {
+          greeting += `👤 Your Account Manager: **${managerName}**\n`;
+        }
+        greeting += `\nHow can I assist you today?`;
+
+        // Add initial bot message
+        await supabase.from('ticket_messages').insert({
+          ticket_id: ticketId,
+          sender_agent_id: botId,
+          content: greeting,
+          message_type: 'text',
+        });
+
+        // Now set assignment for the response
+        assignment = {
+          support_agent_id: botId,
+          support_agents: {
+            agent_type: 'Bot',
+            specialization: triage.category
+          }
+        } as any;
+      }
 
       const botId = assignment?.support_agent_id || AI_BOT_AGENTS.GENERAL;
-      const category = (assignment?.support_agents as any)?.specialization?.toLowerCase().split(' ')[0] || 'general';
+      const agentData = assignment?.support_agents as any;
+      const category = agentData?.specialization?.toLowerCase().split(' ')[0] || 
+                       agentData?.agent_type === 'Bot' ? 'general' : 'general';
+      
+      console.log('[AI Resolve] Responding with bot:', botId, 'category:', category);
 
       // Use LLM to detect user intent with tool calling
       const intent = await detectUserIntent(userMessage, conversationHistory);
@@ -499,11 +627,58 @@ export async function POST(request: NextRequest) {
 
       // Handle continue_troubleshooting - generate AI response
       // Generate next step response with full database context
-      const response = await generateSolution(
-        category,
-        ticket,
-        conversationHistory + `\nUser: ${userMessage}`
-      );
+      let response: string;
+      try {
+        response = await generateSolution(
+          category,
+          ticket,
+          conversationHistory + `\nUser: ${userMessage}`
+        );
+      } catch (error: any) {
+        console.error('Error generating AI solution:', error);
+        
+        // If OpenAI API key is missing, return helpful error message
+        if (error.message?.includes('OPENAI_API_KEY')) {
+          await supabase.from('ticket_messages').insert({
+            ticket_id: ticketId,
+            sender_agent_id: botId,
+            content: `I apologize, but the AI assistant is currently unavailable due to a configuration issue. Your message has been received and will be reviewed by a human agent.\n\nYour ticket has been escalated for human review. Someone will assist you shortly.`,
+            message_type: 'text',
+          });
+
+          await supabase.from('support_tickets').update({
+            status_id: 4, // Escalated
+            requires_human_agent: true,
+            updated_at: new Date().toISOString(),
+          }).eq('ticket_id', ticketId);
+
+          return NextResponse.json({
+            success: true,
+            action: 'escalated',
+            message: 'AI unavailable, escalated to human agent',
+          });
+        }
+        
+        // For other errors, escalate to human
+        await supabase.from('ticket_messages').insert({
+          ticket_id: ticketId,
+          sender_agent_id: botId,
+          content: `I encountered an issue processing your request. Your message has been received and will be reviewed by a human agent.\n\nYour ticket has been escalated for human review. Someone will assist you shortly.`,
+          message_type: 'text',
+        });
+
+        await supabase.from('support_tickets').update({
+          status_id: 4, // Escalated
+          requires_human_agent: true,
+          updated_at: new Date().toISOString(),
+        }).eq('ticket_id', ticketId);
+
+        return NextResponse.json({
+          success: true,
+          action: 'escalated',
+          message: 'Error occurred, escalated to human agent',
+        });
+      }
 
       // Check for agent handoff request
       const handoffMatch = response.match(/HANDOFF_TO:(\w+)/);
@@ -672,14 +847,34 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // Add bot response - clean all internal markers
-      const finalResponse = cleanResponse(response);
-      await supabase.from('ticket_messages').insert({
-        ticket_id: ticketId,
-        sender_agent_id: botId,
-        content: finalResponse,
-        message_type: 'text',
-      });
+      // Extract and execute terminal commands before saving response
+      const commandMatch = response.match(/EXECUTE_COMMAND:\s*(.+?)(?:\n|$)/);
+      if (commandMatch) {
+        const command = commandMatch[1].trim();
+        console.log('[AI Resolve] Executing terminal command:', command);
+        
+        // Store command in message with special marker so frontend can execute it
+        // Remove the EXECUTE_COMMAND marker from response but keep command info
+        const responseWithoutMarker = response.replace(/EXECUTE_COMMAND:\s*.+?(?:\n|$)/g, '').trim();
+        const finalResponse = cleanResponse(responseWithoutMarker);
+        
+        // Insert message with command metadata (store command in content with special format)
+        await supabase.from('ticket_messages').insert({
+          ticket_id: ticketId,
+          sender_agent_id: botId,
+          content: finalResponse + `\n\n<TERMINAL_COMMAND>${command}</TERMINAL_COMMAND>`,
+          message_type: 'text',
+        });
+      } else {
+        // Add bot response - clean all internal markers
+        const finalResponse = cleanResponse(response);
+        await supabase.from('ticket_messages').insert({
+          ticket_id: ticketId,
+          sender_agent_id: botId,
+          content: finalResponse,
+          message_type: 'text',
+        });
+      }
 
       // Update ticket status
       await supabase.from('support_tickets').update({
@@ -721,11 +916,16 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
 
-  } catch (error) {
-    console.error('AI Resolution error:', error);
+  } catch (error: any) {
+    console.error('[AI-Resolution] Error caught:', error);
+    console.error('[AI-Resolution] Error message:', error?.message);
+    console.error('[AI-Resolution] Error stack:', error?.stack);
+    
+    // Return detailed error for debugging
     return NextResponse.json({ 
       error: 'Failed to process request',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      details: error instanceof Error ? error.message : 'Unknown error',
+      type: error?.name || typeof error,
     }, { status: 500 });
   }
 }

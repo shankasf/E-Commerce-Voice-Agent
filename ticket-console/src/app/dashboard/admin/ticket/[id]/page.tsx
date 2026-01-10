@@ -8,23 +8,24 @@ import { SupportTicket, TicketMessage, SupportAgent } from '@/lib/supabase';
 import { useTicketRealtime } from '@/lib/useRealtime';
 import { useMessageNotification } from '@/lib/useNotificationSound';
 import { ChatContainer } from '@/components/ChatUI';
-import { ArrowLeft, User, UserPlus, Bot, Sparkles, AlertTriangle } from 'lucide-react';
+import { Terminal } from '@/components/Terminal';
+import { ArrowLeft, User, UserPlus, Bot, Sparkles, AlertTriangle, Terminal as TerminalIcon } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 
 const priorityColors: Record<string, string> = {
-  Low: 'bg-gray-100 text-gray-700',
-  Medium: 'bg-blue-100 text-blue-700',
-  High: 'bg-orange-100 text-orange-700',
-  Critical: 'bg-red-100 text-red-700',
+  Low: 'badge-gray',
+  Medium: 'badge-blue',
+  High: 'badge-yellow',
+  Critical: 'badge-red',
 };
 
 const statusColors: Record<string, string> = {
-  Open: 'bg-yellow-100 text-yellow-700',
-  'In Progress': 'bg-blue-100 text-blue-700',
-  'Awaiting Customer': 'bg-purple-100 text-purple-700',
-  Escalated: 'bg-orange-100 text-orange-700',
-  Resolved: 'bg-green-100 text-green-700',
-  Closed: 'bg-gray-100 text-gray-700',
+  Open: 'badge-yellow',
+  'In Progress': 'badge-blue',
+  'Awaiting Customer': 'badge-purple',
+  Escalated: 'badge-yellow',
+  Resolved: 'badge-green',
+  Closed: 'badge-gray',
 };
 
 export default function AdminTicketDetail() {
@@ -40,6 +41,8 @@ export default function AdminTicketDetail() {
   const [selectedAgent, setSelectedAgent] = useState<number | null>(null);
   const [assigningAI, setAssigningAI] = useState(false);
   const [aiAssigned, setAiAssigned] = useState(false);
+  const [showTerminal, setShowTerminal] = useState(false);
+  const [terminalMinimized, setTerminalMinimized] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prevMessageCountRef = useRef<number>(0);
 
@@ -106,17 +109,17 @@ export default function AdminTicketDetail() {
   // Real-time WebSocket subscription for chat
   useTicketRealtime(ticketId, loadTicket, loadMessages);
 
-  // Polling fallback for chat - every 3 seconds for responsive chat
+  // Polling fallback for chat - every 10 seconds (reduced frequency to prevent flickering)
   useEffect(() => {
     if (!ticketId) return;
 
     const pollInterval = setInterval(() => {
       console.log('[Polling] Refreshing messages...');
       loadMessages();
-    }, 3000);
+    }, 10000); // Increased from 3s to 10s to reduce flickering
 
     return () => clearInterval(pollInterval);
-  }, [ticketId, loadMessages]);
+  }, [ticketId]); // Removed loadMessages from dependencies to prevent constant re-creation
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -184,7 +187,7 @@ export default function AdminTicketDetail() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-500 mb-4">Ticket not found</p>
+          <p className="text-slate-400 mb-4">Ticket not found</p>
           <button onClick={() => window.history.back()} className="text-purple-600 hover:text-purple-700">
             Go back
           </button>
@@ -197,74 +200,75 @@ export default function AdminTicketDetail() {
   const priorityName = (ticket.priority as any)?.name || 'Medium';
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header */}
-      <header className="bg-purple-600 text-white shrink-0">
-        <div className="max-w-5xl mx-auto px-4 py-4">
+    <div className="min-h-screen bg-slate-900 flex flex-col">
+
+      {/* Header - Enhanced */}
+      <header className="bg-gradient-to-r from-purple-600 via-purple-700 to-indigo-700 text-white shrink-0 border-b-2 border-purple-800/40" style={{ boxShadow: 'none' }}>
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
           <button
             onClick={() => window.history.back()}
-            className="flex items-center gap-2 text-purple-200 hover:text-white mb-3"
+            className="flex items-center gap-2.5 text-purple-100 hover:text-white mb-6 transition-colors group font-medium"
           >
-            <ArrowLeft className="w-4 h-4" />
-            Back to dashboard
+            <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+            <span>Back to dashboard</span>
           </button>
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-sm text-purple-200">#{ticket.ticket_id}</span>
-                <span className={`text-xs px-2 py-0.5 rounded-full ${statusColors[statusName]}`}>
+          <div className="flex items-start justify-between gap-6">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-4 flex-wrap">
+                <span className="text-xs font-mono font-bold text-purple-200 bg-white/10 px-3 py-1.5 rounded-lg">#{ticket.ticket_id}</span>
+                <span className={`badge ${statusColors[statusName] || 'badge-gray'}`}>
                   {statusName}
                 </span>
-                <span className={`text-xs px-2 py-0.5 rounded-full ${priorityColors[priorityName]}`}>
+                <span className={`badge ${priorityColors[priorityName] || 'badge-gray'}`}>
                   {priorityName}
                 </span>
                 {aiAssigned && (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 flex items-center gap-1">
-                    <Bot className="w-3 h-3" />
+                  <span className="badge badge-purple flex items-center gap-1.5">
+                    <Bot className="w-3.5 h-3.5" />
                     AI Bot Assigned
                   </span>
                 )}
               </div>
-              <h1 className="text-xl font-bold">{ticket.subject}</h1>
+              <h1 className="text-2xl font-bold tracking-tight">{ticket.subject}</h1>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-3 flex-shrink-0">
               <button
                 onClick={() => setShowAssign(true)}
-                className="flex items-center gap-2 bg-purple-500 hover:bg-purple-400 px-3 py-2 rounded-lg text-sm"
+                className="btn bg-white/20 hover:bg-white/30 text-white border-2 border-white/30 shadow-lg"
               >
-                <UserPlus className="w-4 h-4" />
-                Assign
+                <UserPlus className="w-5 h-5" />
+                <span className="hidden sm:inline">Assign</span>
               </button>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Ticket Info */}
-      <div className="bg-white border-b border-gray-200 shrink-0">
-        <div className="max-w-5xl mx-auto px-4 py-4">
+      {/* Ticket Info - Dark Theme */}
+      <div className="bg-slate-800/50 border-b border-slate-700/50 shrink-0">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="grid grid-cols-4 gap-4 text-sm">
             <div>
-              <p className="text-gray-500">Contact</p>
-              <p className="font-medium">{(ticket.contact as any)?.full_name}</p>
-              <p className="text-gray-400">{(ticket.contact as any)?.email}</p>
+              <p className="text-slate-400 font-medium mb-1">Contact</p>
+              <p className="font-semibold text-slate-100">{(ticket.contact as any)?.full_name}</p>
+              <p className="text-slate-400 text-xs mt-0.5">{(ticket.contact as any)?.email}</p>
             </div>
             <div>
-              <p className="text-gray-500">Organization</p>
-              <p className="font-medium">{(ticket.organization as any)?.name}</p>
-              <p className="text-gray-400">U&E: {(ticket.organization as any)?.u_e_code}</p>
+              <p className="text-slate-400 font-medium mb-1">Organization</p>
+              <p className="font-semibold text-slate-100">{(ticket.organization as any)?.name}</p>
+              <p className="text-slate-400 text-xs mt-0.5">U&E: {(ticket.organization as any)?.u_e_code}</p>
             </div>
             <div>
-              <p className="text-gray-500">Created</p>
-              <p className="font-medium">{format(new Date(ticket.created_at), 'MMM d, yyyy')}</p>
-              <p className="text-gray-400">{formatDistanceToNow(new Date(ticket.created_at), { addSuffix: true })}</p>
+              <p className="text-slate-400 font-medium mb-1">Created</p>
+              <p className="font-semibold text-slate-100">{format(new Date(ticket.created_at), 'MMM d, yyyy')}</p>
+              <p className="text-slate-400 text-xs mt-0.5">{formatDistanceToNow(new Date(ticket.created_at), { addSuffix: true })}</p>
             </div>
             <div>
-              <p className="text-gray-500">Status</p>
+              <p className="text-slate-400 font-medium mb-1">Status</p>
               <select
                 value={ticket.status_id}
                 onChange={(e) => handleStatusChange(parseInt(e.target.value))}
-                className="mt-1 block w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
+                className="input text-sm py-2"
               >
                 <option value={1}>Open</option>
                 <option value={2}>In Progress</option>
@@ -276,43 +280,91 @@ export default function AdminTicketDetail() {
             </div>
           </div>
           {ticket.description && (
-            <div className="mt-4 pt-4 border-t border-gray-100">
-              <p className="text-gray-500 text-sm mb-1">Description</p>
-              <p className="text-gray-700">{ticket.description}</p>
+            <div className="mt-4 pt-4 border-t border-slate-700/50">
+              <p className="text-slate-400 text-xs font-semibold uppercase tracking-wide mb-2">Description</p>
+              <p className="text-slate-200 leading-relaxed">{ticket.description}</p>
             </div>
           )}
         </div>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-auto bg-gray-50">
-        <div className="max-w-5xl mx-auto px-4 py-6">
-          <h3 className="text-sm font-medium text-gray-500 mb-4">Conversation History</h3>
-          <ChatContainer
-            messages={messages}
-            currentUserId={user.id}
-            userRole="admin"
-            messagesEndRef={messagesEndRef as React.RefObject<HTMLDivElement>}
-            emptyMessage="No messages yet."
-          />
+      {/* Messages - Dark Theme */}
+      <div className="flex-1 overflow-auto bg-slate-900">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wide mb-1">Conversation History</h3>
+              <div className="h-1 w-16 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full"></div>
+            </div>
+            <button
+              onClick={() => {
+                setShowTerminal(!showTerminal);
+                setTerminalMinimized(false);
+              }}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-medium border ${
+                showTerminal
+                  ? 'bg-purple-600/50 border-purple-500/50 text-purple-200 hover:bg-purple-600/70'
+                  : 'bg-slate-800/50 border-slate-700/50 text-slate-300 hover:bg-slate-800/70'
+              }`}
+            >
+              <TerminalIcon className="w-4 h-4" />
+              {showTerminal ? 'Hide Terminal' : 'Open Terminal'}
+            </button>
+          </div>
+          
+          {/* Terminal Panel */}
+          {showTerminal && (
+            <div className="mb-6">
+              <Terminal
+                ticketId={ticketId}
+                userId={user.id}
+                userRole="admin"
+                isMinimized={terminalMinimized}
+                onMinimize={setTerminalMinimized}
+              />
+            </div>
+          )}
+
+          <div>
+            <ChatContainer
+              messages={messages}
+              currentUserId={user.id}
+              userRole="admin"
+              messagesEndRef={messagesEndRef as React.RefObject<HTMLDivElement>}
+              emptyMessage="No messages yet."
+            />
+          </div>
         </div>
       </div>
 
-      {/* Assign Modal */}
+      {/* Assign Modal - Enhanced */}
       {showAssign && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-semibold mb-4">Assign Ticket</h3>
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="relative w-full max-w-2xl mx-4 animate-scale-in">
+            <div className="surface-elevated rounded-2xl p-8 max-h-[90vh] overflow-y-auto shadow-2xl">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-2xl font-bold text-slate-100">Assign Ticket</h3>
+                <button
+                  onClick={() => {
+                    setShowAssign(false);
+                    setSelectedAgent(null);
+                  }}
+                  className="btn btn-ghost p-2 hover:bg-red-900/50 hover:text-red-300"
+                  title="Close"
+                >
+                  <AlertTriangle className="w-6 h-6 rotate-45" />
+                </button>
+              </div>
 
-            {/* AI Bot Option */}
+            {/* AI Bot Option - Dark Theme */}
             <div className="mb-4">
-              <p className="text-sm font-medium text-gray-600 mb-2">🤖 AI-Powered Resolution</p>
+              <p className="text-sm font-medium text-slate-300 mb-2">🤖 AI-Powered Resolution</p>
               <button
                 onClick={handleAssignAIBot}
                 disabled={assigningAI || aiAssigned}
                 className={`w-full p-4 rounded-lg border text-left flex items-center gap-3 transition-all ${aiAssigned
-                  ? 'border-green-500 bg-green-50'
-                  : 'border-purple-300 bg-gradient-to-r from-purple-50 to-indigo-50 hover:border-purple-500'
+                  ? 'border-green-500/50 bg-green-600/20'
+                  : 'border-purple-500/50 bg-purple-600/20 hover:border-purple-500/70'
                   } disabled:opacity-50`}
               >
                 <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-full flex items-center justify-center">
@@ -323,10 +375,10 @@ export default function AdminTicketDetail() {
                   )}
                 </div>
                 <div className="flex-1">
-                  <p className="font-semibold text-gray-900">
+                  <p className="font-semibold text-slate-100">
                     {aiAssigned ? 'AI Bot Already Assigned' : 'Assign AI Support Bot'}
                   </p>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-slate-300">
                     {aiAssigned
                       ? 'The AI bot is handling this ticket automatically'
                       : 'Multi-agent AI will analyze and resolve the issue with step-by-step guidance'
@@ -334,19 +386,19 @@ export default function AdminTicketDetail() {
                   </p>
                 </div>
                 {aiAssigned && (
-                  <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
+                  <span className="text-xs bg-green-600/20 border border-green-500/50 text-green-300 px-2 py-1 rounded-full">
                     Active
                   </span>
                 )}
               </button>
-              <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
+              <p className="text-xs text-slate-400 mt-2 flex items-center gap-1">
                 <Sparkles className="w-3 h-3" />
                 AI will auto-categorize, provide solutions, and close when resolved
               </p>
             </div>
 
-            <div className="border-t border-gray-200 pt-4 mb-2">
-              <p className="text-sm font-medium text-gray-600 mb-2">👤 Human Agents</p>
+            <div className="border-t border-slate-700/50 pt-4 mb-2">
+              <p className="text-sm font-medium text-slate-300 mb-2">👤 Human Agents</p>
             </div>
 
             <div className="space-y-3 max-h-60 overflow-y-auto">
@@ -355,46 +407,47 @@ export default function AdminTicketDetail() {
                   key={agent.support_agent_id}
                   onClick={() => setSelectedAgent(agent.support_agent_id)}
                   className={`w-full p-3 rounded-lg border text-left flex items-center gap-3 ${selectedAgent === agent.support_agent_id
-                    ? 'border-purple-500 bg-purple-50'
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-purple-500/50 bg-purple-600/20'
+                    : 'border-slate-700/50 hover:border-slate-600 bg-slate-800/50'
                     }`}
                 >
-                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                    <User className="w-5 h-5 text-green-600" />
+                  <div className="w-10 h-10 bg-green-600/20 border border-green-500/50 rounded-full flex items-center justify-center">
+                    <User className="w-5 h-5 text-green-400" />
                   </div>
                   <div className="flex-1">
-                    <p className="font-medium text-gray-900">{agent.full_name}</p>
-                    <p className="text-sm text-gray-500">{agent.specialization || 'General Support'}</p>
+                    <p className="font-medium text-slate-100">{agent.full_name}</p>
+                    <p className="text-sm text-slate-300">{agent.specialization || 'General Support'}</p>
                   </div>
                   {agent.is_available && (
-                    <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
+                    <span className="text-xs bg-green-600/20 border border-green-500/50 text-green-300 px-2 py-1 rounded-full">
                       Available
                     </span>
                   )}
                 </button>
               ))}
               {agents.length === 0 && (
-                <p className="text-sm text-gray-400 text-center py-4">No human agents available</p>
+                <p className="text-sm text-slate-400 text-center py-4">No human agents available</p>
               )}
             </div>
 
-            <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
-              <button
-                onClick={() => {
-                  setShowAssign(false);
-                  setSelectedAgent(null);
-                }}
-                className="px-4 py-2 text-gray-600 hover:text-gray-900"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAssign}
-                disabled={!selectedAgent}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
-              >
-                Assign Human
-              </button>
+              <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-700/50">
+                <button
+                  onClick={() => {
+                    setShowAssign(false);
+                    setSelectedAgent(null);
+                  }}
+                  className="btn btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAssign}
+                  disabled={!selectedAgent}
+                  className="btn btn-primary bg-gradient-to-r from-purple-600 to-indigo-600"
+                >
+                  Assign Human
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -20,19 +20,19 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 
 const priorityColors: Record<string, string> = {
-  Low: 'bg-gray-100 text-gray-700',
-  Medium: 'bg-blue-100 text-blue-700',
-  High: 'bg-orange-100 text-orange-700',
-  Critical: 'bg-red-100 text-red-700',
+  Low: 'badge-gray',
+  Medium: 'badge-blue',
+  High: 'badge-yellow',
+  Critical: 'badge-red',
 };
 
 const statusColors: Record<string, string> = {
-  Open: 'bg-yellow-100 text-yellow-700',
-  'In Progress': 'bg-blue-100 text-blue-700',
-  'Awaiting Customer': 'bg-purple-100 text-purple-700',
-  Escalated: 'bg-orange-100 text-orange-700',
-  Resolved: 'bg-green-100 text-green-700',
-  Closed: 'bg-gray-100 text-gray-700',
+  Open: 'badge-yellow',
+  'In Progress': 'badge-blue',
+  'Awaiting Customer': 'badge-purple',
+  Escalated: 'badge-yellow',
+  Resolved: 'badge-green',
+  Closed: 'badge-gray',
 };
 
 type Tab = 'assigned' | 'escalated' | 'human-required';
@@ -107,10 +107,10 @@ export default function AgentDashboard() {
       console.log('[Polling] Refreshing tickets...');
       loadTickets();
       loadDashboardData();
-    }, 10000);
+    }, 15000); // Increased to 15s to reduce flickering
 
     return () => clearInterval(pollInterval);
-  }, [user?.id, loadTickets, loadDashboardData]);
+  }, [user?.id]); // Removed callbacks from dependencies to prevent constant re-creation
 
   useEffect(() => {
     setMounted(true);
@@ -186,7 +186,7 @@ export default function AgentDashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-900">
       {/* Header */}
       <header className="bg-green-600 text-white">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -206,18 +206,18 @@ export default function AgentDashboard() {
                 <ChevronDown className="w-4 h-4" />
               </button>
               {showProfileMenu && (
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg py-2 z-50">
-                  <div className="px-3 py-2 text-xs text-gray-500 border-b">Switch Profile</div>
+                <div className="absolute right-0 mt-2 w-56 bg-slate-800/90 border border-slate-700/50 rounded-lg shadow-lg py-2 z-50">
+                  <div className="px-3 py-2 text-xs text-slate-400 border-b border-slate-700/50">Switch Profile</div>
                   {allAgents.map((agent) => (
                     <button
                       key={agent.support_agent_id}
                       onClick={() => handleSwitchProfile(agent)}
-                      className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 flex items-center justify-between ${agent.support_agent_id === user?.id ? 'bg-green-50 text-green-700' : 'text-gray-700'
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-800/70 flex items-center justify-between ${agent.support_agent_id === user?.id ? 'bg-green-600/20 border border-green-500/50 text-green-300' : 'text-slate-300'
                         }`}
                     >
                       <span>{agent.full_name}</span>
                       {agent.support_agent_id === user?.id && (
-                        <CheckCircle2 className="w-4 h-4 text-green-600" />
+                        <CheckCircle2 className="w-4 h-4 text-green-400" />
                       )}
                     </button>
                   ))}
@@ -256,43 +256,43 @@ export default function AgentDashboard() {
 
       {/* Stats */}
       {stats && (
-        <div className="bg-white border-b border-gray-200">
+        <div className="bg-slate-800/50 border-b border-slate-700/50">
           <div className="max-w-7xl mx-auto px-4 py-4">
             <div className="grid grid-cols-4 gap-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <Ticket className="w-5 h-5 text-green-600" />
+                <div className="p-2 bg-green-600/20 border border-green-500/50 rounded-lg">
+                  <Ticket className="w-5 h-5 text-green-400" />
                 </div>
                 <div>
-                  <p className="text-xl font-bold text-gray-900">{stats.assignedTickets}</p>
-                  <p className="text-xs text-gray-500">Assigned to Me</p>
+                  <p className="text-xl font-bold text-slate-100">{stats.assignedTickets}</p>
+                  <p className="text-xs text-slate-400">Assigned to Me</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-orange-100 rounded-lg">
-                  <AlertTriangle className="w-5 h-5 text-orange-600" />
+                <div className="p-2 bg-orange-600/20 border border-orange-500/50 rounded-lg">
+                  <AlertTriangle className="w-5 h-5 text-orange-400" />
                 </div>
                 <div>
-                  <p className="text-xl font-bold text-gray-900">{stats.escalatedTickets}</p>
-                  <p className="text-xs text-gray-500">Escalated</p>
+                  <p className="text-xl font-bold text-slate-100">{stats.escalatedTickets}</p>
+                  <p className="text-xs text-slate-400">Escalated</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <User className="w-5 h-5 text-purple-600" />
+                <div className="p-2 bg-purple-600/20 border border-purple-500/50 rounded-lg">
+                  <User className="w-5 h-5 text-purple-400" />
                 </div>
                 <div>
-                  <p className="text-xl font-bold text-gray-900">{stats.humanRequiredTickets}</p>
-                  <p className="text-xs text-gray-500">Needs Human</p>
+                  <p className="text-xl font-bold text-slate-100">{stats.humanRequiredTickets}</p>
+                  <p className="text-xs text-slate-400">Needs Human</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-red-100 rounded-lg">
-                  <AlertTriangle className="w-5 h-5 text-red-600" />
+                <div className="p-2 bg-red-600/20 border border-red-500/50 rounded-lg">
+                  <AlertTriangle className="w-5 h-5 text-red-400" />
                 </div>
                 <div>
-                  <p className="text-xl font-bold text-gray-900">{stats.criticalTickets}</p>
-                  <p className="text-xs text-gray-500">Critical</p>
+                  <p className="text-xl font-bold text-slate-100">{stats.criticalTickets}</p>
+                  <p className="text-xs text-slate-400">Critical</p>
                 </div>
               </div>
             </div>
@@ -300,8 +300,8 @@ export default function AgentDashboard() {
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="bg-white border-b border-gray-200">
+      {/* Tabs - Dark Theme */}
+      <div className="bg-slate-800/50 border-b border-slate-700/50">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex gap-1">
             {tabs.map((tab) => (
@@ -309,14 +309,14 @@ export default function AgentDashboard() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${activeTab === tab.id
-                  ? 'border-green-600 text-green-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                  ? 'border-green-500 text-green-400'
+                  : 'border-transparent text-slate-400 hover:text-slate-300'
                   }`}
               >
                 <tab.icon className="w-4 h-4" />
                 {tab.label}
                 {tab.count !== undefined && (
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${activeTab === tab.id ? 'bg-green-100' : 'bg-gray-100'
+                  <span className={`text-xs px-2 py-0.5 rounded-full border ${activeTab === tab.id ? 'bg-green-600/20 border-green-500/50 text-green-300' : 'bg-slate-800/50 border-slate-700/50 text-slate-300'
                     }`}>
                     {tab.count}
                   </span>
@@ -328,16 +328,16 @@ export default function AgentDashboard() {
       </div>
 
       <main className="max-w-7xl mx-auto px-4 py-6">
-        <div className="bg-white rounded-lg border border-gray-200">
-          <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-            <h2 className="font-semibold text-gray-900">
+        <div className="bg-slate-800/50 rounded-lg border border-slate-700/50">
+          <div className="p-4 border-b border-slate-700/50 flex items-center justify-between">
+            <h2 className="font-semibold text-slate-100">
               {activeTab === 'assigned' && 'My Assigned Tickets'}
               {activeTab === 'escalated' && 'Escalated Tickets'}
               {activeTab === 'human-required' && 'Tickets Requiring Human Agent'}
             </h2>
             <button
               onClick={loadTickets}
-              className="flex items-center gap-2 text-gray-500 hover:text-gray-700"
+              className="flex items-center gap-2 text-slate-400 hover:text-slate-300"
             >
               <RefreshCw className="w-4 h-4" />
               Refresh
@@ -345,18 +345,18 @@ export default function AgentDashboard() {
           </div>
 
           {loading ? (
-            <div className="p-8 text-center text-gray-500">Loading tickets...</div>
+            <div className="p-8 text-center text-slate-400">Loading tickets...</div>
           ) : tickets.length === 0 ? (
             <div className="p-8 text-center">
-              <Ticket className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500">
+              <Ticket className="w-12 h-12 text-slate-500 mx-auto mb-3" />
+              <p className="text-slate-400">
                 {activeTab === 'assigned' && 'No tickets assigned to you'}
                 {activeTab === 'escalated' && 'No escalated tickets'}
                 {activeTab === 'human-required' && 'No tickets requiring human agent'}
               </p>
             </div>
           ) : (
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-slate-700/50">
               {tickets.map((ticket) => {
                 const statusName = (ticket.status as any)?.name || 'Unknown';
                 const priorityName = (ticket.priority as any)?.name || 'Medium';
@@ -366,11 +366,11 @@ export default function AgentDashboard() {
                   <div
                     key={ticket.ticket_id}
                     onClick={() => navigateToTicket(ticket.ticket_id)}
-                    className="p-4 hover:bg-gray-50 cursor-pointer flex items-center justify-between"
+                    className="p-4 hover:bg-slate-800/70 cursor-pointer flex items-center justify-between"
                   >
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm text-gray-500">#{ticket.ticket_id}</span>
+                        <span className="text-sm text-slate-400">#{ticket.ticket_id}</span>
                         <span className={`text-xs px-2 py-0.5 rounded-full ${statusColors[statusName]}`}>
                           {statusName}
                         </span>
@@ -378,13 +378,13 @@ export default function AgentDashboard() {
                           {priorityName}
                         </span>
                         {ticket.requires_human_agent && (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-purple-600/20 border border-purple-500/50 text-purple-300">
                             Human Required
                           </span>
                         )}
                       </div>
-                      <p className="font-medium text-gray-900">{ticket.subject}</p>
-                      <p className="text-sm text-gray-500">
+                      <p className="font-medium text-slate-100">{ticket.subject}</p>
+                      <p className="text-sm text-slate-400">
                         {(ticket.contact as any)?.full_name} • {(ticket.organization as any)?.name} • {formatDistanceToNow(new Date(ticket.created_at), { addSuffix: true })}
                       </p>
                     </div>
@@ -396,7 +396,7 @@ export default function AgentDashboard() {
                         Claim
                       </button>
                     ) : (
-                      <ChevronRight className="w-5 h-5 text-gray-400" />
+                      <ChevronRight className="w-5 h-5 text-slate-400" />
                     )}
                   </div>
                 );

@@ -129,71 +129,70 @@ export function ChatMessage({ message, currentUserId, userRole, shouldStream = f
         return (message.sender_contact as any)?.full_name || 'Customer';
     })();
 
-    // Get avatar colors based on sender type
+    // Get avatar colors based on sender type - Dark Theme
     const getAvatarStyle = () => {
-        if (isBot) return 'bg-purple-100';
-        if (isAgent) return 'bg-green-100';
-        return 'bg-blue-100';
+        if (isBot) return 'bg-purple-600/20 border border-purple-500/50';
+        if (isAgent) return 'bg-green-600/20 border border-green-500/50';
+        return 'bg-blue-600/20 border border-blue-500/50';
     };
 
     const getAvatarIconColor = () => {
-        if (isBot) return 'text-purple-600';
-        if (isAgent) return 'text-green-600';
-        return 'text-blue-600';
+        if (isBot) return 'text-purple-400';
+        if (isAgent) return 'text-green-400';
+        return 'text-blue-400';
     };
 
-    // Get bubble colors based on sender
+    // Get bubble colors based on sender - Dark Theme
     const getBubbleStyle = () => {
         if (isFromMe) {
-            // My messages - right side, colored
+            // My messages - right side, colored with transparency
             if (userRole === 'requester') {
-                return 'bg-blue-600 text-white';
+                return 'bg-blue-600/50 border border-blue-500/50 text-blue-100';
             } else if (userRole === 'agent') {
-                return 'bg-green-600 text-white';
+                return 'bg-green-600/50 border border-green-500/50 text-green-100';
             } else {
-                return 'bg-purple-600 text-white';
+                return 'bg-purple-600/50 border border-purple-500/50 text-purple-100';
             }
         }
-        // Other's messages - left side, white
-        return 'bg-white border border-gray-200 text-gray-700';
+        // Other's messages - left side, dark with transparency
+        return 'bg-slate-800/50 border border-slate-700/50 text-slate-200';
     };
 
     return (
-        <div className={`flex gap-3 ${isFromMe ? 'flex-row-reverse' : ''}`}>
-            {/* Avatar */}
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 shadow-sm ${getAvatarStyle()}`}>
+        <div className={`flex gap-4 ${isFromMe ? 'flex-row-reverse' : ''}`} style={{ opacity: 1, backdropFilter: 'none', WebkitBackdropFilter: 'none' }}>
+            {/* Avatar - Dark Theme with rounded edges */}
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-lg ${getAvatarStyle()}`} style={{ opacity: 1, backdropFilter: 'none', WebkitBackdropFilter: 'none' }}>
                 {isBot ? (
-                    <Bot className={`w-5 h-5 ${getAvatarIconColor()}`} />
+                    <Bot className={`w-6 h-6 ${getAvatarIconColor()}`} />
                 ) : (
-                    <User className={`w-5 h-5 ${getAvatarIconColor()}`} />
+                    <User className={`w-6 h-6 ${getAvatarIconColor()}`} />
                 )}
             </div>
 
             {/* Message Content */}
             <div className={`flex flex-col max-w-[75%] ${isFromMe ? 'items-end' : 'items-start'}`}>
-                {/* Sender info */}
-                <div className={`flex items-center gap-2 mb-1 ${isFromMe ? 'flex-row-reverse' : ''}`}>
-                    <span className="text-sm font-medium text-gray-700">{senderName}</span>
-                    <span className="text-xs text-gray-400">
+                {/* Sender info - Dark Theme */}
+                <div className={`flex items-center gap-2.5 mb-2 ${isFromMe ? 'flex-row-reverse' : ''}`}>
+                    <span className="text-sm font-bold text-slate-200">{senderName}</span>
+                    <span className="text-xs text-slate-400 font-medium">
                         {format(new Date(message.message_time), 'MMM d, h:mm a')}
                     </span>
                     {isBot && (
-                        <span className="text-xs bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded font-medium">
-                            Bot
+                        <span className="badge badge-purple bg-purple-600/20 border border-purple-500/50 text-purple-300">
+                            AI Bot
                         </span>
                     )}
                 </div>
 
-                {/* Message Bubble */}
-                <div className={`rounded-2xl px-4 py-2.5 shadow-sm ${getBubbleStyle()} ${isFromMe ? 'rounded-tr-sm' : 'rounded-tl-sm'
-                    }`}>
-                    <div className="whitespace-pre-wrap break-words leading-relaxed">
+                {/* Message Bubble - Dark Theme with rounded edges */}
+                <div className={`rounded-2xl px-5 py-3.5 shadow-lg ${getBubbleStyle()} ${isFromMe ? 'rounded-tr-sm' : 'rounded-tl-sm'}`}>
+                    <div className="relative whitespace-pre-wrap break-words leading-relaxed text-[15px] font-medium">
                         {isBot && shouldStream ? (
-                            <StreamingText text={message.content} />
+                            <StreamingText text={message.content.replace(/<TERMINAL_COMMAND>.+?<\/TERMINAL_COMMAND>/g, '')} />
                         ) : isBot ? (
-                            parseMarkdown(message.content)
+                            parseMarkdown(message.content.replace(/<TERMINAL_COMMAND>.+?<\/TERMINAL_COMMAND>/g, ''))
                         ) : (
-                            message.content
+                            message.content.replace(/<TERMINAL_COMMAND>.+?<\/TERMINAL_COMMAND>/g, '')
                         )}
                     </div>
                 </div>
@@ -256,49 +255,50 @@ export function ChatContainer({
         return (
             <div className="flex items-center justify-center py-12">
                 <div className="text-center">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <User className="w-8 h-8 text-gray-400" />
+                    <div className="w-16 h-16 bg-slate-800/50 border border-slate-700/50 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <User className="w-8 h-8 text-slate-400" />
                     </div>
-                    <p className="text-gray-500">{emptyMessage}</p>
+                    <p className="text-slate-400">{emptyMessage}</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-4 relative" style={{ backgroundColor: 'transparent', opacity: 1, backdropFilter: 'none', WebkitBackdropFilter: 'none' }}>
             {messages.map((msg) => {
                 const isBot = msg.sender_agent_id && (msg.sender_agent as any)?.agent_type === 'Bot';
                 const shouldStream = !!(isBot && msg.message_id === latestBotMessageId);
 
                 return (
-                    <ChatMessage
-                        key={msg.message_id}
-                        message={msg}
-                        currentUserId={currentUserId}
-                        userRole={userRole}
-                        shouldStream={shouldStream}
-                    />
+                    <div key={msg.message_id} style={{ opacity: 1, backdropFilter: 'none', WebkitBackdropFilter: 'none' }}>
+                        <ChatMessage
+                            message={msg}
+                            currentUserId={currentUserId}
+                            userRole={userRole}
+                            shouldStream={shouldStream}
+                        />
+                    </div>
                 );
             })}
 
-            {/* AI Thinking Indicator */}
+            {/* AI Thinking Indicator - Dark Theme with rounded edges */}
             {aiThinking && (
-                <div className="flex gap-3">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 shadow-sm bg-purple-100">
-                        <Bot className="w-5 h-5 text-purple-600" />
+                <div className="flex gap-4">
+                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-lg bg-purple-600/20 border border-purple-500/50" style={{ opacity: 1 }}>
+                        <Bot className="w-6 h-6 text-purple-400" />
                     </div>
                     <div className="flex flex-col items-start">
-                        <div className="flex items-center gap-2 mb-1">
-                            <span className="text-sm font-medium text-gray-700">AI Assistant</span>
-                            <span className="text-xs bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded font-medium">
-                                Bot
+                        <div className="flex items-center gap-2.5 mb-2">
+                            <span className="text-sm font-bold text-slate-200">AI Assistant</span>
+                            <span className="badge badge-purple bg-purple-600/20 border border-purple-500/50 text-purple-300">
+                                AI Bot
                             </span>
                         </div>
-                        <div className="rounded-2xl rounded-tl-sm px-4 py-3 bg-white border border-gray-200 shadow-sm">
-                            <div className="flex items-center gap-2 text-gray-500">
-                                <Loader2 className="w-4 h-4 animate-spin text-purple-600" />
-                                <span className="text-sm">AI is thinking...</span>
+                        <div className="bg-slate-800/50 rounded-2xl rounded-tl-sm px-5 py-4 shadow-lg border border-purple-500/50" style={{ opacity: 1 }}>
+                            <div className="flex items-center gap-3 text-slate-300">
+                                <Loader2 className="w-5 h-5 animate-spin text-purple-400" />
+                                <span className="text-sm font-semibold">AI is thinking...</span>
                             </div>
                         </div>
                     </div>
@@ -329,24 +329,24 @@ export function ChatInput({
 }: ChatInputProps) {
     const colorClasses = {
         blue: {
-            focus: 'focus:ring-blue-500 focus:border-blue-500',
-            button: 'bg-blue-600 hover:bg-blue-700',
+            focus: 'focus:ring-blue-500/50 focus:border-blue-500/50',
+            button: 'bg-blue-600/50 border border-blue-500/50 hover:bg-blue-600/70 text-blue-200',
         },
         green: {
-            focus: 'focus:ring-green-500 focus:border-green-500',
-            button: 'bg-green-600 hover:bg-green-700',
+            focus: 'focus:ring-green-500/50 focus:border-green-500/50',
+            button: 'bg-green-600/50 border border-green-500/50 hover:bg-green-600/70 text-green-200',
         },
         purple: {
-            focus: 'focus:ring-purple-500 focus:border-purple-500',
-            button: 'bg-purple-600 hover:bg-purple-700',
+            focus: 'focus:ring-purple-500/50 focus:border-purple-500/50',
+            button: 'bg-purple-600/50 border border-purple-500/50 hover:bg-purple-600/70 text-purple-200',
         },
     };
 
     const colors = colorClasses[accentColor];
 
     return (
-        <div className="flex gap-3 items-end">
-            <div className="flex-1 relative">
+        <div className="flex gap-3 items-end relative" style={{ position: 'relative', zIndex: 1, isolation: 'isolate' }}>
+            <div className="flex-1 relative" style={{ zIndex: 2 }}>
                 <textarea
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
@@ -358,20 +358,21 @@ export function ChatInput({
                     }}
                     placeholder={placeholder}
                     rows={1}
-                    className={`w-full px-4 py-3 border border-gray-300 rounded-xl resize-none ${colors.focus} focus:ring-2 transition-shadow`}
-                    style={{ minHeight: '48px', maxHeight: '120px' }}
+                    className={`input resize-none bg-slate-800/50 border-2 border-slate-700/50 text-slate-200 shadow-lg hover:border-slate-600 hover:bg-slate-800/70 focus:bg-slate-800/70 transition-all duration-300 ${colors.focus} font-medium placeholder-slate-500 rounded-xl`}
+                    style={{ minHeight: '56px', maxHeight: '140px', borderWidth: '2px', color: '#e2e8f0', backgroundColor: 'rgba(30, 41, 59, 0.5)' }}
                 />
             </div>
             <button
                 onClick={onSend}
                 disabled={!value.trim() || sending}
-                className={`p-3 ${colors.button} text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm`}
+                className={`btn ${colors.button} p-4 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed shadow-xl hover:shadow-2xl transition-all duration-300 relative overflow-hidden`}
+                style={{ position: 'relative', zIndex: 3 }}
             >
                 {sending ? (
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <Loader2 className="w-6 h-6 animate-spin" />
                 ) : (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                     </svg>
                 )}
             </button>
