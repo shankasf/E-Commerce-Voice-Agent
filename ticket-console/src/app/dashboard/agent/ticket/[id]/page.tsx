@@ -51,8 +51,26 @@ export default function AgentTicketDetail() {
     if (messages.length > prevMessageCountRef.current) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
+
+    // Check if latest message contains terminal commands or OPEN_TERMINAL marker
+    if (messages.length > 0) {
+      const latestMsg = messages[messages.length - 1];
+      if (latestMsg && latestMsg.content) {
+        const content = latestMsg.content;
+        
+        // Auto-open terminal if agent requests it
+        if (content.includes('<OPEN_TERMINAL>true</OPEN_TERMINAL>') || content.includes('<TERMINAL_COMMAND>')) {
+          if (!showTerminal) {
+            console.log('[Terminal] Auto-opening terminal due to agent request');
+            setShowTerminal(true);
+            setTerminalMinimized(false);
+          }
+        }
+      }
+    }
+    
     prevMessageCountRef.current = messages.length;
-  }, [messages]);
+  }, [messages, showTerminal]);
 
   // Memoized load functions
   const loadTicket = useCallback(async () => {
@@ -285,6 +303,7 @@ export default function AgentTicketDetail() {
                 userRole="agent"
                 isMinimized={terminalMinimized}
                 onMinimize={setTerminalMinimized}
+                messages={messages}
               />
             </div>
           )}

@@ -195,7 +195,7 @@ export default function AdminDashboard() {
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-400/8 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '10s' }}></div>
         <div className="absolute bottom-0 right-1/3 w-96 h-96 bg-blue-400/8 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '12s', animationDelay: '3s' }}></div>
-      </div>
+          </div>
 
       {/* Header - Enhanced */}
       <header className="relative bg-gradient-to-r from-purple-600 via-purple-700 to-indigo-700 text-white shadow-2xl sticky top-0 z-50 border-b border-purple-800/40">

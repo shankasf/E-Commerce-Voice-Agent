@@ -50,6 +50,7 @@ export default function RequesterTicketDetail() {
   useMessageNotification(messages, user?.id, 'requester');
 
   // Scroll to bottom only when new messages arrive (not on every poll)
+  // Also detect terminal commands and auto-open terminal
   useEffect(() => {
     if (messages.length > prevMessageCountRef.current) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -59,9 +60,23 @@ export default function RequesterTicketDetail() {
       if (latestMsg && latestMsg.sender_agent_id) {
         setAiThinking(false);
       }
+
+      // Check if latest message contains terminal commands or OPEN_TERMINAL marker
+      if (latestMsg && latestMsg.content) {
+        const content = latestMsg.content;
+        
+        // Auto-open terminal if agent requests it
+        if (content.includes('<OPEN_TERMINAL>true</OPEN_TERMINAL>') || content.includes('<TERMINAL_COMMAND>')) {
+          if (!showTerminal) {
+            console.log('[Terminal] Auto-opening terminal due to agent request');
+            setShowTerminal(true);
+            setTerminalMinimized(false);
+          }
+        }
+      }
     }
     prevMessageCountRef.current = messages.length;
-  }, [messages]);
+  }, [messages, showTerminal]);
 
   // Memoized load functions
   const loadTicket = useCallback(async () => {

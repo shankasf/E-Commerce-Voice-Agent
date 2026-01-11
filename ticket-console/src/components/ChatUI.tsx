@@ -272,12 +272,12 @@ export function ChatContainer({
 
                 return (
                     <div key={msg.message_id} style={{ opacity: 1, backdropFilter: 'none', WebkitBackdropFilter: 'none' }}>
-                        <ChatMessage
-                            message={msg}
-                            currentUserId={currentUserId}
-                            userRole={userRole}
-                            shouldStream={shouldStream}
-                        />
+                    <ChatMessage
+                        message={msg}
+                        currentUserId={currentUserId}
+                        userRole={userRole}
+                        shouldStream={shouldStream}
+                    />
                     </div>
                 );
             })}

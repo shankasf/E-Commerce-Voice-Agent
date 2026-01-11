@@ -81,6 +81,7 @@ function cleanResponse(text: string): string {
     .replace(/ESCALATE_TO_HUMAN/g, '')
     .replace(/HANDOFF_TO:\w+/g, '')
     .replace(/CLOSE_TICKET_CONFIRMED/g, '')
+    .replace(/OPEN_TERMINAL/g, '')  // Remove OPEN_TERMINAL marker (handled separately)
     .replace(/EXECUTE_COMMAND:\s*.+?(?:\n|$)/g, '')
     .replace(/<TERMINAL_COMMAND>.+?<\/TERMINAL_COMMAND>/g, '')
     .replace(/\n{3,}/g, '\n\n')  // Remove excessive newlines
@@ -189,23 +190,31 @@ WHEN USER WANTS HUMAN HELP:
 - Don't ask for device details when user wants transfer
 
 TERMINAL ACCESS (CRITICAL):
-You have DIRECT access to the user's terminal through the web interface. When the user asks you to:
-- Check directories ("show me files", "list directory", "what's in this folder")
-- Check system info ("what's my current directory", "check system info")
-- Run diagnostic commands ("check network", "see what processes are running")
-- Install packages ("install npm package", "download something")
+You have DIRECT access to the user's local terminal through the web interface. You can automatically open the terminal and execute commands when needed.
 
-Use this format to execute commands directly:
+AUTOMATIC TERMINAL OPENING:
+If the user's question requires terminal access (checking directories, running commands, diagnostics, installing software, etc.), automatically open the terminal by including this marker at the START of your response:
+OPEN_TERMINAL
+
+Then execute the command using:
 EXECUTE_COMMAND: [command here]
 
 Examples:
-- User: "show me what's in my current directory" → EXECUTE_COMMAND: ls -la
-- User: "what's my current directory?" → EXECUTE_COMMAND: pwd
-- User: "check my system info" → EXECUTE_COMMAND: uname -a
-- User: "install express" → EXECUTE_COMMAND: npm install express
+- User: "show me what's in my current directory" → OPEN_TERMINAL\nEXECUTE_COMMAND: ls -la
+- User: "what's my current directory?" → OPEN_TERMINAL\nEXECUTE_COMMAND: pwd
+- User: "check my system info" → OPEN_TERMINAL\nEXECUTE_COMMAND: uname -a
+- User: "install express" → OPEN_TERMINAL\nEXECUTE_COMMAND: npm install express
+- User: "check if node is installed" → OPEN_TERMINAL\nEXECUTE_COMMAND: node --version
+- User: "list my files" → OPEN_TERMINAL\nEXECUTE_COMMAND: ls -la
+- User: "check network connectivity" → OPEN_TERMINAL\nEXECUTE_COMMAND: ping -c 3 google.com
 
-DO NOT tell the user to "type ls" or "run this command". EXECUTE IT DIRECTLY.
-After executing, show the output naturally in your response.
+IMPORTANT RULES:
+1. If the user's question requires ANY terminal command, ALWAYS include OPEN_TERMINAL first
+2. DO NOT tell the user to "type ls" or "run this command" - EXECUTE IT DIRECTLY
+3. The terminal will open automatically when you include OPEN_TERMINAL
+4. Commands will require user approval before execution (for security)
+5. After executing, show the output naturally in your response
+6. You can execute multiple commands in sequence if needed
 
 INTERNAL MARKERS (place at END of message only):
 - ESCALATE_TO_HUMAN: ONLY for critical issues (security breach, office-wide outage)
@@ -847,6 +856,9 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      // Check if terminal should be opened
+      const shouldOpenTerminal = response.includes('OPEN_TERMINAL');
+      
       // Extract and execute terminal commands before saving response
       const commandMatch = response.match(/EXECUTE_COMMAND:\s*(.+?)(?:\n|$)/);
       if (commandMatch) {
@@ -858,11 +870,27 @@ export async function POST(request: NextRequest) {
         const responseWithoutMarker = response.replace(/EXECUTE_COMMAND:\s*.+?(?:\n|$)/g, '').trim();
         const finalResponse = cleanResponse(responseWithoutMarker);
         
-        // Insert message with command metadata (store command in content with special format)
+        // Build content with terminal markers
+        let content = finalResponse;
+        if (shouldOpenTerminal) {
+          content += `\n\n<OPEN_TERMINAL>true</OPEN_TERMINAL>`;
+        }
+        content += `\n\n<TERMINAL_COMMAND>${command}</TERMINAL_COMMAND>`;
+        
+        // Insert message with command metadata
         await supabase.from('ticket_messages').insert({
           ticket_id: ticketId,
           sender_agent_id: botId,
-          content: finalResponse + `\n\n<TERMINAL_COMMAND>${command}</TERMINAL_COMMAND>`,
+          content,
+          message_type: 'text',
+        });
+      } else if (shouldOpenTerminal) {
+        // Terminal should open but no command yet (maybe agent wants to prepare)
+        const finalResponse = cleanResponse(response);
+        await supabase.from('ticket_messages').insert({
+          ticket_id: ticketId,
+          sender_agent_id: botId,
+          content: finalResponse + `\n\n<OPEN_TERMINAL>true</OPEN_TERMINAL>`,
           message_type: 'text',
         });
       } else {

@@ -361,7 +361,7 @@ export default function LoginPage() {
                     <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wide">Account Manager</span>
                     <span className="text-base font-semibold text-emerald-100">{manager.name}</span>
                   </div>
-                </div>
+              </div>
               </div>
             </div>
 
@@ -518,11 +518,11 @@ export default function LoginPage() {
               {/* Content - Dark Theme */}
               <div className="relative z-10">
                 <h3 className="text-2xl font-bold text-slate-100 mb-3 group-hover:text-blue-400 transition-colors">
-                  {option.title}
-                </h3>
+                {option.title}
+              </h3>
                 <p className="text-slate-300 text-sm mb-6 leading-relaxed font-medium">
-                  {option.description}
-                </p>
+                {option.description}
+              </p>
                 
                 {/* CTA Button */}
                 <div className={`inline-flex items-center gap-2.5 px-5 py-2.5 rounded-xl text-white text-sm font-bold ${option.color} shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:-translate-y-0.5`}>

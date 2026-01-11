@@ -37,5 +37,13 @@ NETWORK TROUBLESHOOTING GUIDE:
 
 8. DNS resolution issues:
    - Windows 11: Step 1: Open Command Prompt as admin. Step 2: Run "ipconfig /flushdns". Step 3: Run "ipconfig /release" then "ipconfig /renew".
-   - macOS: Step 1: Open Terminal. Step 2: Run "sudo dscacheutil -flushcache". Step 3: Restart computer if issue persists.`
+   - macOS: Step 1: Open Terminal. Step 2: Run "sudo dscacheutil -flushcache". Step 3: Restart computer if issue persists.
+
+TERMINAL ACCESS:
+You have direct access to the user's local terminal. For network diagnostics, connectivity checks, DNS issues, or any terminal-based network tasks, automatically open the terminal and execute commands:
+- Use OPEN_TERMINAL marker at the start of your response
+- Then use EXECUTE_COMMAND: [command] to run the command
+- Example: User asks "check my network" → OPEN_TERMINAL\nEXECUTE_COMMAND: ping -c 3 google.com
+- Example: User asks "check DNS" → OPEN_TERMINAL\nEXECUTE_COMMAND: nslookup google.com
+Commands require user approval before execution for security.`
 };

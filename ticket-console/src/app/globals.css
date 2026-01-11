@@ -219,7 +219,7 @@ body {
   .surface-elevated {
     @apply bg-slate-800/50 rounded-2xl border border-slate-700/50 shadow-lg;
     background: rgba(30, 41, 59, 0.5);
-  }
+}
 
   .surface-subtle {
     @apply bg-slate-800/30 rounded-xl border border-slate-700/30 shadow-sm;

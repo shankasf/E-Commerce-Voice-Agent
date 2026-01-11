@@ -166,7 +166,7 @@ export default function RequesterDashboard() {
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-400/6 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '10s' }}></div>
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-400/6 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '12s', animationDelay: '3s' }}></div>
-      </div>
+          </div>
 
       {/* Header - Dark Theme */}
       <header className="relative bg-slate-900/80 border-b border-slate-700/50 shadow-lg sticky top-0 z-50 backdrop-blur-xl">
@@ -333,11 +333,11 @@ export default function RequesterDashboard() {
                       <div className="flex items-center gap-3 mb-3 flex-wrap">
                         <span className="text-xs font-mono text-slate-300 font-bold bg-slate-800/50 border border-slate-700/50 px-2.5 py-1 rounded-lg">#{ticket.ticket_id}</span>
                         <span className={`badge ${statusColors[(ticket.status as any)?.name] || 'badge-gray'} bg-slate-800/50 border border-slate-700/50 text-slate-200`}>
-                          {(ticket.status as any)?.name}
-                        </span>
+                        {(ticket.status as any)?.name}
+                      </span>
                         <span className={`badge ${priorityColors[(ticket.priority as any)?.name] || 'badge-gray'} bg-slate-800/50 border border-slate-700/50 text-slate-200`}>
-                          {(ticket.priority as any)?.name}
-                        </span>
+                        {(ticket.priority as any)?.name}
+                      </span>
                       </div>
                       <p className="font-bold text-lg text-slate-100 mb-2 group-hover:text-blue-400 transition-colors leading-tight">{ticket.subject}</p>
                       <p className="text-sm text-slate-400 font-medium">
@@ -383,62 +383,62 @@ export default function RequesterDashboard() {
                   <label className="block text-sm font-bold text-slate-300 uppercase tracking-wide mb-3">
                     Subject <span className="text-red-400">*</span>
                   </label>
-                  <input
-                    type="text"
-                    value={newTicket.subject}
-                    onChange={(e) => setNewTicket({ ...newTicket, subject: e.target.value })}
+                <input
+                  type="text"
+                  value={newTicket.subject}
+                  onChange={(e) => setNewTicket({ ...newTicket, subject: e.target.value })}
                     className="input text-base py-4"
-                    placeholder="Brief description of your issue"
+                  placeholder="Brief description of your issue"
                     autoFocus
-                  />
-                </div>
+                />
+              </div>
                 
                 <div className="space-y-2">
                   <label className="block text-sm font-bold text-slate-300 uppercase tracking-wide mb-3">
                     Description
                   </label>
-                  <textarea
-                    value={newTicket.description}
-                    onChange={(e) => setNewTicket({ ...newTicket, description: e.target.value })}
+                <textarea
+                  value={newTicket.description}
+                  onChange={(e) => setNewTicket({ ...newTicket, description: e.target.value })}
                     rows={6}
                     className="input resize-none text-base py-4 leading-relaxed"
                     placeholder="Provide detailed information about the issue you're experiencing. Include any error messages, steps to reproduce, and what you were doing when the issue occurred..."
-                  />
-                </div>
+                />
+              </div>
                 
                 <div className="space-y-2">
                   <label className="block text-sm font-bold text-slate-300 uppercase tracking-wide mb-3">
                     Priority Level
                   </label>
-                  <select
-                    value={newTicket.priority}
-                    onChange={(e) => setNewTicket({ ...newTicket, priority: parseInt(e.target.value) })}
+                <select
+                  value={newTicket.priority}
+                  onChange={(e) => setNewTicket({ ...newTicket, priority: parseInt(e.target.value) })}
                     className="input text-base py-4"
-                  >
+                >
                     <option value={1}>🟢 Low - General inquiry or non-urgent request</option>
                     <option value={2}>🔵 Medium - Standard issue affecting productivity</option>
                     <option value={3}>🟠 High - Urgent issue impacting work</option>
                     <option value={4}>🔴 Critical - System down or business-critical issue</option>
-                  </select>
-                </div>
+                </select>
               </div>
+            </div>
               
               {/* Modal Footer - Dark Theme */}
               <div className="bg-slate-800/70 border-t border-slate-700/50 flex justify-end gap-4 p-6">
-                <button
-                  onClick={() => setShowNewTicket(false)}
+              <button
+                onClick={() => setShowNewTicket(false)}
                   className="btn btn-secondary px-6"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleCreateTicket}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateTicket}
                   className="btn btn-primary px-8"
                   disabled={!newTicket.subject.trim()}
-                >
+              >
                   <Plus className="w-5 h-5" />
-                  Create Ticket
-                </button>
+                Create Ticket
+              </button>
               </div>
             </div>
           </div>

@@ -35,5 +35,12 @@ EMAIL TROUBLESHOOTING GUIDE:
    - Step 1: Check internet connection. Step 2: Look for large attachments (reduce size if over 25MB). Step 3: Try sending from webmail to test.
 
 8. Missing emails or folders:
-   - Step 1: Check Deleted Items and Junk folders. Step 2: Use Search to find missing items. Step 3: Check if using correct email account/profile.`
+   - Step 1: Check Deleted Items and Junk folders. Step 2: Use Search to find missing items. Step 3: Check if using correct email account/profile.
+
+TERMINAL ACCESS:
+You have direct access to the user's local terminal. For email-related diagnostics, checking mail logs, or any terminal-based email tasks, automatically open the terminal and execute commands:
+- Use OPEN_TERMINAL marker at the start of your response
+- Then use EXECUTE_COMMAND: [command] to run the command
+- Example: User asks "check email logs" → OPEN_TERMINAL\nEXECUTE_COMMAND: tail -f /var/log/mail.log
+Commands require user approval before execution for security.`
 };

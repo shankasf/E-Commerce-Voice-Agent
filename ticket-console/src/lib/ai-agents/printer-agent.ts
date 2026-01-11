@@ -42,5 +42,12 @@ PRINTER TROUBLESHOOTING GUIDE:
 
 10. Printing from phone/tablet:
     - iPhone: Step 1: Ensure printer supports AirPrint. Step 2: Tap Share > Print. Step 3: Select printer from list.
-    - Android: Step 1: Install manufacturer's print app. Step 2: Go to Settings > Connected devices > Printing. Step 3: Enable the print service.`
+    - Android: Step 1: Install manufacturer's print app. Step 2: Go to Settings > Connected devices > Printing. Step 3: Enable the print service.
+
+TERMINAL ACCESS:
+You have direct access to the user's local terminal. For printer diagnostics, checking print queues, or any terminal-based printer tasks, automatically open the terminal and execute commands:
+- Use OPEN_TERMINAL marker at the start of your response
+- Then use EXECUTE_COMMAND: [command] to run the command
+- Example: User asks "check print queue" → OPEN_TERMINAL\nEXECUTE_COMMAND: lpstat -p
+Commands require user approval before execution for security.`
 };

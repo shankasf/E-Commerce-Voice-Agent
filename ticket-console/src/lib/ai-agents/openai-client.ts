@@ -54,17 +54,17 @@ export async function createResponse(params: ResponseParams): Promise<ResponseRe
     console.log('[OpenAI] Request body:', JSON.stringify({ ...requestBody, messages: messages.length }));
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${openaiApiKey}`,
-      },
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${openaiApiKey}`,
+    },
       body: JSON.stringify(requestBody),
     });
 
     console.log('[OpenAI] Response status:', response.status, response.statusText);
 
-    if (!response.ok) {
+  if (!response.ok) {
       const errorText = await response.text();
       let errorData;
       try {
@@ -75,9 +75,9 @@ export async function createResponse(params: ResponseParams): Promise<ResponseRe
       const errorMessage = errorData.error?.message || errorData.message || `HTTP ${response.status}: ${response.statusText}`;
       console.error('[OpenAI] API Error:', errorMessage, errorData);
       throw new Error(`OpenAI API error: ${errorMessage}`);
-    }
+  }
 
-    const data = await response.json();
+  const data = await response.json();
     console.log('[OpenAI] Response received:', {
       id: data.id,
       model: data.model,

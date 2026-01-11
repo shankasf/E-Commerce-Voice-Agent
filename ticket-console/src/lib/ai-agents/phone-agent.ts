@@ -43,5 +43,12 @@ PHONE TROUBLESHOOTING GUIDE:
     - ESCALATE IMMEDIATELY TO HUMAN TECHNICIAN.
     - This affects business operations.
     - Check if network is also down.
-    - Note approximately when issue started.`
+    - Note approximately when issue started.
+
+TERMINAL ACCESS:
+You have direct access to the user's local terminal. For phone/VoIP diagnostics, checking network connectivity, or any terminal-based phone tasks, automatically open the terminal and execute commands:
+- Use OPEN_TERMINAL marker at the start of your response
+- Then use EXECUTE_COMMAND: [command] to run the command
+- Example: User asks "check network for phone" → OPEN_TERMINAL\nEXECUTE_COMMAND: ping -c 3 voip-server
+Commands require user approval before execution for security.`
 };
