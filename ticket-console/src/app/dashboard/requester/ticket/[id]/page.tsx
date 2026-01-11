@@ -8,6 +8,7 @@ import { SupportTicket, TicketMessage } from '@/lib/supabase';
 import { useTicketRealtime } from '@/lib/useRealtime';
 import { useMessageNotification } from '@/lib/useNotificationSound';
 import { ChatContainer, ChatInput } from '@/components/ChatUI';
+import RequesterEnrollment from '@/components/RemoteDevice/RequesterEnrollment';
 import { ArrowLeft } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 
@@ -106,9 +107,9 @@ export default function RequesterTicketDetail() {
 
   useEffect(() => {
     if (!isLoading && !user) {
-      window.location.href = '/';
+      window.location.href = '/tms';
     } else if (!isLoading && user?.role !== 'requester') {
-      window.location.href = `/dashboard/${user?.role}`;
+      window.location.href = `/tms/dashboard/${user?.role}`;
     }
   }, [user, isLoading]);
 
@@ -201,6 +202,15 @@ export default function RequesterTicketDetail() {
           <div className="max-w-4xl mx-auto px-4 py-4">
             <h3 className="text-sm font-medium text-gray-500 mb-2">Description</h3>
             <p className="text-gray-700">{ticket.description}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Remote Support Enrollment */}
+      {!isClosed && (
+        <div className="bg-gray-50 border-b border-gray-200 shrink-0">
+          <div className="max-w-4xl mx-auto px-4 py-4">
+            <RequesterEnrollment ticketId={ticketId} />
           </div>
         </div>
       )}

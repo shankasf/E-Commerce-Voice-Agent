@@ -118,9 +118,9 @@ export default function AgentDashboard() {
 
   useEffect(() => {
     if (mounted && !isLoading && !user) {
-      window.location.href = '/';
+      window.location.href = '/tms';
     } else if (mounted && !isLoading && user?.role !== 'agent') {
-      window.location.href = `/dashboard/${user?.role}`;
+      window.location.href = `/tms/dashboard/${user?.role}`;
     }
   }, [user, isLoading, mounted]);
 
@@ -172,7 +172,7 @@ export default function AgentDashboard() {
   };
 
   const navigateToTicket = (ticketId: number) => {
-    window.location.href = `/dashboard/agent/ticket/${ticketId}`;
+    window.location.href = `/tms/dashboard/agent/ticket/${ticketId}`;
   };
 
   if (isLoading || !user) {

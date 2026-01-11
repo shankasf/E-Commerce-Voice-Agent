@@ -90,9 +90,9 @@ export default function RequesterDashboard() {
 
   useEffect(() => {
     if (mounted && !isLoading && !user) {
-      window.location.href = '/';
+      window.location.href = '/tms';
     } else if (mounted && !isLoading && user?.role !== 'requester') {
-      window.location.href = `/dashboard/${user?.role}`;
+      window.location.href = `/tms/dashboard/${user?.role}`;
     }
   }, [user, isLoading, mounted]);
 
@@ -147,7 +147,7 @@ export default function RequesterDashboard() {
   };
 
   const navigateToTicket = (ticketId: number) => {
-    window.location.href = `/dashboard/requester/ticket/${ticketId}`;
+    window.location.href = `/tms/dashboard/requester/ticket/${ticketId}`;
   };
 
   if (isLoading || !user) {

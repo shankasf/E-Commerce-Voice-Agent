@@ -1,12 +1,29 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
+// #region agent log
+if (typeof window !== 'undefined') {
+  fetch('http://127.0.0.1:7242/ingest/fc03e1bb-15cf-418b-b1dd-f71c3bfd3447',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'supabase.ts:4',message:'Env check - NEXT_PUBLIC_SUPABASE_URL',data:{hasUrl:!!process.env.NEXT_PUBLIC_SUPABASE_URL,urlValue:process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0,20)||'missing',hasKey:!!process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY,keyLength:process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'env-check',hypothesisId:'A'})}).catch(()=>{});
+}
+// #endregion
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseServiceKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || '';
+
+// #region agent log
+if (typeof window !== 'undefined') {
+  fetch('http://127.0.0.1:7242/ingest/fc03e1bb-15cf-418b-b1dd-f71c3bfd3447',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'supabase.ts:8',message:'After env read',data:{supabaseUrl:supabaseUrl.substring(0,30)||'empty',hasServiceKey:supabaseServiceKey.length>0},timestamp:Date.now(),sessionId:'debug-session',runId:'env-check',hypothesisId:'A'})}).catch(()=>{});
+}
+// #endregion
 
 // Create supabase client with service role key to bypass RLS
 let supabase: SupabaseClient;
 
-if (supabaseUrl && supabaseServiceKey) {
+if (supabaseUrl && supabaseServiceKey && !supabaseUrl.includes('placeholder')) {
+  // #region agent log
+  if (typeof window !== 'undefined') {
+    fetch('http://127.0.0.1:7242/ingest/fc03e1bb-15cf-418b-b1dd-f71c3bfd3447',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'supabase.ts:15',message:'Creating real Supabase client',data:{url:supabaseUrl.substring(0,30)},timestamp:Date.now(),sessionId:'debug-session',runId:'env-check',hypothesisId:'A'})}).catch(()=>{});
+  }
+  // #endregion
   supabase = createClient(supabaseUrl, supabaseServiceKey, {
     auth: {
       autoRefreshToken: false,
@@ -22,6 +39,17 @@ if (supabaseUrl && supabaseServiceKey) {
     }
   });
 } else {
+  // #region agent log
+  if (typeof window !== 'undefined') {
+    fetch('http://127.0.0.1:7242/ingest/fc03e1bb-15cf-418b-b1dd-f71c3bfd3447',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'supabase.ts:32',message:'Using placeholder client - env vars missing',data:{reason:!supabaseUrl?'no url':!supabaseServiceKey?'no key':'has placeholder'},timestamp:Date.now(),sessionId:'debug-session',runId:'env-check',hypothesisId:'A'})}).catch(()=>{});
+    // Show console warning for developers
+    console.error('⚠️ Supabase not configured!');
+    console.error('Please create .env.local with:');
+    console.error('NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co');
+    console.error('NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY=your-service-role-key');
+    console.error('See .env.local.example for template');
+  }
+  // #endregion
   // Fallback for SSR - create a dummy client that will be replaced on client
   supabase = createClient('https://placeholder.supabase.co', 'placeholder-key');
 }

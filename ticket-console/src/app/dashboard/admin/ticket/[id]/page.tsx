@@ -120,9 +120,9 @@ export default function AdminTicketDetail() {
 
   useEffect(() => {
     if (!isLoading && !user) {
-      window.location.href = '/';
+      window.location.href = '/tms';
     } else if (!isLoading && user?.role !== 'admin') {
-      window.location.href = `/dashboard/${user?.role}`;
+      window.location.href = `/tms/dashboard/${user?.role}`;
     }
   }, [user, isLoading]);
 

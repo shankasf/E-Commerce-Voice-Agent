@@ -35,7 +35,10 @@ import {
   Key,
   Eye,
   EyeOff,
+  Globe,
+  ChevronDown,
 } from "lucide-react";
+import { remoteDeviceAPI } from "@/lib/remoteDeviceAPI";
 
 type ProposedCommand = {
   title: string;
@@ -75,20 +78,12 @@ type AgentStatus = "idle" | "thinking" | "waiting_approval" | "running" | "analy
 
 type Tab = "chat" | "terminal" | "history";
 type Position = { x: number; y: number };
-type TerminalTarget = "local" | "linux";
+type TerminalTarget = "local" | "remote";
 type TargetInfo = { id: string; name: string; status: "available" | "offline"; method?: string };
-
-type SSHConfig = {
-  host: string;
-  port: number;
-  username: string;
-  password: string;
-};
 
 const STORAGE_KEY = "ai-copilot-position";
 const TRUST_MODE_KEY = "ai-copilot-trust-mode";
 const TARGET_KEY = "ai-copilot-target";
-const SSH_CONFIG_KEY = "ai-copilot-ssh-config";
 
 export default function FloatingCopilot({ ticketId }: { ticketId: string }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -103,23 +98,15 @@ export default function FloatingCopilot({ ticketId }: { ticketId: string }) {
   const [commandResults, setCommandResults] = useState<CommandResult[]>([]);
   const [conversationHistory, setConversationHistory] = useState<{role: string; content: string}[]>([]);
   
-  // Target state (local Windows or Linux VM)
+  // Target state (local Windows or Remote Device)
   const [target, setTarget] = useState<TerminalTarget>("local");
-  const [targets, setTargets] = useState<TargetInfo[]>([
-    { id: "local", name: "Local Windows", status: "available" },
-    { id: "linux", name: "Linux VM (SSH)", status: "offline" },
-  ]);
-  const [isLoadingTargets, setIsLoadingTargets] = useState(false);
   
-  // SSH Configuration
-  const [sshConfig, setSSHConfig] = useState<SSHConfig>({
-    host: "localhost",
-    port: 22,
-    username: "root",
-    password: "",
-  });
-  const [showSettings, setShowSettings] = useState(false);
-  const [isTestingSSH, setIsTestingSSH] = useState(false);
+  // Remote device state
+  const [remoteDevices, setRemoteDevices] = useState<any[]>([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
+  const [isLoadingDevices, setIsLoadingDevices] = useState(false);
+  const [availableDiagnostics, setAvailableDiagnostics] = useState<any[]>([]);
+  
   
   // Chat state
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -161,52 +148,134 @@ export default function FloatingCopilot({ ticketId }: { ticketId: string }) {
       if (savedTrust) setTrustMode(JSON.parse(savedTrust));
       const savedTarget = localStorage.getItem(TARGET_KEY);
       if (savedTarget) setTarget(JSON.parse(savedTarget));
-      const savedSSH = localStorage.getItem(SSH_CONFIG_KEY);
-      if (savedSSH) setSSHConfig(JSON.parse(savedSSH));
     } catch {}
   }, []);
 
-  // Save SSH config
-  useEffect(() => {
-    try { localStorage.setItem(SSH_CONFIG_KEY, JSON.stringify(sshConfig)); } catch {}
-  }, [sshConfig]);
-
-  // Load available targets on mount
-  // Load targets (and refresh when SSH config changes)
-  const loadTargets = useCallback(async () => {
-    setIsLoadingTargets(true);
+  // Load remote devices for current ticket
+  const loadRemoteDevices = useCallback(async () => {
+    if (!ticketId) {
+      console.warn('[FloatingCopilot] No ticketId provided, skipping remote device load');
+      return;
+    }
+    setIsLoadingDevices(true);
     try {
-      const res = await fetch("/tms/api/agent-copilot/execute", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          action: "list_targets",
-          sshConfig: sshConfig.password ? sshConfig : undefined,
-        }),
-      });
-      const data = await res.json();
-      if (data?.result?.content?.[0]?.text) {
-        const parsed = JSON.parse(data.result.content[0].text);
-        if (parsed?.targets) {
-          setTargets(parsed.targets);
+      console.log('[FloatingCopilot] Loading devices for ticket:', ticketId);
+      const result = await remoteDeviceAPI.getDevices(parseInt(ticketId));
+      console.log('[FloatingCopilot] Devices loaded:', result);
+      if (result.ok && result.devices) {
+        setRemoteDevices(result.devices);
+        console.log('[FloatingCopilot] Set devices:', result.devices.length);
+        // Auto-select first online device if none selected
+        if (!selectedDeviceId && result.devices.length > 0) {
+          const onlineDevice = result.devices.find((d: any) => d.connected && d.status === 'active');
+          if (onlineDevice) {
+            console.log('[FloatingCopilot] Auto-selecting online device:', onlineDevice.device_id);
+            setSelectedDeviceId(onlineDevice.device_id);
+          } else if (result.devices.length > 0) {
+            console.log('[FloatingCopilot] Auto-selecting first device:', result.devices[0].device_id);
+            setSelectedDeviceId(result.devices[0].device_id);
+          }
         }
+      } else {
+        console.warn('[FloatingCopilot] Failed to load devices:', result.error);
+        setRemoteDevices([]);
       }
     } catch (e) {
-      console.error("Failed to load targets:", e);
+      console.error("[FloatingCopilot] Failed to load remote devices:", e);
+      setRemoteDevices([]);
     } finally {
-      setIsLoadingTargets(false);
+      setIsLoadingDevices(false);
     }
-  }, [sshConfig]);
+  }, [ticketId, selectedDeviceId]);
 
-  // Load on mount
-  useEffect(() => {
-    loadTargets();
-  }, [loadTargets]);
+  // Load available diagnostics
+  const loadDiagnostics = useCallback(async () => {
+    try {
+      const result = await remoteDeviceAPI.listDiagnostics();
+      if (result.ok && result.diagnostics) {
+        setAvailableDiagnostics(result.diagnostics);
+      }
+    } catch (e) {
+      console.error("Failed to load diagnostics:", e);
+    }
+  }, []);
+
+  // Map command string to diagnostic ID
+  const mapCommandToDiagnostic = useCallback((command: string): { diagnosticId: string; params?: Record<string, string> } | null => {
+    const cmdLower = command.toLowerCase().trim();
+    
+    // Extract parameters from commands
+    const pingMatch = cmdLower.match(/ping\s+(?:-n\s+\d+\s+)?([^\s]+)/);
+    if (pingMatch) {
+      return { diagnosticId: 'network_ping', params: { host: pingMatch[1] } };
+    }
+    
+    const tracertMatch = cmdLower.match(/tracert\s+([^\s]+)/);
+    if (tracertMatch) {
+      return { diagnosticId: 'network_tracert', params: { host: tracertMatch[1] } };
+    }
+    
+    const nslookupMatch = cmdLower.match(/nslookup\s+([^\s]+)/);
+    if (nslookupMatch) {
+      return { diagnosticId: 'network_nslookup', params: { domain: nslookupMatch[1] } };
+    }
+    
+    // Direct command mappings
+    const mappings: Record<string, string> = {
+      'ipconfig /all': 'network_ipconfig',
+      'ipconfig': 'network_ipconfig',
+      'ipconfig /release': 'network_ipconfig_release',
+      'ipconfig /renew': 'network_ipconfig_renew',
+      'ipconfig /flushdns': 'network_flushdns',
+      'netstat': 'network_netstat',
+      'netstat -an': 'network_netstat',
+      'arp -a': 'network_arp',
+      'hostname': 'system_hostname',
+      'whoami': 'system_whoami',
+      'systeminfo': 'system_info',
+      'tasklist': 'system_tasklist',
+      'sc query': 'system_services',
+      'wmic logicaldisk get size,freespace,caption': 'disk_info',
+    };
+    
+    if (mappings[cmdLower]) {
+      return { diagnosticId: mappings[cmdLower] };
+    }
+    
+    // Try to find by partial match
+    for (const [key, value] of Object.entries(mappings)) {
+      if (cmdLower.includes(key.split(' ')[0])) {
+        return { diagnosticId: value };
+      }
+    }
+    
+    return null;
+  }, []);
 
   // Save target preference
   useEffect(() => {
     try { localStorage.setItem(TARGET_KEY, JSON.stringify(target)); } catch {}
   }, [target]);
+
+  // Load remote devices on mount and when ticketId changes
+  useEffect(() => {
+    if (ticketId) {
+      loadRemoteDevices();
+      loadDiagnostics();
+    }
+  }, [ticketId, loadRemoteDevices, loadDiagnostics]);
+
+  // Reload devices when target changes to remote
+  useEffect(() => {
+    if (target === "remote" && ticketId) {
+      loadRemoteDevices();
+    }
+  }, [target, ticketId, loadRemoteDevices]);
+
+  // Initial load of diagnostics
+  useEffect(() => {
+    loadDiagnostics();
+  }, [loadDiagnostics]);
 
   // Save position
   useEffect(() => {
@@ -291,7 +360,87 @@ export default function FloatingCopilot({ ticketId }: { ticketId: string }) {
   // Execute a single command
   const executeCommand = useCallback(async (command: string): Promise<CommandResult> => {
     setCurrentRunningCommand(command);
-    const targetLabel = target === "linux" ? "[linux]" : "[local]";
+    
+    // Handle remote execution
+    if (target === "remote") {
+      if (!selectedDeviceId) {
+        addTerminalLine("error", "No remote device selected");
+        setCurrentRunningCommand(null);
+        return { command, ok: false, reason: "No remote device selected" };
+      }
+
+      // Try to map command to diagnostic first, fallback to raw execution
+      const diagnostic = mapCommandToDiagnostic(command);
+      const selectedDevice = remoteDevices.find((d: any) => d.device_id === selectedDeviceId);
+      const deviceLabel = selectedDevice ? `[${selectedDevice.device_name}]` : "[remote]";
+      
+      setCommandHistory((prev) => [...prev.filter((c) => c !== command), command]);
+
+      try {
+        let result;
+        
+        if (diagnostic) {
+          // Use diagnostic if available
+          addTerminalLine("command", `${deviceLabel} ${command} → ${diagnostic.diagnosticId}`);
+          addTerminalLine("system", `Executing diagnostic: ${diagnostic.diagnosticId}...`);
+          result = await remoteDeviceAPI.executeDiagnostic(
+            selectedDeviceId,
+            diagnostic.diagnosticId,
+            diagnostic.params
+          );
+        } else {
+          // Use raw command execution (with blacklist validation)
+          addTerminalLine("command", `${deviceLabel} ${command} (raw)`);
+          addTerminalLine("system", `Executing raw command (blacklist-protected)...`);
+          result = await remoteDeviceAPI.executeRawCommand(
+            selectedDeviceId,
+            command,
+            30 // timeout
+          );
+        }
+
+        if (result.ok && result.result) {
+          const { success, stdout, stderr, exit_code, truncated, redactions, warnings, execution_time_ms, error } = result.result;
+          
+          if (stdout) addTerminalLine("output", stdout);
+          if (stderr) addTerminalLine("error", stderr);
+          if (error) addTerminalLine("error", `Error: ${error}`);
+          if (truncated) addTerminalLine("system", "[Output was truncated]");
+          if (redactions && redactions > 0) addTerminalLine("system", `[${redactions} sensitive value(s) redacted]`);
+          if (warnings && warnings.length > 0) {
+            warnings.forEach((w: string) => addTerminalLine("system", `[Warning] ${w}`));
+          }
+          if (execution_time_ms) addTerminalLine("system", `Execution time: ${execution_time_ms}ms`);
+          
+          if (!stdout && !stderr && !error) {
+            addTerminalLine("output", success ? "Command completed (no output)" : "Command failed (no output)");
+          }
+
+          return {
+            command,
+            ok: success,
+            stdout: stdout || "",
+            stderr: stderr || "",
+            reason: success ? undefined : (error || `Exit code: ${exit_code}`),
+          };
+        } else {
+          const errorMsg = result.error || "Remote execution failed";
+          addTerminalLine("error", errorMsg);
+          console.error("[FloatingCopilot] Remote execution failed:", result);
+          return { command, ok: false, reason: errorMsg };
+        }
+      } catch (e: any) {
+        const errorMsg = e?.message ?? "Remote execution failed";
+        addTerminalLine("error", errorMsg);
+        console.error("[FloatingCopilot] Remote execution exception:", e);
+        return { command, ok: false, reason: errorMsg };
+      } finally {
+        setCurrentRunningCommand(null);
+      }
+    }
+
+    // Handle local execution
+    const targetLabel = "[local]";
     addTerminalLine("command", `${targetLabel} ${command}`);
     setCommandHistory((prev) => [...prev.filter((c) => c !== command), command]);
 
@@ -303,8 +452,6 @@ export default function FloatingCopilot({ ticketId }: { ticketId: string }) {
           ticketId, 
           command, 
           target,
-          // Pass SSH config for Linux target
-          sshConfig: target === "linux" ? sshConfig : undefined,
         }),
       });
 
@@ -336,93 +483,176 @@ export default function FloatingCopilot({ ticketId }: { ticketId: string }) {
     } finally {
       setCurrentRunningCommand(null);
     }
-  }, [ticketId, target, sshConfig, addTerminalLine]);
+  }, [ticketId, target, addTerminalLine, selectedDeviceId, remoteDevices, mapCommandToDiagnostic]);
 
-  // Run approved commands and analyze results
-  const runApprovedCommands = useCallback(async (commands: ProposedCommand[]) => {
+  // Run approved commands and analyze results with conversational analysis
+  const runApprovedCommands = useCallback(async (commands: ProposedCommand[], depth: number = 0) => {
     if (commands.length === 0) return;
+    
+    // Prevent infinite loops (max 10 iterations)
+    if (depth > 10) {
+      addTerminalLine("system", "⚠️ Maximum auto-continuation depth reached. Stopping.");
+      setAgentStatus("idle");
+      return;
+    }
     
     setAgentStatus("running");
     setActiveTab("terminal");
-    addTerminalLine("system", `Running ${commands.length} approved command(s)...`);
-
-    const results: CommandResult[] = [];
-    for (const cmd of commands) {
-      const result = await executeCommand(cmd.command);
-      results.push(result);
+    if (depth === 0) {
+      addTerminalLine("system", `Running ${commands.length} approved command(s)...`);
     }
 
-    setCommandResults(results);
+    const results: CommandResult[] = [];
+    
+    // Execute each command and analyze individually
+    for (const cmd of commands) {
+      addTerminalLine("system", `Executing: ${cmd.title || cmd.command}...`);
+      const result = await executeCommand(cmd.command);
+      results.push(result);
+      
+      // NEW: Analyze each command result individually
+      if (result.ok !== false) {  // Only analyze if command executed (even if it failed)
+        setAgentStatus("analyzing");
+        addTerminalLine("system", `Analyzing: ${cmd.title || cmd.command}...`);
+        
+        try {
+          const analysisRes = await fetch("/tms/api/agent-copilot/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ticketId,
+              mode: "analyze_single",
+              commandResults: [result],
+              conversationHistory,
+              target,
+              previousCommand: cmd.command,
+              previousReason: cmd.reason,
+            }),
+          });
+          
+          const analysisData = await analysisRes.json();
+          if (analysisRes.ok && analysisData.answer) {
+            // Display AI's conversational analysis
+            addTerminalLine("output", `\n[AI Analysis] ${analysisData.answer}`);
+            
+            // Add to chat messages for user visibility
+            const analysisMessage: ChatMessage = {
+              id: `analysis_${Date.now()}_${Math.random()}`,
+              role: "assistant",
+              content: `**Analysis of "${cmd.title || cmd.command}":**\n\n${analysisData.answer}`,
+              status: analysisData.status,
+              nextStepHint: analysisData.next_step_hint,
+              confidence: analysisData.confidence,
+              timestamp: new Date(),
+            };
+            setMessages((prev) => [...prev, analysisMessage]);
+            setConversationHistory((prev) => [...prev, { role: "assistant", content: analysisData.answer }]);
+            
+            // Auto-continue if AI suggests low-risk next command
+            if (analysisData.proposed_commands && analysisData.proposed_commands.length > 0) {
+              const nextCmd = analysisData.proposed_commands[0];
+              if (nextCmd.risk === "low" && (nextCmd.auto_approve || trustMode)) {
+                addTerminalLine("system", `Auto-continuing with: ${nextCmd.title || nextCmd.command}...`);
+                // Recursively continue with next command
+                await runApprovedCommands([nextCmd], depth + 1);
+                return; // Exit early since we're continuing
+              }
+            }
+            
+            // If resolved or escalated, stop here
+            if (analysisData.status === "resolved" || analysisData.status === "escalate") {
+              setAgentStatus("idle");
+              if (analysisData.status === "resolved") {
+                addTerminalLine("system", "✅ Issue appears to be resolved!");
+              } else {
+                addTerminalLine("system", "⚠️ Escalation needed - human intervention required.");
+              }
+              setActiveTab("chat");
+              return;
+            }
+          }
+        } catch (e: any) {
+          console.error("Single command analysis error:", e);
+          // Continue with next command even if analysis fails
+        }
+      }
+    }
+
+    setCommandResults((prev) => [...prev, ...results]);
     setPendingCommands([]);
 
-    // Auto-analyze results
-    setAgentStatus("analyzing");
-    addTerminalLine("system", "Analyzing results...");
+    // Final analysis of all results (if we didn't auto-continue)
+    if (depth === 0 && results.length > 0) {
+      setAgentStatus("analyzing");
+      addTerminalLine("system", "Final analysis of all results...");
 
-    try {
-      const res = await fetch("/tms/api/agent-copilot/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ticketId,
-          mode: "analyze",
-          commandResults: results,
-          conversationHistory,
-          target, // Pass selected target so AI suggests correct commands
-        }),
-      });
+      try {
+        const res = await fetch("/tms/api/agent-copilot/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ticketId,
+            mode: "analyze",
+            commandResults: results,
+            conversationHistory,
+            target,
+          }),
+        });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error ?? "Analysis failed");
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error ?? "Analysis failed");
 
-      const assistantMessage: ChatMessage = {
-        id: `${Date.now()}`,
-        role: "assistant",
-        content: data.answer ?? "",
-        commands: Array.isArray(data.proposed_commands) ? data.proposed_commands : [],
-        status: data.status,
-        nextStepHint: data.next_step_hint,
-        confidence: data.confidence,
-        timestamp: new Date(),
-      };
+        const assistantMessage: ChatMessage = {
+          id: `${Date.now()}`,
+          role: "assistant",
+          content: data.answer ?? "",
+          commands: Array.isArray(data.proposed_commands) ? data.proposed_commands : [],
+          status: data.status,
+          nextStepHint: data.next_step_hint,
+          confidence: data.confidence,
+          timestamp: new Date(),
+        };
 
-      setMessages((prev) => [...prev, assistantMessage]);
-      setConversationHistory((prev) => [...prev, { role: "assistant", content: data.answer }]);
+        setMessages((prev) => [...prev, assistantMessage]);
+        setConversationHistory((prev) => [...prev, { role: "assistant", content: data.answer }]);
 
-      // Handle new commands
-      if (assistantMessage.commands && assistantMessage.commands.length > 0) {
-        const autoApprove = assistantMessage.commands.filter(c => trustMode && (c.auto_approve || c.risk === "low"));
-        const needApproval = assistantMessage.commands.filter(c => !trustMode || (!c.auto_approve && c.risk !== "low"));
+        // Handle new commands
+        if (assistantMessage.commands && assistantMessage.commands.length > 0) {
+          const autoApprove = assistantMessage.commands.filter(c => trustMode && (c.auto_approve || c.risk === "low"));
+          const needApproval = assistantMessage.commands.filter(c => !trustMode || (!c.auto_approve && c.risk !== "low"));
 
-        if (autoApprove.length > 0) {
-          addTerminalLine("system", `Auto-running ${autoApprove.length} low-risk command(s)...`);
-          await runApprovedCommands(autoApprove);
-        }
+          if (autoApprove.length > 0) {
+            addTerminalLine("system", `Auto-running ${autoApprove.length} low-risk command(s)...`);
+            await runApprovedCommands(autoApprove, depth + 1);
+          }
 
-        if (needApproval.length > 0) {
-          setPendingCommands(needApproval);
-          setAgentStatus("waiting_approval");
-          addTerminalLine("system", `Waiting for approval on ${needApproval.length} command(s)`);
-        } else if (autoApprove.length === 0) {
+          if (needApproval.length > 0) {
+            setPendingCommands(needApproval);
+            setAgentStatus("waiting_approval");
+            addTerminalLine("system", `Waiting for approval on ${needApproval.length} command(s)`);
+          } else if (autoApprove.length === 0) {
+            setAgentStatus("idle");
+          }
+        } else {
           setAgentStatus("idle");
         }
-      } else {
+
+        // Switch to chat if resolved or escalated
+        if (assistantMessage.status === "resolved" || assistantMessage.status === "escalate") {
+          setActiveTab("chat");
+        }
+
+      } catch (e: any) {
+        const errorMessage: ChatMessage = {
+          id: `${Date.now()}`,
+          role: "assistant",
+          content: `Analysis error: ${e?.message ?? "Unknown error"}`,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, errorMessage]);
         setAgentStatus("idle");
       }
-
-      // Switch to chat if resolved or escalated
-      if (assistantMessage.status === "resolved" || assistantMessage.status === "escalate") {
-        setActiveTab("chat");
-      }
-
-    } catch (e: any) {
-      const errorMessage: ChatMessage = {
-        id: `${Date.now()}`,
-        role: "assistant",
-        content: `Analysis error: ${e?.message ?? "Unknown error"}`,
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, errorMessage]);
+    } else {
       setAgentStatus("idle");
     }
   }, [ticketId, conversationHistory, trustMode, target, executeCommand, addTerminalLine]);
@@ -676,101 +906,6 @@ export default function FloatingCopilot({ ticketId }: { ticketId: string }) {
         </div>
       )}
 
-      {/* SSH Settings Modal */}
-      {showSettings && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowSettings(false)} />
-          <div className="relative w-full max-w-md mx-4 bg-[#1a1b26] border border-[#414868] rounded-xl shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[#414868]">
-              <div className="flex items-center gap-2">
-                <Key className="w-5 h-5 text-violet-400" />
-                <h3 className="font-medium text-gray-200">SSH Configuration</h3>
-              </div>
-              <button onClick={() => setShowSettings(false)} className="p-1 hover:bg-[#414868] rounded">
-                <X className="w-4 h-4 text-gray-400" />
-              </button>
-            </div>
-            
-            <div className="p-4 space-y-4">
-              <p className="text-sm text-gray-400">
-                Enter SSH credentials to connect to Linux systems (WSL, VMs, remote servers).
-              </p>
-              
-              <div className="grid grid-cols-3 gap-3">
-                <div className="col-span-2">
-                  <label className="block text-xs text-gray-500 mb-1">Host</label>
-                  <input
-                    type="text"
-                    value={sshConfig.host}
-                    onChange={(e) => setSSHConfig({ ...sshConfig, host: e.target.value })}
-                    placeholder="localhost"
-                    className="w-full px-3 py-2 bg-[#24283b] border border-[#414868] rounded-lg text-gray-200 text-sm outline-none focus:border-violet-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Port</label>
-                  <input
-                    type="number"
-                    value={sshConfig.port}
-                    onChange={(e) => setSSHConfig({ ...sshConfig, port: parseInt(e.target.value) || 22 })}
-                    className="w-full px-3 py-2 bg-[#24283b] border border-[#414868] rounded-lg text-gray-200 text-sm outline-none focus:border-violet-500"
-                  />
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Username</label>
-                <input
-                  type="text"
-                  value={sshConfig.username}
-                  onChange={(e) => setSSHConfig({ ...sshConfig, username: e.target.value })}
-                  placeholder="root"
-                  className="w-full px-3 py-2 bg-[#24283b] border border-[#414868] rounded-lg text-gray-200 text-sm outline-none focus:border-violet-500"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Password</label>
-                <div className="relative">
-                  <input
-                    type="password"
-                    value={sshConfig.password}
-                    onChange={(e) => setSSHConfig({ ...sshConfig, password: e.target.value })}
-                    placeholder="Enter SSH password"
-                    className="w-full px-3 py-2 bg-[#24283b] border border-[#414868] rounded-lg text-gray-200 text-sm outline-none focus:border-violet-500 pr-10"
-                  />
-                </div>
-              </div>
-
-              <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                <p className="text-xs text-blue-300">
-                  💡 Connect to WSL, VMs, or remote Linux servers via SSH.
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex justify-end gap-2 px-4 py-3 border-t border-[#414868]">
-              <button
-                onClick={() => setShowSettings(false)}
-                className="px-4 py-2 text-sm text-gray-400 hover:text-gray-200"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  setShowSettings(false);
-                  addTerminalLine("system", `SSH configured: ${sshConfig.username}@${sshConfig.host}:${sshConfig.port}`);
-                  // Refresh targets to check if SSH connection works
-                  setTimeout(() => loadTargets(), 100);
-                }}
-                className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm rounded-lg"
-              >
-                Save
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Main Panel */}
       <div
@@ -818,30 +953,77 @@ export default function FloatingCopilot({ ticketId }: { ticketId: string }) {
                   <span className="hidden sm:inline">Local</span>
                 </button>
                 <button
-                  onClick={() => setTarget("linux")}
-                  disabled={targets.find(t => t.id === "linux")?.status === "offline"}
+                  onClick={() => {
+                    setTarget("remote");
+                    // Reload devices when clicking remote button
+                    if (ticketId) {
+                      loadRemoteDevices();
+                    }
+                  }}
+                  disabled={!ticketId}
                   className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors ${
-                    target === "linux" 
-                      ? "bg-orange-600 text-white" 
-                      : targets.find(t => t.id === "linux")?.status === "offline"
+                    target === "remote" 
+                      ? "bg-purple-600 text-white" 
+                      : !ticketId
                         ? "text-gray-600 cursor-not-allowed"
-                        : "text-gray-400 hover:text-gray-200"
+                        : remoteDevices.length === 0
+                          ? "text-yellow-400 hover:text-yellow-300"
+                          : "text-gray-400 hover:text-gray-200"
                   }`}
                   title={
-                    targets.find(t => t.id === "linux")?.status === "offline" 
-                      ? `Offline: ${(targets.find(t => t.id === "linux") as any)?.hint || "Click ⚙️ to configure SSH"}`
-                      : "Linux VM (SSH)"
+                    !ticketId
+                      ? "No ticket ID available"
+                      : remoteDevices.length === 0
+                        ? "No remote devices available. Add a device in the ticket page."
+                        : `Remote Customer Device${remoteDevices.length > 0 ? ` (${remoteDevices.length} available)` : ''}`
                   }
                 >
-                  <Server className="w-3 h-3" />
-                  <span className="hidden sm:inline">Linux</span>
-                  {targets.find(t => t.id === "linux")?.status === "offline" ? (
-                    <WifiOff className="w-3 h-3 text-red-400" />
-                  ) : targets.find(t => t.id === "linux")?.status === "available" && (
+                  <Globe className="w-3 h-3" />
+                  <span className="hidden sm:inline">Remote</span>
+                  {target === "remote" && selectedDeviceId && (
                     <Wifi className="w-3 h-3 text-emerald-400" />
+                  )}
+                  {target === "remote" && remoteDevices.length === 0 && (
+                    <WifiOff className="w-3 h-3 text-yellow-400" />
                   )}
                 </button>
               </div>
+              
+              {/* Remote Device Selector */}
+              {target === "remote" && (
+                <div className="relative">
+                  <select
+                    value={selectedDeviceId || ""}
+                    onChange={(e) => {
+                      const newDeviceId = e.target.value;
+                      setSelectedDeviceId(newDeviceId || null);
+                      console.log('[FloatingCopilot] Device selected:', newDeviceId);
+                    }}
+                    disabled={isLoadingDevices}
+                    className="px-3 py-1 bg-[#1a1b26] border border-gray-700 rounded-lg text-xs text-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed min-w-[200px]"
+                  >
+                    {isLoadingDevices ? (
+                      <option>Loading devices...</option>
+                    ) : remoteDevices.length === 0 ? (
+                      <option value="">No devices available</option>
+                    ) : (
+                      <>
+                        <option value="">Select device...</option>
+                        {remoteDevices.map((device: any) => (
+                          <option key={device.device_id} value={device.device_id}>
+                            {device.device_name} {device.connected ? "🟢" : "⚪"} ({device.status})
+                          </option>
+                        ))}
+                      </>
+                    )}
+                  </select>
+                  {!isLoadingDevices && remoteDevices.length > 0 && !selectedDeviceId && (
+                    <div className="absolute -bottom-5 left-0 text-xs text-yellow-400 whitespace-nowrap">
+                      Please select a device
+                    </div>
+                  )}
+                </div>
+              )}
               
               {/* Trust Mode Toggle */}
               <button
@@ -850,14 +1032,6 @@ export default function FloatingCopilot({ ticketId }: { ticketId: string }) {
                 title={trustMode ? "Auto-run ON (low-risk)" : "Auto-run OFF"}
               >
                 {trustMode ? <ShieldCheck className="w-4 h-4" /> : <Shield className="w-4 h-4" />}
-              </button>
-              {/* SSH Settings */}
-              <button 
-                onClick={() => setShowSettings(true)} 
-                className={`p-2 rounded-lg transition-colors ${sshConfig.password ? "text-emerald-400" : "text-gray-400"} hover:bg-[#414868] hover:text-gray-200`}
-                title="SSH Settings"
-              >
-                <Settings className="w-4 h-4" />
               </button>
               <button onClick={() => setShowCommandPalette(true)} className="p-2 hover:bg-[#414868] rounded-lg text-gray-400 hover:text-gray-200">
                 <Command className="w-4 h-4" />
@@ -1060,11 +1234,11 @@ export default function FloatingCopilot({ ticketId }: { ticketId: string }) {
                           <span className="flex items-center gap-1 px-2 py-0.5 bg-blue-600/20 text-blue-400 rounded">
                             <Monitor className="w-3 h-3" /> Local Windows
                           </span>
-                        ) : (
-                          <span className="flex items-center gap-1 px-2 py-0.5 bg-orange-600/20 text-orange-400 rounded">
-                            <Server className="w-3 h-3" /> Linux VM (SSH)
+                        ) : target === "remote" ? (
+                          <span className="flex items-center gap-1 px-2 py-0.5 bg-purple-600/20 text-purple-400 rounded">
+                            <Globe className="w-3 h-3" /> Remote Device
                           </span>
-                        )}
+                        ) : null}
                       </div>
                     </div>
                   )}
@@ -1091,8 +1265,11 @@ export default function FloatingCopilot({ ticketId }: { ticketId: string }) {
                   <div ref={terminalEndRef} />
                 </div>
                 <div className="flex items-center gap-2 px-3 py-2 border-t border-[#30363d] bg-[#161b22]">
-                  <span className={`font-mono text-sm ${target === "linux" ? "text-orange-400" : "text-emerald-400"}`}>
-                    {target === "linux" ? "🐧" : ">"} $
+                  <span className={`font-mono text-sm ${
+                    target === "remote" ? "text-purple-400" : 
+                    "text-emerald-400"
+                  }`}>
+                    {target === "remote" ? "🌐" : ">"} $
                   </span>
                   <input
                     ref={terminalInputRef}
@@ -1101,7 +1278,15 @@ export default function FloatingCopilot({ ticketId }: { ticketId: string }) {
                     onChange={(e) => setTerminalInput(e.target.value)}
                     onKeyDown={handleTerminalKeyDown}
                     disabled={!!currentRunningCommand}
-                    placeholder={currentRunningCommand ? "Running..." : `Type ${target === "linux" ? "Linux" : "Windows"} command...`}
+                    placeholder={
+                      currentRunningCommand 
+                        ? "Running..." 
+                        : target === "remote"
+                          ? selectedDeviceId
+                            ? "Type diagnostic command (e.g., ipconfig, ping google.com)..."
+                            : "Select a device first..."
+                          : `Type Windows command...`
+                    }
                     className="flex-1 bg-transparent text-gray-200 font-mono text-sm outline-none placeholder-gray-600 disabled:opacity-50"
                   />
                 </div>
@@ -1140,3 +1325,4 @@ export default function FloatingCopilot({ ticketId }: { ticketId: string }) {
     </>
   );
 }
+

@@ -4,13 +4,29 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseServiceKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: { autoRefreshToken: false, persistSession: false },
-  global: { headers: { Authorization: `Bearer ${supabaseServiceKey}` } }
-});
+
+// Only create client if env vars are present
+let supabase: ReturnType<typeof createClient> | null = null;
+if (supabaseUrl && supabaseServiceKey && !supabaseUrl.includes('placeholder')) {
+  supabase = createClient(supabaseUrl, supabaseServiceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+    global: { headers: { Authorization: `Bearer ${supabaseServiceKey}` } }
+  });
+}
 
 export async function POST(request: NextRequest) {
   try {
+    // Check if Supabase is configured
+    if (!supabase) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Database not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY in .env.local' 
+        },
+        { status: 503 }
+      );
+    }
+
     const { fullName, email, organizationId } = await request.json();
 
     if (!fullName || !email || !organizationId) {

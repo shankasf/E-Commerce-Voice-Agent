@@ -44,7 +44,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (mounted && !isLoading && user) {
-      window.location.href = `/dashboard/${user.role}`;
+      window.location.href = `/tms/dashboard/${user.role}`;
     }
   }, [user, isLoading, mounted]);
 
@@ -55,7 +55,7 @@ export default function LoginPage() {
     } else {
       // Admin and Agent use direct login
       login(role);
-      window.location.href = `/dashboard/${role}`;
+      window.location.href = `/tms/dashboard/${role}`;
     }
   };
 
@@ -69,7 +69,7 @@ export default function LoginPage() {
     setUeError('');
 
     try {
-      const response = await fetch('/api/auth/validate-ue-code', {
+      const response = await fetch('/tms/api/auth/validate-ue-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ueCode: parseInt(ueCode.trim()) }),
@@ -108,7 +108,7 @@ export default function LoginPage() {
     setDetailsError('');
 
     try {
-      const response = await fetch('/api/auth/create-contact', {
+      const response = await fetch('/tms/api/auth/create-contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -134,7 +134,7 @@ export default function LoginPage() {
         organization_id: data.contact.organization_id,
       });
 
-      window.location.href = '/dashboard/requester';
+      window.location.href = '/tms/dashboard/requester';
     } catch (error) {
       setDetailsError('An error occurred. Please try again.');
     } finally {

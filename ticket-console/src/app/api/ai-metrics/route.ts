@@ -6,10 +6,15 @@ export const dynamic = 'force-dynamic';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseServiceKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: { autoRefreshToken: false, persistSession: false },
-  global: { headers: { Authorization: `Bearer ${supabaseServiceKey}` } }
-});
+
+// Only create client if env vars are present
+let supabase: ReturnType<typeof createClient> | null = null;
+if (supabaseUrl && supabaseServiceKey && !supabaseUrl.includes('placeholder')) {
+  supabase = createClient(supabaseUrl, supabaseServiceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+    global: { headers: { Authorization: `Bearer ${supabaseServiceKey}` } }
+  });
+}
 
 // Average time a human takes to resolve a ticket (in minutes) - industry benchmark
 const HUMAN_AVG_RESOLUTION_TIME_MINS = 45;
@@ -18,6 +23,16 @@ const AI_AVG_RESPONSE_TIME_SECS = 8;
 
 export async function GET(request: NextRequest) {
   try {
+    // Check if Supabase is configured
+    if (!supabase) {
+      return NextResponse.json(
+        { 
+          error: 'Database not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY in .env.local' 
+        },
+        { status: 503 }
+      );
+    }
+
     // Parse date range from query params
     const searchParams = request.nextUrl.searchParams;
     const days = parseInt(searchParams.get('days') || '30');

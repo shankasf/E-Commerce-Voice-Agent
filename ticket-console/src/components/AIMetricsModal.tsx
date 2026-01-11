@@ -500,7 +500,7 @@ export function AIMetricsModal({ isOpen, onClose }: AIMetricsModalProps) {
             setLoading(true);
             setError(null);
 
-            let url = '/api/ai-metrics?';
+            let url = '/tms/api/ai-metrics?';
             if (dateRange === 'custom' && customStartDate && customEndDate) {
                 url += `startDate=${customStartDate}&endDate=${customEndDate}`;
             } else {

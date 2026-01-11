@@ -90,7 +90,7 @@ export const requesterAPI = {
     
     // Automatically assign AI bot to the new ticket (fire and forget - don't block UI)
     if (data) {
-      fetch('/api/ai-resolve', {
+      fetch('/tms/api/ai-resolve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -137,9 +137,9 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (mounted && !isLoading && !user) {
-      window.location.href = '/';
+      window.location.href = '/tms';
     } else if (mounted && !isLoading && user?.role !== 'admin') {
-      window.location.href = `/dashboard/${user?.role}`;
+      window.location.href = `/tms/dashboard/${user?.role}`;
     }
   }, [user, isLoading, mounted]);
 
@@ -162,7 +162,7 @@ export default function AdminDashboard() {
   };
 
   const navigateToTicket = (ticketId: number) => {
-    window.location.href = `/dashboard/admin/ticket/${ticketId}`;
+    window.location.href = `/tms/dashboard/admin/ticket/${ticketId}`;
   };
 
   if (isLoading || !user) {

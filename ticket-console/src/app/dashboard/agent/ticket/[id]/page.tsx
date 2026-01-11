@@ -1,5 +1,6 @@
 'use client';
 import FloatingCopilot from "@/components/AICopilot/FloatingCopilot";
+import DeviceManager from "@/components/RemoteDevice/DeviceManager";
 
 import { useAuth } from '@/lib/auth-context';
 import { useParams } from 'next/navigation';
@@ -100,9 +101,9 @@ export default function AgentTicketDetail() {
 
   useEffect(() => {
     if (!isLoading && !user) {
-      window.location.href = '/';
+      window.location.href = '/tms';
     } else if (!isLoading && user?.role !== 'agent') {
-      window.location.href = `/dashboard/${user?.role}`;
+      window.location.href = `/tms/dashboard/${user?.role}`;
     }
   }, [user, isLoading]);
 
@@ -246,6 +247,18 @@ export default function AgentTicketDetail() {
           )}
         </div>
       </div>
+
+      {/* Remote Device Panel */}
+      {!isClosed && (
+        <div className="bg-gray-50 border-b border-gray-200 shrink-0">
+          <div className="max-w-5xl mx-auto px-4 py-4">
+            <DeviceManager 
+              ticketId={ticketId} 
+              orgId={(ticket.organization as any)?.organization_id || (ticket as any).organization_id}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Messages */}
       <div className="flex-1 overflow-auto bg-gray-50">

@@ -4,10 +4,14 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import OpenAI from "openai";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || ""
-);
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const supabaseServiceKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || "";
+
+// Only create client if env vars are present
+let supabase: ReturnType<typeof createClient> | null = null;
+if (supabaseUrl && supabaseServiceKey && !supabaseUrl.includes('placeholder')) {
+  supabase = createClient(supabaseUrl, supabaseServiceKey);
+}
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -27,14 +31,27 @@ type CommandResult = {
 };
 
 export async function POST(req: Request) {
+  // Check if Supabase is configured
+  if (!supabase) {
+    return NextResponse.json(
+      { 
+        error: 'Database not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY in .env.local' 
+      },
+      { status: 503 }
+    );
+  }
+
+  const body = await req.json();
   const { 
     ticketId, 
     message, 
     conversationHistory = [],
     commandResults = [],
-    mode = "chat", // "chat" | "analyze" | "continue"
-    target = "local" // "local" (Windows) | "linux" (WSL/SSH)
-  } = await req.json();
+    mode = "chat", // "chat" | "analyze" | "analyze_single" | "continue"
+    target = "local", // "local" (Windows) | "linux" (WSL/SSH)
+    previousCommand,
+    previousReason,
+  } = body;
 
   if (!ticketId) {
     return NextResponse.json(
@@ -167,18 +184,19 @@ YOUR CAPABILITIES:
 2. Suggest safe diagnostic commands for ${targetName}
 3. Analyze command output and determine next steps
 4. Continue troubleshooting until the issue is resolved or needs escalation
+5. Be conversational - explain findings clearly like talking to a colleague
 
 ALLOWED ${targetName.toUpperCase()} COMMANDS (only suggest these):
 ${isLinux ? linuxCommands : windowsCommands}
 
 RESPONSE FORMAT (always JSON):
 {
-  "answer": "Your analysis and explanation to the agent",
+  "answer": "Your conversational analysis explaining what you found and what to do next. Be clear and helpful.",
   "proposed_commands": [
     {
       "title": "Short title",
       "command": "exact command",
-      "reason": "Why this helps",
+      "reason": "Why this helps based on previous output",
       "risk": "low|medium|high",
       "auto_approve": true|false  // true for low-risk diagnostic commands
     }
@@ -188,14 +206,22 @@ RESPONSE FORMAT (always JSON):
   "confidence": 0.0-1.0  // Your confidence this will help resolve the issue
 }
 
+ANALYSIS STYLE (when mode is "analyze_single"):
+- Start with: "Looking at this output, I can see..."
+- Explain what the command revealed
+- Identify specific issues or confirm things are working
+- Suggest next steps with clear reasoning
+- If resolved, clearly state: "This appears to be resolved because..."
+
 WORKFLOW RULES:
 1. Start with basic diagnostics (ipconfig, ping) before complex ones
-2. Set auto_approve=true ONLY for read-only, low-risk commands
-3. Analyze command outputs thoroughly - look for error patterns
+2. Set auto_approve=true ONLY for read-only, low-risk diagnostic commands
+3. Analyze command outputs thoroughly - look for error patterns, timeouts, connection issues
 4. If you see a clear solution, explain it and mark status="resolved"
 5. If you need user action (restart, reconnect cable), explain and mark status="need_more_info"
 6. If the issue is beyond diagnostic commands, mark status="escalate"
 7. Keep iterating until resolved - don't give up after one command!
+8. When analyzing single commands, be conversational and explain your reasoning clearly
 
 CURRENT CONTEXT:
 ${ticketContext}
@@ -216,7 +242,31 @@ ${commandResultsContext}`;
     }
 
     // Add the current message based on mode
-    if (mode === "analyze" && commandResults?.length > 0) {
+    if (mode === "analyze_single" && commandResults?.length === 1) {
+      // NEW: Analyze single command result with conversational style
+      const result = commandResults[0];
+      
+      messages.push({
+        role: "user",
+        content: `I just ran this command:
+Command: "${previousCommand || result.command || 'Unknown'}"
+Reason: ${previousReason || "Diagnostic check"}
+
+Result:
+- Status: ${result.ok ? "✅ SUCCESS" : "❌ FAILED"}
+- Output: ${result.stdout || "(no output)"}
+- Error Output: ${result.stderr || "(no errors)"}
+- Exit Code: ${result.exit_code ?? (result.ok ? 0 : 1)}
+
+Please analyze this result in a conversational way:
+1. What does this output tell us about the system?
+2. What issues (if any) can you identify?
+3. What should we do next?
+4. Should I continue troubleshooting or is this resolved?
+
+Be clear and explain like you're talking to a colleague. If you see a clear next step, suggest it with auto_approve=true for low-risk diagnostic commands.`
+      });
+    } else if (mode === "analyze" && commandResults?.length > 0) {
       messages.push({
         role: "user",
         content: `I ran the commands you suggested. Please analyze the results above and tell me what's wrong and what to do next. Continue troubleshooting if needed.`
