@@ -3,17 +3,19 @@
  * POST /api/client-application/device-connections/create
  *
  * Creates a secure device connection with 6-digit pairing code and WebSocket URL.
+ * Called by AI Service (MCP Tool) when user requests a connection code.
  *
  * SECURITY:
  * - Only accepts requests from Python AI backend (API key + IP whitelist)
- * - Validates active web session exists
  * - Generates cryptographically secure pairing codes
+ * - Stores HASHED version of 6-digit code (SHA-256)
+ * - Returns plain code to AI for display to user
  *
- * SESSION CLEANUP:
- * When a web session is invalidated/expires, a background job should:
- * UPDATE device_connections SET is_active = false, disconnected_at = NOW()
- * WHERE user_id IN (SELECT user_id FROM sessions WHERE is_active = false)
- * AND is_active = true
+ * FLOW:
+ * 1. AI Service calls this endpoint with user/device context
+ * 2. Generates unique 6-digit code, hashes it, stores in DB
+ * 3. Returns plain code to AI → AI shows to user
+ * 4. User enters code in Windows app → Windows calls /initiate-connection
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -25,7 +27,7 @@ import type { CreateDeviceConnectionRequest, CreateDeviceConnectionResponse } fr
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseServiceKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || '';
 const aiServiceApiKey = process.env.AI_SERVICE_API_KEY || '';
-const aiServiceAllowedIPs = (process.env.AI_SERVICE_ALLOWED_IPS || '').split(',');
+const aiServiceAllowedIPs = (process.env.AI_SERVICE_ALLOWED_IPS || '127.0.0.1,localhost').split(',');
 const wsBaseUrl = process.env.WS_BASE_URL || '';
 
 // Validate environment variables
@@ -62,14 +64,24 @@ function generateSecureCode(): string {
 }
 
 /**
- * Check if code is unique among active connections
+ * Hash a 6-digit code using SHA-256
  */
-async function isCodeUnique(code: string): Promise<boolean> {
+function hashCode(code: string): string {
+  return crypto.createHash('sha256').update(code.toUpperCase()).digest('hex');
+}
+
+/**
+ * Check if hashed code is unique among pending connections (is_active = false, not expired)
+ */
+async function isHashedCodeUnique(hashedCode: string): Promise<boolean> {
+  const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+
   const { data, error } = await supabase
     .from('device_connections')
     .select('six_digit_code')
-    .eq('six_digit_code', code)
-    .eq('is_active', true)
+    .eq('six_digit_code', hashedCode)
+    .eq('is_active', false)
+    .gte('created_at', fifteenMinutesAgo)
     .maybeSingle();
 
   if (error) {
@@ -82,17 +94,19 @@ async function isCodeUnique(code: string): Promise<boolean> {
 
 /**
  * Generate unique 6-digit code with retries
+ * Returns both plain code and hashed code
  */
-async function generateUniqueCode(maxRetries: number = 5): Promise<string | null> {
+async function generateUniqueCode(maxRetries: number = 5): Promise<{ plainCode: string; hashedCode: string } | null> {
   for (let i = 0; i < maxRetries; i++) {
-    const code = generateSecureCode();
-    const isUnique = await isCodeUnique(code);
+    const plainCode = generateSecureCode();
+    const hashedCode = hashCode(plainCode);
+    const isUnique = await isHashedCodeUnique(hashedCode);
 
     if (isUnique) {
-      return code;
+      return { plainCode, hashedCode };
     }
 
-    console.warn(`Code collision detected (attempt ${i + 1}/${maxRetries}): ${code}`);
+    console.warn(`Code collision detected (attempt ${i + 1}/${maxRetries})`);
   }
 
   return null;
@@ -122,11 +136,11 @@ export async function POST(request: NextRequest) {
     const apiKey = request.headers.get('x-ai-service-key');
     const clientIP = getClientIP(request);
 
-    console.log(`[Device Connection] Request from IP: ${clientIP}`);
+    console.log(`[Device Connection Create] Request from IP: ${clientIP}`);
 
     // Validate API key
     if (!apiKey || apiKey !== aiServiceApiKey) {
-      console.error('[Device Connection] Unauthorized: Invalid API key');
+      console.error('[Device Connection Create] Unauthorized: Invalid API key');
       return NextResponse.json<CreateDeviceConnectionResponse>(
         {
           success: false,
@@ -137,8 +151,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate IP whitelist (skip in development if unknown)
-    if (clientIP !== 'unknown' && !aiServiceAllowedIPs.includes(clientIP)) {
-      console.error(`[Device Connection] Forbidden: IP ${clientIP} not whitelisted`);
+    const isLocalhost = clientIP === '127.0.0.1' || clientIP === 'localhost' || clientIP === '::1';
+    if (clientIP !== 'unknown' && !isLocalhost && !aiServiceAllowedIPs.includes(clientIP)) {
+      console.error(`[Device Connection Create] Forbidden: IP ${clientIP} not whitelisted`);
       return NextResponse.json<CreateDeviceConnectionResponse>(
         {
           success: false,
@@ -150,105 +165,63 @@ export async function POST(request: NextRequest) {
 
     // Step 2: Parse request body
     const body: CreateDeviceConnectionRequest = await request.json();
-    const { user_id, organization_id, device_id, session_token } = body;
+    const { user_id, organization_id, device_id, chat_session_id } = body;
 
-    // Validate required fields
-    if (!user_id || !organization_id || !device_id || !session_token) {
+    // Validate required fields (chat_session_id is now MANDATORY)
+    if (!user_id || !organization_id || !device_id || !chat_session_id) {
       return NextResponse.json<CreateDeviceConnectionResponse>(
         {
           success: false,
-          error: 'Missing required fields: user_id, organization_id, device_id, session_token',
+          error: 'Missing required fields: user_id, organization_id, device_id, chat_session_id',
         },
         { status: 400 }
       );
     }
 
-    console.log(`[Device Connection] Creating connection for user ${user_id}, device ${device_id}`);
+    console.log(`[Device Connection Create] Creating connection for user ${user_id}, device ${device_id}`);
 
-    // Step 3: Validate active web session
-    const { data: session, error: sessionError } = await supabase
-      .from('sessions')
-      .select('session_id, user_id, organization_id, is_active, expires_at')
-      .eq('session_token', session_token)
-      .eq('user_id', user_id)
-      .eq('is_active', true)
-      .maybeSingle();
-
-    if (sessionError) {
-      console.error('[Device Connection] Session query error:', sessionError);
-      return NextResponse.json<CreateDeviceConnectionResponse>(
-        {
-          success: false,
-          error: 'Failed to validate session',
-        },
-        { status: 500 }
-      );
-    }
-
-    if (!session) {
-      console.error('[Device Connection] No active session found');
-      return NextResponse.json<CreateDeviceConnectionResponse>(
-        {
-          success: false,
-          error: 'No active web session found for this user',
-        },
-        { status: 401 }
-      );
-    }
-
-    // Check if session is expired
-    const sessionExpiry = new Date(session.expires_at);
-    if (sessionExpiry <= new Date()) {
-      console.error('[Device Connection] Session expired');
-      return NextResponse.json<CreateDeviceConnectionResponse>(
-        {
-          success: false,
-          error: 'Web session has expired',
-        },
-        { status: 401 }
-      );
-    }
-
-    // Validate organization matches session
-    if (session.organization_id !== organization_id) {
-      console.error('[Device Connection] Organization mismatch');
-      return NextResponse.json<CreateDeviceConnectionResponse>(
-        {
-          success: false,
-          error: 'Organization ID does not match session',
-        },
-        { status: 403 }
-      );
-    }
-
-    console.log('[Device Connection] Session validated successfully');
-
-    // Step 4: Validate device exists and belongs to organization
-    const { data: device, error: deviceError } = await supabase
-      .from('devices')
-      .select('device_id, asset_name, organization_id')
+    // Step 3: Validate device is assigned to user via contact_devices
+    // This matches how get_user_devices works in the AI service
+    const { data: assignment, error: assignmentError } = await supabase
+      .from('contact_devices')
+      .select('device:device_id(device_id, asset_name, organization_id)')
+      .eq('contact_id', user_id)
       .eq('device_id', device_id)
-      .eq('organization_id', organization_id)
+      .is('unassigned_at', null)
       .maybeSingle();
 
-    if (deviceError || !device) {
-      console.error('[Device Connection] Device not found:', deviceError);
+    if (assignmentError || !assignment || !assignment.device) {
+      console.error('[Device Connection Create] Device not assigned to user:', assignmentError);
       return NextResponse.json<CreateDeviceConnectionResponse>(
         {
           success: false,
-          error: 'Device not found or does not belong to this organization',
+          error: 'Device not found or not assigned to this user',
         },
         { status: 404 }
       );
     }
 
-    console.log(`[Device Connection] Device validated: ${device.asset_name}`);
+    const device = assignment.device as { device_id: number; asset_name: string; organization_id: number };
 
-    // Step 5: Generate unique 6-digit code
-    const code = await generateUniqueCode();
+    // Verify organization matches
+    if (device.organization_id !== organization_id) {
+      console.error('[Device Connection Create] Organization mismatch');
+      return NextResponse.json<CreateDeviceConnectionResponse>(
+        {
+          success: false,
+          error: 'Device does not belong to this organization',
+        },
+        { status: 403 }
+      );
+    }
 
-    if (!code) {
-      console.error('[Device Connection] Failed to generate unique code after retries');
+    console.log(`[Device Connection Create] Device validated: ${device.asset_name}`);
+
+    // Step 4: Generate unique 6-digit code (returns plain and hashed)
+    const codeResult = await generateUniqueCode();
+
+    if (!codeResult) {
+      console.error('[Device Connection Create] Failed to generate unique code after retries');
       return NextResponse.json<CreateDeviceConnectionResponse>(
         {
           success: false,
@@ -258,15 +231,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`[Device Connection] Generated unique code: ${code}`);
+    const { plainCode, hashedCode } = codeResult;
+    console.log(`[Device Connection Create] Generated code: ${plainCode} (DEV ONLY - remove in production)`);
 
-    // Step 6: Generate session ID and WebSocket URL
-    const sessionId = uuidv4();
-    const websocketUrl = `wss://${wsBaseUrl}/ws/device/${sessionId}?code=${code}`;
+    // Step 5: Generate connection session ID and WebSocket URL
+    const connectionSessionId = uuidv4();
+    const websocketUrl = `wss://${wsBaseUrl}/ws/device/${connectionSessionId}`;
 
-    console.log(`[Device Connection] WebSocket URL: ${websocketUrl}`);
+    console.log(`[Device Connection Create] WebSocket URL generated: ${websocketUrl}`);
 
-    // Step 7: Insert device connection record
+    // Step 6: Insert device connection record with HASHED code
+    // is_active defaults to false in DB
     const { data: connection, error: insertError } = await supabase
       .from('device_connections')
       .insert({
@@ -274,10 +249,9 @@ export async function POST(request: NextRequest) {
         user_id: user_id,
         organization_id: organization_id,
         connection_url: websocketUrl,
-        session_id: sessionId,
-        six_digit_code: code,
-        is_active: true,
-        connected_at: new Date().toISOString(),
+        session_id: connectionSessionId,
+        six_digit_code: hashedCode, // Store HASHED code
+        chat_session_id: chat_session_id, // AI chat session reference (REQUIRED)
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
@@ -285,7 +259,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (insertError || !connection) {
-      console.error('[Device Connection] Failed to create connection:', insertError);
+      console.error('[Device Connection Create] Failed to create connection:', insertError);
       return NextResponse.json<CreateDeviceConnectionResponse>(
         {
           success: false,
@@ -295,18 +269,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`[Device Connection] ✅ Connection created successfully (ID: ${connection.connection_id})`);
+    console.log(`[Device Connection Create] Connection created (ID: ${connection.connection_id})`);
 
-    // Step 8: Return success response
+    // Step 7: Return success response with PLAIN code (for AI to show user)
     return NextResponse.json<CreateDeviceConnectionResponse>({
       success: true,
-      code: code,
-      session_id: sessionId,
-      websocket_url: websocketUrl,
-      expires_in_seconds: 900, // 15 minutes
+      code: plainCode, // Return PLAIN code to AI
     });
   } catch (error: any) {
-    console.error('[Device Connection] Unexpected error:', error);
+    console.error('[Device Connection Create] Unexpected error:', error);
     return NextResponse.json<CreateDeviceConnectionResponse>(
       {
         success: false,

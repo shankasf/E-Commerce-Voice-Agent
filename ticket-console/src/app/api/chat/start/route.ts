@@ -58,76 +58,58 @@ export async function POST(request: NextRequest) {
         const decoded = atob(token);
         userPayload = JSON.parse(decoded) as JWTPayload;
       } catch (decodeErr) {
-        console.error('[Chat API] Token verification failed:', jwtErr);
+        console.error('[Chat Start API] Token verification failed:', jwtErr);
         return NextResponse.json({ error: 'Unauthorized - Invalid token' }, { status: 401 });
       }
     }
 
-    // Step 2: Extract request body
-    const { message, sessionId } = await request.json();
-
-    if (!message?.trim()) {
-      return NextResponse.json({ error: 'Message is required' }, { status: 400 });
-    }
-
-    // Step 3: Build context based on role
+    // Step 2: Build context based on role
     const context = buildContextForRole(userPayload);
 
-    // Step 4: Generate or use provided session ID
-    const finalSessionId = sessionId || `chat-${context.userId}-${Date.now()}`;
-
-    console.log('[Chat API] Request:', {
+    console.log('[Chat Start API] Request:', {
       userId: context.userId,
       role: context.userRole,
-      sessionId: finalSessionId,
-      messageLength: message.length,
     });
 
-    // Step 5: Forward to Python AI service
-    const aiResponse = await fetch(`${AI_SERVICE_URL}/api/chat`, {
+    // Step 3: Forward to Python AI service to start session
+    const aiResponse = await fetch(`${AI_SERVICE_URL}/api/chat/start`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-AI-Service-Key': AI_SERVICE_API_KEY!,
       },
       body: JSON.stringify({
-        message: message.trim(),
-        session_id: finalSessionId,
         context,
       }),
     });
 
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
-      console.error('[Chat API] AI service error:', errorText);
+      console.error('[Chat Start API] AI service error:', errorText);
       throw new Error(`AI service error: ${aiResponse.statusText}`);
     }
 
     const aiData = await aiResponse.json();
 
-    console.log('[Chat API] Response:', {
+    console.log('[Chat Start API] Session created:', {
       sessionId: aiData.session_id,
-      agentName: aiData.agent_name,
-      toolCallsCount: aiData.tool_calls?.length || 0,
     });
 
-    // Step 6: Return response to frontend
+    // Step 4: Return session info to frontend
     return NextResponse.json({
       success: true,
-      response: aiData.response,
       sessionId: aiData.session_id,
-      agentName: aiData.agent_name,
-      toolCalls: aiData.tool_calls,
+      greeting: aiData.greeting || "Hello! I'm your AI assistant. How can I help you today?",
+      agentName: aiData.agent_name || 'Triage Agent',
       context: aiData.context,
     });
 
   } catch (error: any) {
-    console.error('[Chat API] Error:', error);
+    console.error('[Chat Start API] Error:', error);
     return NextResponse.json(
       {
         success: false,
         error: error.message || 'Internal server error',
-        fallback: true,
       },
       { status: 500 }
     );
@@ -176,7 +158,7 @@ function buildContextForRole(userPayload: JWTPayload): ChatContext {
       };
 
     default:
-      console.warn(`[Chat API] Unknown role: ${userRole}, defaulting to requester`);
+      console.warn(`[Chat Start API] Unknown role: ${userRole}, defaulting to requester`);
       return {
         ...baseContext,
         maxPermissions: 'read_own_tickets',
