@@ -30,13 +30,10 @@ export function Terminal({ ticketId, userId, userRole, isMinimized = false, onMi
   const sessionIdRef = useRef<string>(`${ticketId}-${userId}-${Date.now()}`);
   const currentLineRef = useRef<string>('');
 
-  // Get WebSocket URL (server-based for SaaS)
+  // Get WebSocket URL (connects to user's local terminal bridge)
   const getWebSocketUrl = () => {
-    // Use separate WebSocket server port (3002) to avoid conflicts with Next.js
-    const wsPort = '3002';
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.hostname;
-    return `${protocol}//${host}:${wsPort}/api/terminal/ws?session=${sessionIdRef.current}&ticketId=${ticketId}&userId=${userId}&role=${userRole}`;
+    // Connect to local terminal bridge running on user's machine
+    return `ws://localhost:8080?session=${sessionIdRef.current}&ticketId=${ticketId}&userId=${userId}&role=${userRole}`;
   };
 
   // Initialize xterm.js terminal

@@ -92,14 +92,14 @@ function cleanResponse(text: string): string {
 async function triageTicket(subject: string, description: string): Promise<TriageResult> {
   try {
     console.log('[Triage] Starting triage for ticket:', subject);
-    const { output_text } = await createResponse({
-      model: DEFAULT_MODEL,
+  const { output_text } = await createResponse({
+    model: DEFAULT_MODEL,
       input: `Analyze this ticket and respond in json format.\n\nSubject: ${subject}\n\nDescription: ${description || 'N/A'}`,
-      instructions: AGENT_DEFINITIONS.triage.systemPrompt,
-      temperature: 0.3,
-      text: { format: { type: 'json_object' } },
+    instructions: AGENT_DEFINITIONS.triage.systemPrompt,
+    temperature: 0.3,
+    text: { format: { type: 'json_object' } },
       max_output_tokens: 300,
-    });
+  });
 
     console.log('[Triage] Raw output:', output_text);
     const parsed = JSON.parse(output_text || '{}');
@@ -224,14 +224,14 @@ INTERNAL MARKERS (place at END of message only):
   try {
     console.log('[Generate Solution] Starting solution generation for category:', category);
     console.log('[Generate Solution] Conversation history length:', conversationHistory.length);
-    
-    const { output_text } = await createResponse({
-      model: DEFAULT_MODEL,
+
+  const { output_text } = await createResponse({
+    model: DEFAULT_MODEL,
       input: `Ticket Subject: ${ticket.subject}\n\nDescription: ${ticket.description || ''}\n\nConversation so far:\n${conversationHistory || 'No previous messages'}`,
-      instructions,
-      temperature: 0.5,
-      max_output_tokens: 200,
-    });
+    instructions,
+    temperature: 0.5,
+    max_output_tokens: 200,
+  });
 
     console.log('[Generate Solution] Generated response:', output_text?.substring(0, 100));
     return output_text || 'I encountered an issue generating a response. Let me escalate this to a human agent.';
@@ -639,10 +639,10 @@ export async function POST(request: NextRequest) {
       let response: string;
       try {
         response = await generateSolution(
-          category,
-          ticket,
-          conversationHistory + `\nUser: ${userMessage}`
-        );
+        category,
+        ticket,
+        conversationHistory + `\nUser: ${userMessage}`
+      );
       } catch (error: any) {
         console.error('Error generating AI solution:', error);
         
@@ -894,14 +894,14 @@ export async function POST(request: NextRequest) {
           message_type: 'text',
         });
       } else {
-        // Add bot response - clean all internal markers
-        const finalResponse = cleanResponse(response);
-        await supabase.from('ticket_messages').insert({
-          ticket_id: ticketId,
-          sender_agent_id: botId,
-          content: finalResponse,
-          message_type: 'text',
-        });
+      // Add bot response - clean all internal markers
+      const finalResponse = cleanResponse(response);
+      await supabase.from('ticket_messages').insert({
+        ticket_id: ticketId,
+        sender_agent_id: botId,
+        content: finalResponse,
+        message_type: 'text',
+      });
       }
 
       // Update ticket status

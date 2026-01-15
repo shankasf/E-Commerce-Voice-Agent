@@ -1,0 +1,27 @@
+{
+  "name": "terminal-bridge-client",
+  "version": "1.0.0",
+  "description": "Windows Terminal Bridge Client for AI Agent Terminal Access",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "build": "pkg package.json --targets node18-win-x64 --output terminal-bridge-client.exe",
+    "build-gui": "electron-builder"
+  },
+  "bin": "index.js",
+  "pkg": {
+    "assets": [],
+    "targets": ["node18-win-x64"],
+    "outputPath": "dist"
+  },
+  "dependencies": {
+    "ws": "^8.16.0",
+    "axios": "^1.6.0",
+    "node-machine-id": "^1.1.12"
+  },
+  "devDependencies": {
+    "pkg": "^5.8.1"
+  },
+  "author": "Callsphere LLC",
+  "license": "ISC"
+}
