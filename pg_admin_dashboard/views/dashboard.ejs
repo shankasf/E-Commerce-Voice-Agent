@@ -1,0 +1,85 @@
+<%- include('partials/header', { title }) %>
+<section class="grid">
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Databases</h2>
+      <p>Inventory and status for PostgreSQL clusters.</p>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Owner</th>
+            <th>Size</th>
+            <th>Connections</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% databases.forEach((db) => { %>
+            <tr>
+              <td>
+                <a class="link" href="/db/<%= db.datname %>"><%= db.datname %></a>
+              </td>
+              <td><%= db.owner %></td>
+              <td><%= formatBytes(db.size_bytes) %></td>
+              <td><%= db.datallowconn ? 'Allowed' : 'Blocked' %></td>
+              <td>
+                <% if (allowDbDrop) { %>
+                  <button class="ghost danger" data-drop="<%= db.datname %>">Drop</button>
+                <% } %>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Create database</h2>
+      <p>Spin up a new Postgres database with an optional owner.</p>
+    </div>
+    <form class="form" method="post" action="/db/create">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <label>
+        <span>Database name</span>
+        <input type="text" name="dbName" placeholder="analytics_core" required />
+      </label>
+      <label>
+        <span>Owner (optional)</span>
+        <select name="owner">
+          <option value="">Leave default</option>
+          <% roles.forEach((role) => { %>
+            <option value="<%= role.rolname %>"><%= role.rolname %></option>
+          <% }) %>
+        </select>
+      </label>
+      <button class="primary" type="submit">Create database</button>
+    </form>
+  </div>
+
+  <% if (allowDbDrop) { %>
+    <div class="panel warning">
+      <div class="panel-header">
+        <h2>Drop database</h2>
+        <p>Irreversible action. Type the database name to confirm.</p>
+      </div>
+      <form class="form" method="post" action="/db/drop">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+        <label>
+          <span>Database name</span>
+          <input type="text" name="dbName" placeholder="legacy_db" required />
+        </label>
+        <label>
+          <span>Confirm name</span>
+          <input type="text" name="confirmName" placeholder="legacy_db" required />
+        </label>
+        <button class="danger" type="submit">Drop database</button>
+      </form>
+    </div>
+  <% } %>
+</section>
+<%- include('partials/footer') %>

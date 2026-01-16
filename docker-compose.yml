@@ -160,4 +160,7 @@ services:
 
 networks:
   apps-network:
+    external: true
+    name: apps_apps-network
+  apps-network:
     driver: bridge

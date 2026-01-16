@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Property Management - AI Voice</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏠</text></svg>">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1e3a5f 0%, #0d2847 50%, #0a1f3a 100%);
+            color: #fff;
+            height: 100vh;
+            padding: 10px 15px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 8px;
+        }
+
+        .header h1 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            opacity: 0.9;
+        }
+
+        .header p {
+            font-size: 0.85rem;
+            opacity: 0.6;
+            margin-top: 5px;
+        }
+
+        /* Main Layout */
+        .main-container {
+            display: flex;
+            height: calc(100vh - 80px);
+            gap: 30px;
+            justify-content: center;
+            align-items: center;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        /* Side Cards */
+        .side-cards {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 180px;
+            flex-shrink: 0;
+            justify-content: center;
+        }
+
+        .card {
+            background: rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .card:hover {
+            background: rgba(255,255,255,0.12);
+            transform: translateY(-2px);
+        }
+
+        .card-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .card-desc {
+            font-size: 0.7rem;
+            opacity: 0.6;
+            line-height: 1.3;
+        }
+
+        /* Voice Section */
+        .voice-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            min-width: 280px;
+            max-width: 400px;
+        }
+
+        .voice-ring {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .voice-ring::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 2px solid rgba(99, 102, 241, 0.3);
+        }
+
+        .voice-ring::after {
+            content: '';
+            position: absolute;
+            width: 130%;
+            height: 130%;
+            border-radius: 50%;
+            border: 1px solid rgba(99, 102, 241, 0.15);
+        }
+
+        .voice-btn {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 6px 30px rgba(99, 102, 241, 0.5);
+            transition: all 0.3s ease;
+            position: relative;
+            z-index: 1;
+        }
+
+        .voice-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .voice-btn svg {
+            width: 28px;
+            height: 28px;
+            fill: white;
+        }
+
+        .voice-btn.active {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            box-shadow: 0 8px 40px rgba(239, 68, 68, 0.5);
+            animation: pulse-ring 2s ease-out infinite;
+        }
+
+        .voice-btn.connecting {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            box-shadow: 0 8px 40px rgba(245, 158, 11, 0.5);
+        }
+
+        @keyframes pulse-ring {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6); }
+            70% { box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+
+        .voice-info {
+            margin-top: 10px;
+        }
+
+        .status-text {
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+
+        .duration {
+            font-size: 1.4rem;
+            font-weight: 700;
+            font-family: 'SF Mono', monospace;
+            color: #a5b4fc;
+            margin-top: 5px;
+        }
+
+        .waveform {
+            display: flex;
+            gap: 3px;
+            height: 20px;
+            margin-top: 10px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .waveform.visible { opacity: 1; }
+
+        .waveform span {
+            width: 3px;
+            height: 10px;
+            background: linear-gradient(180deg, #a5b4fc, #6366f1);
+            border-radius: 2px;
+            animation: wave 1s ease-in-out infinite;
+        }
+
+        .waveform span:nth-child(1) { animation-delay: 0s; }
+        .waveform span:nth-child(2) { animation-delay: 0.1s; }
+        .waveform span:nth-child(3) { animation-delay: 0.2s; }
+        .waveform span:nth-child(4) { animation-delay: 0.3s; }
+        .waveform span:nth-child(5) { animation-delay: 0.4s; }
+        .waveform span:nth-child(6) { animation-delay: 0.5s; }
+        .waveform span:nth-child(7) { animation-delay: 0.6s; }
+
+        @keyframes wave {
+            0%, 100% { height: 10px; }
+            50% { height: 20px; }
+        }
+
+        .transcript {
+            margin-top: 12px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 10px;
+            padding: 10px 14px;
+            max-width: 100%;
+            width: 100%;
+            opacity: 0;
+            font-size: 0.8rem;
+            text-align: left;
+            transition: opacity 0.3s;
+        }
+
+        .transcript.visible { opacity: 1; }
+
+        .transcript-role {
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            opacity: 0.5;
+            margin-bottom: 3px;
+            letter-spacing: 0.5px;
+        }
+
+        .transcript-text {
+            line-height: 1.3;
+        }
+
+        .footer {
+            text-align: center;
+            font-size: 0.7rem;
+            opacity: 0.4;
+            position: absolute;
+            bottom: 15px;
+            left: 0;
+            right: 0;
+        }
+
+        /* Large screens */
+        @media (min-width: 1200px) {
+            .main-container {
+                max-width: 1100px;
+                gap: 50px;
+            }
+
+            .side-cards {
+                width: 220px;
+            }
+
+            .voice-btn {
+                width: 80px;
+                height: 80px;
+            }
+
+            .voice-btn svg {
+                width: 32px;
+                height: 32px;
+            }
+
+            .voice-ring {
+                width: 110px;
+                height: 110px;
+            }
+        }
+
+        /* Tablet */
+        @media (max-width: 992px) {
+            .main-container {
+                gap: 20px;
+            }
+
+            .side-cards {
+                width: 150px;
+            }
+
+            .card {
+                padding: 14px 10px;
+            }
+
+            .card-title {
+                font-size: 0.8rem;
+            }
+
+            .card-desc {
+                font-size: 0.65rem;
+            }
+        }
+
+        /* Mobile */
+        @media (max-width: 768px) {
+            body {
+                padding: 8px 12px;
+            }
+
+            .header {
+                margin-bottom: 5px;
+            }
+
+            .header h1 {
+                font-size: 1.1rem;
+            }
+
+            .header p {
+                font-size: 0.7rem;
+            }
+
+            .main-container {
+                flex-direction: column;
+                height: calc(100vh - 60px);
+                gap: 15px;
+                align-items: center;
+            }
+
+            .side-cards {
+                flex-direction: row;
+                width: 100%;
+                order: 2;
+                gap: 10px;
+                justify-content: center;
+            }
+
+            .side-cards:first-of-type {
+                order: 2;
+            }
+
+            .side-cards:last-of-type {
+                order: 3;
+            }
+
+            .card {
+                flex: 1;
+                max-width: 150px;
+                padding: 12px 8px;
+            }
+
+            .card-desc {
+                display: none;
+            }
+
+            .voice-section {
+                order: 1;
+                min-width: unset;
+                max-width: 100%;
+                width: 100%;
+                padding: 10px 0;
+            }
+
+            .voice-ring {
+                width: 90px;
+                height: 90px;
+            }
+
+            .voice-btn {
+                width: 65px;
+                height: 65px;
+            }
+
+            .voice-btn svg {
+                width: 26px;
+                height: 26px;
+            }
+
+            .voice-info {
+                margin-top: 10px;
+            }
+
+            .status-text {
+                font-size: 0.9rem;
+            }
+
+            .duration {
+                font-size: 1.2rem;
+            }
+
+            .transcript {
+                margin-top: 10px;
+                padding: 10px 12px;
+                font-size: 0.75rem;
+                max-width: 300px;
+            }
+        }
+
+        /* Small mobile */
+        @media (max-width: 480px) {
+            body {
+                padding: 6px 10px;
+            }
+
+            .header {
+                margin-bottom: 4px;
+            }
+
+            .header h1 {
+                font-size: 1rem;
+            }
+
+            .main-container {
+                gap: 10px;
+                height: calc(100vh - 50px);
+            }
+
+            .side-cards {
+                gap: 6px;
+            }
+
+            .card {
+                padding: 8px 5px;
+                max-width: 100px;
+            }
+
+            .card-title {
+                font-size: 0.65rem;
+            }
+
+            .voice-ring {
+                width: 75px;
+                height: 75px;
+            }
+
+            .voice-btn {
+                width: 55px;
+                height: 55px;
+            }
+
+            .voice-btn svg {
+                width: 22px;
+                height: 22px;
+            }
+
+            .waveform {
+                height: 16px;
+            }
+
+            .waveform span {
+                width: 2px;
+                height: 8px;
+            }
+
+            @keyframes wave {
+                0%, 100% { height: 8px; }
+                50% { height: 16px; }
+            }
+        }
+
+        /* Very small screens */
+        @media (max-width: 360px) {
+            body {
+                padding: 5px 8px;
+            }
+
+            .header p {
+                display: none;
+            }
+
+            .voice-ring {
+                width: 65px;
+                height: 65px;
+            }
+
+            .voice-btn {
+                width: 48px;
+                height: 48px;
+            }
+
+            .voice-btn svg {
+                width: 20px;
+                height: 20px;
+            }
+        }
+
+        /* Landscape mobile */
+        @media (max-height: 500px) and (orientation: landscape) {
+            body {
+                padding: 5px 10px;
+            }
+
+            .header {
+                margin-bottom: 3px;
+            }
+
+            .header p {
+                display: none;
+            }
+
+            .main-container {
+                flex-direction: row;
+                height: calc(100vh - 40px);
+                gap: 15px;
+            }
+
+            .side-cards {
+                flex-direction: column;
+                order: unset;
+                width: 90px;
+            }
+
+            .card-desc {
+                display: none;
+            }
+
+            .voice-section {
+                order: unset;
+                padding: 3px 0;
+                min-width: unset;
+            }
+
+            .voice-ring {
+                width: 55px;
+                height: 55px;
+            }
+
+            .voice-btn {
+                width: 42px;
+                height: 42px;
+            }
+
+            .voice-btn svg {
+                width: 17px;
+                height: 17px;
+            }
+
+            .voice-info {
+                margin-top: 5px;
+            }
+
+            .status-text {
+                font-size: 0.7rem;
+            }
+
+            .waveform {
+                margin-top: 5px;
+                height: 12px;
+            }
+
+            .transcript {
+                display: none;
+            }
+
+            .footer {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Property Management AI</h1>
+        <p>Ask about rent, maintenance, or lease info</p>
+    </div>
+
+    <div class="main-container">
+        <!-- Left Cards -->
+        <div class="side-cards">
+            <div class="card">
+                <div class="card-title">Rent & Payments</div>
+                <div class="card-desc">Check balance, payment history, due dates</div>
+            </div>
+            <div class="card">
+                <div class="card-title">Maintenance</div>
+                <div class="card-desc">Submit requests, track repair status</div>
+            </div>
+        </div>
+
+        <!-- Center Voice Section -->
+        <div class="voice-section">
+            <div class="voice-ring">
+                <button class="voice-btn" id="voiceBtn">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                        <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="voice-info">
+                <div class="status-text" id="statusText">Tap to Start</div>
+                <div class="duration" id="duration" style="display:none;">00:00</div>
+            </div>
+
+            <div class="waveform" id="waveform">
+                <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+            </div>
+
+            <div class="transcript" id="transcript">
+                <div class="transcript-role" id="transcriptRole"></div>
+                <div class="transcript-text" id="transcriptText"></div>
+            </div>
+        </div>
+
+        <!-- Right Cards -->
+        <div class="side-cards">
+            <div class="card">
+                <div class="card-title">Lease Info</div>
+                <div class="card-desc">Terms, renewal dates, documents</div>
+            </div>
+            <div class="card">
+                <div class="card-title">Property</div>
+                <div class="card-desc">Amenities, rules, contact info</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">Powered by CallSphere + xAI Grok Voice</div>
+
+    <script>
+    (function() {
+        const config = {
+            wsUrl: (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws/voice',
+            sampleRate: 24000,
+        };
+
+        const state = { status: 'idle', ws: null, audioContext: null, mediaStream: null, processor: null, duration: 0, durationInterval: null, nextPlayTime: 0 };
+
+        const els = {
+            btn: document.getElementById('voiceBtn'),
+            statusText: document.getElementById('statusText'),
+            duration: document.getElementById('duration'),
+            waveform: document.getElementById('waveform'),
+            transcript: document.getElementById('transcript'),
+            transcriptRole: document.getElementById('transcriptRole'),
+            transcriptText: document.getElementById('transcriptText'),
+        };
+
+        function updateUI() {
+            els.btn.classList.remove('active', 'connecting');
+            els.waveform.classList.remove('visible');
+            els.duration.style.display = 'none';
+
+            if (state.status === 'idle') {
+                els.statusText.textContent = 'Tap to speak';
+            } else if (state.status === 'connecting') {
+                els.btn.classList.add('connecting');
+                els.statusText.textContent = 'Connecting...';
+            } else if (state.status === 'connected') {
+                els.btn.classList.add('active');
+                els.waveform.classList.add('visible');
+                els.statusText.textContent = 'Listening...';
+                els.duration.style.display = 'block';
+            }
+        }
+
+        function formatDuration(s) {
+            return `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`;
+        }
+
+        function showTranscript(role, text) {
+            els.transcriptRole.textContent = role === 'assistant' ? 'Assistant' : 'You';
+            els.transcriptText.textContent = text;
+            els.transcript.classList.add('visible');
+        }
+
+        async function startCall() {
+            state.status = 'connecting';
+            updateUI();
+
+            try {
+                state.mediaStream = await navigator.mediaDevices.getUserMedia({
+                    audio: { sampleRate: config.sampleRate, channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+                });
+
+                state.audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: config.sampleRate });
+                state.ws = new WebSocket(config.wsUrl);
+
+                state.ws.onmessage = (e) => {
+                    const data = JSON.parse(e.data);
+                    if (data.type === 'ready') {
+                        state.status = 'connected';
+                        state.duration = 0;
+                        state.nextPlayTime = 0;
+                        els.duration.textContent = '00:00';
+                        state.durationInterval = setInterval(() => {
+                            state.duration++;
+                            els.duration.textContent = formatDuration(state.duration);
+                        }, 1000);
+                        updateUI();
+                        startAudioCapture();
+                    } else if (data.type === 'audio') {
+                        playAudio(data.audio);
+                    } else if (data.type === 'transcript') {
+                        showTranscript(data.role, data.text);
+                    } else if (data.type === 'error') {
+                        endCall();
+                    }
+                };
+
+                state.ws.onerror = () => endCall();
+                state.ws.onclose = () => { if (state.status === 'connected') endCall(); };
+            } catch (err) {
+                endCall();
+            }
+        }
+
+        function startAudioCapture() {
+            if (!state.audioContext || !state.mediaStream) return;
+            const source = state.audioContext.createMediaStreamSource(state.mediaStream);
+            state.processor = state.audioContext.createScriptProcessor(4096, 1, 1);
+
+            state.processor.onaudioprocess = (e) => {
+                if (state.status !== 'connected') return;
+                const input = e.inputBuffer.getChannelData(0);
+                const pcm = new Int16Array(input.length);
+                for (let i = 0; i < input.length; i++) {
+                    const s = Math.max(-1, Math.min(1, input[i]));
+                    pcm[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                }
+                const bytes = new Uint8Array(pcm.buffer);
+                let binary = '';
+                for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+                if (state.ws?.readyState === WebSocket.OPEN) {
+                    state.ws.send(JSON.stringify({ type: 'audio', audio: btoa(binary) }));
+                }
+            };
+
+            source.connect(state.processor);
+            state.processor.connect(state.audioContext.destination);
+        }
+
+        function playAudio(base64) {
+            if (!state.audioContext) return;
+            try {
+                const binary = atob(base64);
+                const bytes = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                const int16 = new Int16Array(bytes.buffer);
+                const float32 = new Float32Array(int16.length);
+                for (let i = 0; i < int16.length; i++) float32[i] = int16[i] / 32768.0;
+
+                const buffer = state.audioContext.createBuffer(1, float32.length, config.sampleRate);
+                buffer.getChannelData(0).set(float32);
+                const src = state.audioContext.createBufferSource();
+                src.buffer = buffer;
+                src.connect(state.audioContext.destination);
+
+                const currentTime = state.audioContext.currentTime;
+                const startTime = Math.max(currentTime, state.nextPlayTime);
+                src.start(startTime);
+                state.nextPlayTime = startTime + buffer.duration;
+            } catch (err) {}
+        }
+
+        function endCall() {
+            if (state.ws) { try { state.ws.send(JSON.stringify({ type: 'end' })); } catch(e) {} state.ws.close(); }
+            if (state.durationInterval) clearInterval(state.durationInterval);
+            if (state.processor) state.processor.disconnect();
+            if (state.mediaStream) state.mediaStream.getTracks().forEach(t => t.stop());
+            if (state.audioContext) state.audioContext.close();
+
+            state.ws = null; state.audioContext = null; state.mediaStream = null; state.processor = null;
+            state.status = 'idle'; state.duration = 0; state.nextPlayTime = 0;
+            updateUI();
+        }
+
+        els.btn.addEventListener('click', () => state.status === 'idle' ? startCall() : endCall());
+    })();
+    </script>
+</body>
+</html>

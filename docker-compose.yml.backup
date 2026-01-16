@@ -1,0 +1,163 @@
+version: '3.8'
+
+services:
+  # Google Maps Agent - TypeScript/Node.js
+  google-map:
+    build:
+      context: ./google_map
+      dockerfile: Dockerfile
+    container_name: google-map
+    ports:
+      - "3010:3010"
+    environment:
+      - NODE_ENV=production
+      - PORT=3010
+    volumes:
+      - ./google_map/logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - apps-network
+
+  # MCP-Based Agentic Google Map Search Chatbot
+  mcp-google-map:
+    build:
+      context: ./mcp-based-agentic-google-map-search-chatbot
+      dockerfile: Dockerfile
+    container_name: mcp-google-map
+    ports:
+      - "3011:3011"
+    environment:
+      - NODE_ENV=production
+      - PORT=3011
+    volumes:
+      - ./mcp-based-agentic-google-map-search-chatbot/logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - apps-network
+
+  # Playfunia - Python/Node.js Voice Agent
+  playfunia:
+    build:
+      context: ./playfunia
+      dockerfile: Dockerfile
+    container_name: playfunia
+    ports:
+      - "8080:8080"
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./playfunia/logs:/app/logs
+      - ./playfunia/memory:/app/memory
+      - ./playfunia/db:/app/db
+    restart: unless-stopped
+    networks:
+      - apps-network
+
+  # Real Estate Voice Agent - Python
+  realestate-voice:
+    build:
+      context: ./realestate_voice
+      dockerfile: Dockerfile
+    container_name: realestate-voice
+    ports:
+      - "8085:8085"
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./realestate_voice/logs:/app/logs
+      - ./realestate_voice/db:/app/db
+    restart: unless-stopped
+    networks:
+      - apps-network
+
+  # GlamBook Salon - Multi-service (Backend, Frontend, AI)
+  salon:
+    build:
+      context: ./salon
+      dockerfile: Dockerfile
+    container_name: salon
+    ports:
+      - "3020:3001" # Backend (runs on 3001 inside container)
+      - "5173:5173" # Frontend
+      - "8086:8086" # AI Service (runs on 8086 inside container)
+    environment:
+      - NODE_ENV=development
+      - PYTHONUNBUFFERED=1
+      - DATABASE_URL=postgresql://postgres.wfbnzfjzdnztirwouamu:ULNoW3jNfctzvgTJ@aws-1-us-east-2.pooler.supabase.com:5432/postgres
+      - JWT_SECRET=glambook-super-secret-jwt-key-2025
+      - JWT_EXPIRES_IN=7d
+    volumes:
+      - ./salon/db:/app/db
+      # Mount code directories for hot-reload
+      - ./salon/frontend/src:/app/frontend/src
+      - ./salon/frontend/vite.config.ts:/app/frontend/vite.config.ts
+      - ./salon/frontend/.env:/app/frontend/.env
+      - ./salon/ai-service:/app/ai-service
+      - ./salon/backend/src:/app/backend/src
+    restart: unless-stopped
+    networks:
+      - apps-network
+
+  # U Rack IT Ticket Console - Next.js
+  ticket-console:
+    build:
+      context: ./ticket-console
+      dockerfile: Dockerfile
+    container_name: ticket-console
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - LOG_DIR=/app/logs
+    volumes:
+      - ./ticket-console/db:/app/db
+      - ./ticket-console/logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - apps-network
+
+  # URackIT V2 - Multi-service (Backend, Frontend, AI)
+  # Dashboard: https://urackit.callsphere.tech/
+  urackit-v2:
+    build:
+      context: ./urackit_v2
+      dockerfile: Dockerfile
+    container_name: urackit-v2
+    ports:
+      - "3030:3000" # Backend
+      - "5174:5173" # Frontend
+      - "8087:8000" # AI Service
+    environment:
+      - NODE_ENV=production
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./urackit_v2/logs:/app/logs
+      - ./urackit_v2/db:/app/db
+      - ./urackit_v2/ai-service:/app/ai-service
+      - ./urackit_v2/backend/src:/app/backend/src
+      - ./urackit_v2/frontend/src:/app/frontend/src
+    restart: unless-stopped
+    networks:
+      - apps-network
+
+  # URackIT Voice - Python Voice Agent
+  urackit-voice:
+    build:
+      context: ./urackit_voice
+      dockerfile: Dockerfile
+    container_name: urackit-voice
+    ports:
+      - "8081:8080"
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./urackit_voice/logs:/app/logs
+      - ./urackit_voice/memory:/app/memory
+      - ./urackit_voice/db:/app/db
+    restart: unless-stopped
+    networks:
+      - apps-network
+
+networks:
+  apps-network:
+    driver: bridge

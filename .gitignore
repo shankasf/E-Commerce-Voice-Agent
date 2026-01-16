@@ -6,6 +6,15 @@
 *.pem
 *.key
 credentials.json
+*credentials*.csv
+iam_smtp_username_credentials.csv
+
+# Kubernetes secrets (should be managed separately)
+**/secrets.yaml
+**/kubernetes/secrets.yaml
+
+# pnpm store
+.pnpm-store/
 
 # Python
 __pycache__/

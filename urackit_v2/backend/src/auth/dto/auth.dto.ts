@@ -31,10 +31,10 @@ export class RegisterDto {
   @MinLength(6)
   password: string;
 
-  @ApiPropertyOptional({ example: 'agent', enum: ['admin', 'agent'] })
+  @ApiPropertyOptional({ example: 'viewer', enum: ['admin', 'on_call', 'viewer'] })
   @IsString()
   @IsOptional()
-  role?: string = 'agent';
+  role?: string = 'viewer';
 }
 
 export class OtpRequestDto {
@@ -60,10 +60,36 @@ export class OtpVerifyDto {
 export class TokenResponseDto {
   accessToken: string;
   user: {
-    id: number;
+    id: string;
     email: string;
     fullName: string;
     role: string;
   };
+}
+
+export class ForgotPasswordDto {
+  @ApiProperty({ example: 'user@example.com', description: 'Email to send reset code to' })
+  @IsEmail()
+  @IsNotEmpty()
+  email: string;
+}
+
+export class ResetPasswordDto {
+  @ApiProperty({ example: 'user@example.com', description: 'Email address' })
+  @IsEmail()
+  @IsNotEmpty()
+  email: string;
+
+  @ApiProperty({ example: '123456', description: '6-digit OTP code' })
+  @IsString()
+  @IsNotEmpty()
+  @Length(6, 6, { message: 'Code must be exactly 6 digits' })
+  code: string;
+
+  @ApiProperty({ example: 'newPassword123', description: 'New password (min 6 chars)' })
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(6)
+  newPassword: string;
 }
 

@@ -19,6 +19,7 @@ import {
   RequesterDashboard,
   AgentDashboard,
 } from './pages';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import type { UserRole } from './context/AuthContext';
 
 // Create React Query client
@@ -101,8 +102,9 @@ function AppContent() {
   return (
     <>
       <Routes>
-        {/* Public Route */}
+        {/* Public Routes */}
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
         {/* Smart Role-Based Redirect */}
         <Route path="/" element={<RoleBasedRedirect />} />
@@ -139,7 +141,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <BrowserRouter basename="/v2/dashboard">
+        <BrowserRouter>
           <AppContent />
         </BrowserRouter>
       </AuthProvider>

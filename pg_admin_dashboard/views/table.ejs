@@ -1,0 +1,67 @@
+<%- include('partials/header', { title }) %>
+<section class="grid">
+  <div class="panel">
+    <div class="panel-header">
+      <h2><%= schema %>.<%= table %></h2>
+      <p>Column metadata and sample rows.</p>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Column</th>
+            <th>Type</th>
+            <th>Nullable</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% columns.forEach((column) => { %>
+            <tr>
+              <td><%= column.column_name %></td>
+              <td><%= column.data_type %></td>
+              <td><%= column.is_nullable %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Preview rows</h2>
+      <p>Showing <%= rows.length %> rows from offset <%= offset %>.</p>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <% if (rows.length === 0) { %>
+              <th>No data found</th>
+            <% } else { %>
+              <% Object.keys(rows[0]).forEach((key) => { %>
+                <th><%= key %></th>
+              <% }) %>
+            <% } %>
+          </tr>
+        </thead>
+        <tbody>
+          <% rows.forEach((row) => { %>
+            <tr>
+              <% Object.values(row).forEach((value) => { %>
+                <td><%= value === null ? 'NULL' : value %></td>
+              <% }) %>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    <div class="pager">
+      <% if (offset > 0) { %>
+        <a class="ghost" href="/db/<%= dbName %>/table/<%= schema %>/<%= table %>?limit=<%= limit %>&offset=<%= Math.max(offset - limit, 0) %>">Prev</a>
+      <% } %>
+      <a class="ghost" href="/db/<%= dbName %>/table/<%= schema %>/<%= table %>?limit=<%= limit %>&offset=<%= offset + limit %>">Next</a>
+    </div>
+  </div>
+</section>
+<%- include('partials/footer') %>

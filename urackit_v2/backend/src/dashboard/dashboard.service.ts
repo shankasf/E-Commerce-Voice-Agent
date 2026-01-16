@@ -904,7 +904,7 @@ export class DashboardService {
 
   async getSystemHealth() {
     const latest = await this.prisma.system_health_logs.findFirst({
-      orderBy: { recorded_at: 'desc' },
+      orderBy: { checked_at: 'desc' },
     });
 
     const baseMetrics = {
@@ -936,13 +936,16 @@ export class DashboardService {
       return { metrics: baseMetrics };
     }
 
+    // Extract metrics from details JSON if available
+    const details = (latest.details as any) || {};
+
     return {
       metrics: {
         ...baseMetrics,
-        cpu_usage_percent: Number(latest.cpu_percent || latest.cpu_usage_percent || 0),
-        memory_usage_percent: Number(latest.memory_mb || latest.memory_usage_mb || 0) / 10,
-        disk_usage_percent: Number(latest.disk_percent || latest.disk_usage_percent || 0),
-        active_sessions: latest.active_sessions || 0,
+        cpu_usage_percent: Number(details.cpu_percent || details.cpu_usage_percent || 0),
+        memory_usage_percent: Number(details.memory_mb || details.memory_usage_mb || 0) / 10,
+        disk_usage_percent: Number(details.disk_percent || details.disk_usage_percent || 0),
+        active_sessions: details.active_sessions || 0,
       },
     };
   }

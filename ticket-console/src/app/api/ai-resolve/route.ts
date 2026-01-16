@@ -51,7 +51,7 @@ Args rules:
     const { output_text } = await createResponse({
       model: DEFAULT_MODEL,
       instructions: `${systemPrompt}\n\n${intentSchema}`,
-      input: `Conversation so far:\n${conversationHistory}\n\nUser's latest message: "${userMessage}"`,
+      input: `Analyze this conversation and respond in json format.\n\nConversation so far:\n${conversationHistory}\n\nUser's latest message: "${userMessage}"`,
       temperature: 0.1,
       text: { format: { type: 'json_object' } },
       max_output_tokens: 220,

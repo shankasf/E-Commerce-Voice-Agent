@@ -11,8 +11,17 @@ import { Mic, MicOff, Phone, PhoneOff, X, Loader2 } from 'lucide-react';
 async function getSignedUrl(): Promise<string> {
     const response = await fetch('/api/voice/signed-url');
     if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Failed to get signed URL');
+        let errorMessage = 'Failed to get signed URL';
+        try {
+            const text = await response.text();
+            if (text) {
+                const error = JSON.parse(text);
+                errorMessage = error.detail || error.message || errorMessage;
+            }
+        } catch {
+            // Response was not valid JSON, use default error message
+        }
+        throw new Error(errorMessage);
     }
     const data = await response.json();
     return data.signedUrl;

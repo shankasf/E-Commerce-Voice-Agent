@@ -1,0 +1,244 @@
+<%- include('partials/header', { title }) %>
+<section class="grid">
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Server Statistics</h2>
+      <p>PostgreSQL server overview</p>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value"><%= stats.version.split(' ')[1] || stats.version %></div>
+        <div class="stat-label">PostgreSQL Version</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value"><%= stats.uptime %></div>
+        <div class="stat-label">Uptime</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value"><%= stats.activeConnections %></div>
+        <div class="stat-label">Active Connections</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value"><%= stats.maxConnections %></div>
+        <div class="stat-label">Max Connections</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value"><%= formatBytes(stats.totalSize) %></div>
+        <div class="stat-label">Total DB Size</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value"><%= stats.databaseCount %></div>
+        <div class="stat-label">Databases</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Active Connections</h2>
+      <p>Current database connections</p>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>PID</th>
+            <th>Database</th>
+            <th>User</th>
+            <th>Client</th>
+            <th>State</th>
+            <th>Query</th>
+            <th>Duration</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% connections.forEach((conn) => { %>
+            <tr>
+              <td><%= conn.pid %></td>
+              <td><%= conn.datname || '-' %></td>
+              <td><%= conn.usename || '-' %></td>
+              <td><%= conn.client_addr || 'local' %></td>
+              <td><span class="badge <%= conn.state === 'active' ? 'badge-success' : conn.state === 'idle' ? 'badge-muted' : 'badge-warning' %>"><%= conn.state || 'unknown' %></span></td>
+              <td class="query-cell"><%= conn.query ? conn.query.substring(0, 60) + (conn.query.length > 60 ? '...' : '') : '-' %></td>
+              <td><%= conn.duration || '-' %></td>
+              <td>
+                <% if (conn.pid && conn.state === 'active') { %>
+                  <form method="post" action="/performance/kill" style="display:inline;">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                    <input type="hidden" name="pid" value="<%= conn.pid %>" />
+                    <button class="ghost small danger" type="submit" onclick="return confirm('Terminate connection <%= conn.pid %>?')">Kill</button>
+                  </form>
+                <% } %>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Database Sizes</h2>
+      <p>Storage usage by database</p>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Database</th>
+            <th>Size</th>
+            <th>Tables</th>
+            <th>Connections</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% databases.forEach((db) => { %>
+            <tr>
+              <td><a class="link" href="/db/<%= db.datname %>"><%= db.datname %></a></td>
+              <td><%= formatBytes(db.size_bytes) %></td>
+              <td><%= db.table_count || '-' %></td>
+              <td><%= db.numbackends || 0 %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Lock Monitor</h2>
+      <p>Current database locks</p>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>PID</th>
+            <th>Database</th>
+            <th>Relation</th>
+            <th>Lock Type</th>
+            <th>Mode</th>
+            <th>Granted</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (locks.length === 0) { %>
+            <tr><td colspan="6">No blocking locks detected</td></tr>
+          <% } %>
+          <% locks.forEach((lock) => { %>
+            <tr>
+              <td><%= lock.pid %></td>
+              <td><%= lock.datname || '-' %></td>
+              <td><%= lock.relname || '-' %></td>
+              <td><%= lock.locktype %></td>
+              <td><%= lock.mode %></td>
+              <td><span class="badge <%= lock.granted ? 'badge-success' : 'badge-warning' %>"><%= lock.granted ? 'Yes' : 'Waiting' %></span></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel full-width">
+    <div class="panel-header">
+      <h2>Slow Queries</h2>
+      <p>Recent slow running queries (requires pg_stat_statements)</p>
+    </div>
+    <% if (slowQueries && slowQueries.length > 0) { %>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Query</th>
+              <th>Calls</th>
+              <th>Total Time</th>
+              <th>Mean Time</th>
+              <th>Rows</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% slowQueries.forEach((q) => { %>
+              <tr>
+                <td class="query-cell"><code><%= q.query.substring(0, 100) %><%= q.query.length > 100 ? '...' : '' %></code></td>
+                <td><%= q.calls %></td>
+                <td><%= Math.round(q.total_time) %>ms</td>
+                <td><%= Math.round(q.mean_time) %>ms</td>
+                <td><%= q.rows %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } else { %>
+      <div class="info-card">
+        <p class="muted">pg_stat_statements extension not available or no slow queries recorded.</p>
+        <p class="muted">Enable with: CREATE EXTENSION IF NOT EXISTS pg_stat_statements;</p>
+      </div>
+    <% } %>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Maintenance</h2>
+      <p>Database maintenance operations</p>
+    </div>
+    <form class="form" method="post" action="/performance/vacuum">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <label>
+        <span>Database</span>
+        <select name="dbName" required>
+          <% databases.forEach((db) => { %>
+            <option value="<%= db.datname %>"><%= db.datname %></option>
+          <% }) %>
+        </select>
+      </label>
+      <label class="check">
+        <input type="checkbox" name="analyze" checked />
+        <span>ANALYZE (update statistics)</span>
+      </label>
+      <button class="primary" type="submit">Run VACUUM</button>
+    </form>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Replication Status</h2>
+      <p>Streaming replication information</p>
+    </div>
+    <% if (replication && replication.length > 0) { %>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Client</th>
+              <th>State</th>
+              <th>Sent LSN</th>
+              <th>Write LSN</th>
+              <th>Lag</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% replication.forEach((r) => { %>
+              <tr>
+                <td><%= r.client_addr || 'local' %></td>
+                <td><%= r.state %></td>
+                <td><%= r.sent_lsn %></td>
+                <td><%= r.write_lsn %></td>
+                <td><%= r.replay_lag || '0' %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } else { %>
+      <div class="info-card">
+        <p class="muted">No active replication slots.</p>
+      </div>
+    <% } %>
+  </div>
+</section>
+<%- include('partials/footer') %>

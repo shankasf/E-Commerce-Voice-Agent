@@ -1,0 +1,368 @@
+<%- include('partials/header', { title }) %>
+<section class="grid">
+  <div class="panel full-width">
+    <div class="panel-header">
+      <h2><%= schema %>.<%= table %></h2>
+      <p>Table structure and data management</p>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="structure">Structure</button>
+      <button class="tab" data-tab="data">Data</button>
+      <button class="tab" data-tab="indexes">Indexes</button>
+      <button class="tab" data-tab="constraints">Constraints</button>
+    </div>
+
+    <div class="tab-content active" id="tab-structure">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Column</th>
+              <th>Type</th>
+              <th>Nullable</th>
+              <th>Default</th>
+              <th>Primary Key</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% columns.forEach((col) => { %>
+              <tr>
+                <td><strong><%= col.column_name %></strong></td>
+                <td><code><%= col.data_type %><%= col.character_maximum_length ? '(' + col.character_maximum_length + ')' : '' %></code></td>
+                <td><%= col.is_nullable %></td>
+                <td><code><%= col.column_default || '-' %></code></td>
+                <td><%= col.is_primary ? 'Yes' : '-' %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="panel-section">
+        <h3>Add Column</h3>
+        <form class="form inline-form" method="post" action="/db/<%= dbName %>/table/<%= schema %>/<%= table %>/column/add">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+          <label>
+            <span>Name</span>
+            <input type="text" name="columnName" placeholder="new_column" required />
+          </label>
+          <label>
+            <span>Type</span>
+            <select name="dataType" required>
+              <option value="VARCHAR(255)">VARCHAR(255)</option>
+              <option value="VARCHAR(100)">VARCHAR(100)</option>
+              <option value="TEXT">TEXT</option>
+              <option value="CHAR(1)">CHAR(1)</option>
+              <option value="INTEGER">INTEGER</option>
+              <option value="BIGINT">BIGINT</option>
+              <option value="SMALLINT">SMALLINT</option>
+              <option value="SERIAL">SERIAL</option>
+              <option value="BIGSERIAL">BIGSERIAL</option>
+              <option value="BOOLEAN">BOOLEAN</option>
+              <option value="TIMESTAMP">TIMESTAMP</option>
+              <option value="TIMESTAMPTZ">TIMESTAMPTZ</option>
+              <option value="DATE">DATE</option>
+              <option value="TIME">TIME</option>
+              <option value="INTERVAL">INTERVAL</option>
+              <option value="NUMERIC">NUMERIC</option>
+              <option value="NUMERIC(10,2)">NUMERIC(10,2)</option>
+              <option value="REAL">REAL</option>
+              <option value="DOUBLE PRECISION">DOUBLE PRECISION</option>
+              <option value="MONEY">MONEY</option>
+              <option value="JSONB">JSONB</option>
+              <option value="JSON">JSON</option>
+              <option value="UUID">UUID</option>
+              <option value="BYTEA">BYTEA</option>
+              <option value="INET">INET</option>
+              <option value="CIDR">CIDR</option>
+              <option value="MACADDR">MACADDR</option>
+            </select>
+          </label>
+          <label class="check">
+            <input type="checkbox" name="notNull" />
+            <span>NOT NULL</span>
+          </label>
+          <label>
+            <span>Default</span>
+            <input type="text" name="defaultValue" placeholder="optional" />
+          </label>
+          <button class="primary" type="submit">Add Column</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-data">
+      <div class="data-controls">
+        <form class="form inline-form" id="paginationForm">
+          <label>
+            <span>Rows per page</span>
+            <select name="limit" onchange="this.form.submit()">
+              <option value="25" <%= limit === 25 ? 'selected' : '' %>>25</option>
+              <option value="50" <%= limit === 50 ? 'selected' : '' %>>50</option>
+              <option value="100" <%= limit === 100 ? 'selected' : '' %>>100</option>
+            </select>
+          </label>
+          <span class="data-info">Showing rows <%= offset + 1 %> - <%= offset + rows.length %> of <%= totalRows %></span>
+        </form>
+        <button class="primary" id="addRowBtn">Add Row</button>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th class="row-actions">Actions</th>
+              <% columns.forEach((col) => { %>
+                <th><%= col.column_name %></th>
+              <% }) %>
+            </tr>
+          </thead>
+          <tbody>
+            <% rows.forEach((row, rowIndex) => { %>
+              <tr data-row="<%= rowIndex %>">
+                <td class="row-actions">
+                  <button class="ghost small edit-row" data-row="<%= rowIndex %>">Edit</button>
+                  <button class="ghost small danger delete-row" data-row="<%= rowIndex %>">Delete</button>
+                </td>
+                <% columns.forEach((col) => { %>
+                  <td data-column="<%= col.column_name %>"><%= row[col.column_name] === null ? '<span class="null">NULL</span>' : row[col.column_name] %></td>
+                <% }) %>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pager">
+        <% if (offset > 0) { %>
+          <a class="ghost" href="?tab=data&limit=<%= limit %>&offset=<%= Math.max(offset - limit, 0) %>">Previous</a>
+        <% } %>
+        <% if (offset + rows.length < totalRows) { %>
+          <a class="ghost" href="?tab=data&limit=<%= limit %>&offset=<%= offset + limit %>">Next</a>
+        <% } %>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-indexes">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Columns</th>
+              <th>Unique</th>
+              <th>Type</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% indexes.forEach((idx) => { %>
+              <tr>
+                <td><strong><%= idx.indexname %></strong></td>
+                <td><code><%= idx.columns %></code></td>
+                <td><%= idx.is_unique ? 'Yes' : 'No' %></td>
+                <td><%= idx.index_type %></td>
+                <td>
+                  <form method="post" action="/db/<%= dbName %>/table/<%= schema %>/<%= table %>/index/drop" style="display:inline;">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                    <input type="hidden" name="indexName" value="<%= idx.indexname %>" />
+                    <button class="ghost small danger" type="submit" onclick="return confirm('Drop index <%= idx.indexname %>?')">Drop</button>
+                  </form>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="panel-section">
+        <h3>Create Index</h3>
+        <form class="form inline-form" method="post" action="/db/<%= dbName %>/table/<%= schema %>/<%= table %>/index/create">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+          <label>
+            <span>Index Name</span>
+            <input type="text" name="indexName" placeholder="idx_column_name" required />
+          </label>
+          <label>
+            <span>Columns (comma-separated)</span>
+            <input type="text" name="columns" placeholder="column1, column2" required />
+          </label>
+          <label class="check">
+            <input type="checkbox" name="unique" />
+            <span>Unique</span>
+          </label>
+          <button class="primary" type="submit">Create Index</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-constraints">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Definition</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% constraints.forEach((c) => { %>
+              <tr>
+                <td><strong><%= c.constraint_name %></strong></td>
+                <td><%= c.constraint_type %></td>
+                <td><code><%= c.definition || '-' %></code></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel warning">
+    <div class="panel-header">
+      <h2>Danger Zone</h2>
+      <p>Irreversible actions</p>
+    </div>
+    <div class="danger-actions">
+      <form method="post" action="/db/<%= dbName %>/table/<%= schema %>/<%= table %>/truncate" class="inline">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+        <button class="danger" type="submit" onclick="return confirm('TRUNCATE will delete ALL data in this table. Are you sure?')">Truncate Table</button>
+      </form>
+      <form method="post" action="/db/<%= dbName %>/table/<%= schema %>/<%= table %>/drop" class="inline">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+        <button class="danger" type="submit" onclick="return confirm('DROP will permanently delete this table. Type the table name to confirm: ') === '<%= table %>'">Drop Table</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- Add/Edit Row Modal -->
+<div class="modal" id="rowModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="modalTitle">Add Row</h3>
+      <button class="ghost" id="closeModal">&times;</button>
+    </div>
+    <form class="form" id="rowForm" method="post">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <input type="hidden" name="_method" id="formMethod" value="POST" />
+      <div id="rowFields">
+        <% columns.forEach((col) => { %>
+          <label>
+            <span><%= col.column_name %> <code>(<%= col.data_type %>)</code></span>
+            <input type="text" name="<%= col.column_name %>" data-column="<%= col.column_name %>" <%= col.column_default && col.column_default.includes('nextval') ? 'placeholder="auto-generated"' : '' %> />
+          </label>
+        <% }) %>
+      </div>
+      <button class="primary" type="submit">Save</button>
+    </form>
+  </div>
+</div>
+
+<script>
+(function() {
+  // Tab switching
+  const tabs = document.querySelectorAll('.tab');
+  const tabContents = document.querySelectorAll('.tab-content');
+
+  tabs.forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      tabs.forEach(function(t) { t.classList.remove('active'); });
+      tabContents.forEach(function(c) { c.classList.remove('active'); });
+      tab.classList.add('active');
+      document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+    });
+  });
+
+  // Modal handling
+  const modal = document.getElementById('rowModal');
+  const addRowBtn = document.getElementById('addRowBtn');
+  const closeModal = document.getElementById('closeModal');
+  const rowForm = document.getElementById('rowForm');
+  const modalTitle = document.getElementById('modalTitle');
+  const formMethod = document.getElementById('formMethod');
+
+  if (addRowBtn) {
+    addRowBtn.addEventListener('click', function() {
+      modalTitle.textContent = 'Add Row';
+      rowForm.action = '/db/<%= dbName %>/table/<%= schema %>/<%= table %>/row/insert';
+      formMethod.value = 'POST';
+      rowForm.reset();
+      modal.classList.add('active');
+    });
+  }
+
+  if (closeModal) {
+    closeModal.addEventListener('click', function() {
+      modal.classList.remove('active');
+    });
+  }
+
+  modal.addEventListener('click', function(e) {
+    if (e.target === modal) {
+      modal.classList.remove('active');
+    }
+  });
+
+  // Edit row
+  document.querySelectorAll('.edit-row').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      const row = this.closest('tr');
+      modalTitle.textContent = 'Edit Row';
+      rowForm.action = '/db/<%= dbName %>/table/<%= schema %>/<%= table %>/row/update';
+      formMethod.value = 'PUT';
+
+      row.querySelectorAll('td[data-column]').forEach(function(td) {
+        const colName = td.dataset.column;
+        const input = rowForm.querySelector('input[name="' + colName + '"]');
+        if (input) {
+          const value = td.textContent.trim();
+          input.value = value === 'NULL' ? '' : value;
+        }
+      });
+
+      modal.classList.add('active');
+    });
+  });
+
+  // Delete row
+  document.querySelectorAll('.delete-row').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      if (!confirm('Delete this row?')) return;
+
+      const row = this.closest('tr');
+      const data = {};
+      row.querySelectorAll('td[data-column]').forEach(function(td) {
+        data[td.dataset.column] = td.textContent.trim() === 'NULL' ? null : td.textContent.trim();
+      });
+
+      fetch('/db/<%= dbName %>/table/<%= schema %>/<%= table %>/row/delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': '<%= csrfToken %>'
+        },
+        body: JSON.stringify(data)
+      }).then(function(res) {
+        if (res.ok) {
+          row.remove();
+        } else {
+          alert('Failed to delete row');
+        }
+      });
+    });
+  });
+
+  // Check URL for tab param
+  const urlParams = new URLSearchParams(window.location.search);
+  const tabParam = urlParams.get('tab');
+  if (tabParam) {
+    const targetTab = document.querySelector('.tab[data-tab="' + tabParam + '"]');
+    if (targetTab) targetTab.click();
+  }
+})();
+</script>
+<%- include('partials/footer') %>

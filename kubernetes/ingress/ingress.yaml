@@ -1,0 +1,240 @@
+# Ingress Configuration for All Applications
+# k3s includes Traefik as the default ingress controller
+# This provides centralized routing and SSL termination
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: callsphere-ingress
+  namespace: callsphere-website
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+spec:
+  rules:
+    - host: callsphere.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: callsphere-web
+                port:
+                  number: 3000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: google-map-ingress
+  namespace: google-map
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+spec:
+  rules:
+    - host: google-map.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: google-map
+                port:
+                  number: 3000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: realestate-voice-ingress
+  namespace: realestate-voice
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+spec:
+  rules:
+    - host: realestate.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: realestate-voice
+                port:
+                  number: 8089
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: salon-ingress
+  namespace: salon
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+spec:
+  rules:
+    - host: salon.local
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: salon-backend
+                port:
+                  number: 3000
+          - path: /ai
+            pathType: Prefix
+            backend:
+              service:
+                name: salon-ai
+                port:
+                  number: 8000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: salon-frontend
+                port:
+                  number: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ticket-console-ingress
+  namespace: ticket-console
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+spec:
+  rules:
+    - host: tickets.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ticket-console
+                port:
+                  number: 3001
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: urackit-ingress
+  namespace: urackit-v2
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+spec:
+  rules:
+    - host: urackit.local
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: urackit-backend
+                port:
+                  number: 3003
+          - path: /ai
+            pathType: Prefix
+            backend:
+              service:
+                name: urackit-ai
+                port:
+                  number: 8081
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: urackit-frontend
+                port:
+                  number: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: healthcare-ingress
+  namespace: healthcare-voice
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+spec:
+  rules:
+    - host: healthcare.local
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: healthcare-backend
+                port:
+                  number: 3005
+          - path: /ai
+            pathType: Prefix
+            backend:
+              service:
+                name: healthcare-ai
+                port:
+                  number: 8084
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: healthcare-frontend
+                port:
+                  number: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: escalation-ingress
+  namespace: afterhours-escalation
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+spec:
+  rules:
+    - host: escalation.local
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: escalation-backend
+                port:
+                  number: 3004
+          - path: /ai
+            pathType: Prefix
+            backend:
+              service:
+                name: escalation-ai
+                port:
+                  number: 8083
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: escalation-frontend
+                port:
+                  number: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: quiz-ingress
+  namespace: quiz
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+spec:
+  rules:
+    - host: quiz.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: quiz
+                port:
+                  number: 80

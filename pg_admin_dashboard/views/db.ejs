@@ -1,0 +1,82 @@
+<%- include('partials/header', { title }) %>
+<section class="grid">
+  <div class="panel full-width">
+    <div class="panel-header">
+      <h2>Database: <%= dbName %></h2>
+      <p>Tables and schemas in this database.</p>
+    </div>
+    <div class="data-controls">
+      <span><%= tables.length %> table(s) found</span>
+      <div class="db-actions">
+        <a class="ghost" href="/db/<%= dbName %>/query">Query Editor</a>
+        <a class="primary" href="/db/<%= dbName %>/create-table">Create Table</a>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Schema</th>
+            <th>Table</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (tables.length === 0) { %>
+            <tr>
+              <td colspan="3">No tables found. <a class="link" href="/db/<%= dbName %>/create-table">Create one</a></td>
+            </tr>
+          <% } %>
+          <% tables.forEach((table) => { %>
+            <tr>
+              <td><%= table.table_schema %></td>
+              <td><strong><%= table.table_name %></strong></td>
+              <td class="row-actions">
+                <a class="link" href="/db/<%= dbName %>/table/<%= table.table_schema %>/<%= table.table_name %>">Preview</a>
+                <a class="link" href="/db/<%= dbName %>/table/<%= table.table_schema %>/<%= table.table_name %>/manage">Manage</a>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Quick Actions</h2>
+      <p>Common database operations</p>
+    </div>
+    <div class="quick-actions">
+      <a class="ghost" href="/db/<%= dbName %>/query">Run SQL Query</a>
+      <a class="ghost" href="/db/<%= dbName %>/create-table">Create New Table</a>
+      <a class="ghost" href="/backup">Backup Database</a>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Connection Info</h2>
+      <p>Database connection details</p>
+    </div>
+    <div class="info-card">
+      <div>
+        <span class="label">Database</span>
+        <span class="value"><%= dbName %></span>
+      </div>
+      <div>
+        <span class="label">Host</span>
+        <span class="value">PGHOST env</span>
+      </div>
+      <div>
+        <span class="label">Port</span>
+        <span class="value">PGPORT env</span>
+      </div>
+      <div>
+        <span class="label">User</span>
+        <span class="value">PGUSER env</span>
+      </div>
+    </div>
+  </div>
+</section>
+<%- include('partials/footer') %>

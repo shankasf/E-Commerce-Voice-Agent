@@ -6,6 +6,7 @@ Uses xAI Grok Voice Agent API for real-time voice conversations.
 """
 
 import asyncio
+import base64
 import logging
 import os
 import sys
@@ -174,6 +175,149 @@ if os.path.exists(static_dir):
 
 # Active WebRTC voice sessions
 webrtc_voice_sessions: Dict[str, Dict[str, Any]] = {}
+
+# Active browser WebSocket sessions
+browser_xai_sessions: Dict[str, Any] = {}
+
+
+# ============================================
+# Browser WebSocket Voice (Direct xAI)
+# ============================================
+
+@app.websocket("/ws/voice")
+async def browser_voice_websocket(websocket: WebSocket):
+    """
+    WebSocket endpoint for browser-based voice chat with xAI.
+    Browser sends audio as base64 PCM, receives audio back.
+    """
+    await websocket.accept()
+
+    config = get_config()
+    session_id = None
+    xai_connection = None
+
+    try:
+        import uuid
+        session_id = str(uuid.uuid4())
+        logger.info(f"Browser voice session started: {session_id}")
+
+        # Get agent configuration
+        agent_config = get_triage_agent_config()
+
+        # Create xAI connection with PCM format for browser
+        xai_connection = XAIRealtimeConnection(
+            api_key=config.xai_api_key,
+            system_prompt=agent_config["system_prompt"],
+            voice=config.xai_voice,
+            tools=agent_config["tools"],
+            input_audio_format="audio/pcm",
+            output_audio_format="audio/pcm",
+            sample_rate=24000  # 24kHz for browser audio
+        )
+
+        # Create a simple session for tracking
+        class BrowserSession:
+            def __init__(self):
+                self.session_id = session_id
+                self.tenant_id = None
+                self.tenant_name = None
+                self.property_name = None
+                self.conversation_history = []
+                self.tool_calls = []
+
+            def add_tool_call(self, name, args, result, success=True):
+                self.tool_calls.append({
+                    "name": name,
+                    "arguments": args,
+                    "result": result,
+                    "success": success
+                })
+
+        session = BrowserSession()
+        browser_xai_sessions[session_id] = session
+
+        # Set up function call handler
+        async def function_handler(name: str, call_id: str, args: Dict[str, Any]) -> Any:
+            return await handle_function_call(name, call_id, args, session)
+
+        xai_connection.on_function_call(function_handler)
+
+        # Set up audio callback - send audio to browser
+        async def send_audio_to_browser(audio_bytes: bytes):
+            try:
+                audio_b64 = base64.b64encode(audio_bytes).decode('utf-8')
+                await websocket.send_json({
+                    "type": "audio",
+                    "audio": audio_b64
+                })
+            except Exception as e:
+                logger.error(f"Error sending audio to browser: {e}")
+
+        xai_connection.on_audio(lambda audio: asyncio.create_task(send_audio_to_browser(audio)))
+
+        # Set up transcript callback
+        async def send_transcript(role: str, text: str):
+            try:
+                await websocket.send_json({
+                    "type": "transcript",
+                    "role": role,
+                    "text": text
+                })
+            except Exception as e:
+                logger.error(f"Error sending transcript: {e}")
+
+        xai_connection.on_transcript(lambda role, text: asyncio.create_task(send_transcript(role, text)))
+
+        # Connect to xAI
+        connected = await xai_connection.connect(session_id)
+        if not connected:
+            await websocket.send_json({"type": "error", "message": "Failed to connect to AI"})
+            await websocket.close()
+            return
+
+        # Notify browser we're ready
+        await websocket.send_json({"type": "ready", "sessionId": session_id})
+
+        # Send greeting
+        await xai_connection.send_greeting()
+
+        # Handle incoming messages from browser
+        while True:
+            try:
+                data = await websocket.receive_json()
+                msg_type = data.get("type")
+
+                if msg_type == "audio":
+                    # Browser sends audio as base64
+                    audio_b64 = data.get("audio", "")
+                    if audio_b64:
+                        audio_bytes = base64.b64decode(audio_b64)
+                        await xai_connection.send_audio(audio_bytes)
+
+                elif msg_type == "text":
+                    # Text input
+                    text = data.get("text", "")
+                    if text:
+                        await xai_connection.send_text(text)
+
+                elif msg_type == "end":
+                    # Client wants to end
+                    break
+
+            except WebSocketDisconnect:
+                break
+            except Exception as e:
+                logger.error(f"Error handling browser message: {e}")
+                break
+
+    except Exception as e:
+        logger.error(f"Browser voice session error: {e}")
+    finally:
+        if xai_connection:
+            await xai_connection.disconnect()
+        if session_id and session_id in browser_xai_sessions:
+            del browser_xai_sessions[session_id]
+        logger.info(f"Browser voice session ended: {session_id}")
 
 
 # ============================================
@@ -420,7 +564,22 @@ async def twilio_voice_app_webhook(
 
 @app.get("/")
 async def root():
-    """Health check endpoint."""
+    """Serve the main landing page with voice widget."""
+    index_path = os.path.join(static_dir, 'index.html')
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    # Fallback to JSON health check
+    return {
+        "status": "healthy",
+        "service": "Real Estate Voice Agent",
+        "version": "1.0.0",
+        "engine": "xAI Grok Voice"
+    }
+
+
+@app.get("/api/health")
+async def api_health():
+    """API health check endpoint (JSON)."""
     return {
         "status": "healthy",
         "service": "Real Estate Voice Agent",

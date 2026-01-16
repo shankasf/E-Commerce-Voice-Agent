@@ -44,6 +44,42 @@ export default function AdminCustomers() {
                 </div>
             ) : (
                 <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                    {/* Mobile card view */}
+                    <div className="block md:hidden divide-y divide-gray-200">
+                        {filteredCustomers?.map((customer) => (
+                            <div key={customer.id} className="p-4">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
+                                        <span className="text-primary-600 font-medium">
+                                            {customer.first_name[0]}{customer.last_name[0]}
+                                        </span>
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="font-medium text-gray-900 truncate">
+                                            {customer.first_name} {customer.last_name}
+                                        </p>
+                                        <p className="text-sm text-gray-500 truncate">{customer.email}</p>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-3 gap-2 text-sm mt-3">
+                                    <div className="text-center p-2 bg-gray-50 rounded">
+                                        <p className="text-gray-500 text-xs">Visits</p>
+                                        <p className="font-medium">{customer.total_visits}</p>
+                                    </div>
+                                    <div className="text-center p-2 bg-gray-50 rounded">
+                                        <p className="text-gray-500 text-xs">Spent</p>
+                                        <p className="font-medium">${customer.total_spent.toLocaleString()}</p>
+                                    </div>
+                                    <div className="text-center p-2 bg-yellow-50 rounded">
+                                        <p className="text-gray-500 text-xs">Points</p>
+                                        <p className="font-medium text-yellow-800">{customer.loyalty_points}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    {/* Desktop table view */}
+                    <div className="hidden md:block overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
@@ -105,6 +141,7 @@ export default function AdminCustomers() {
                             ))}
                         </tbody>
                     </table>
+                    </div>
                 </div>
             )}
         </div>

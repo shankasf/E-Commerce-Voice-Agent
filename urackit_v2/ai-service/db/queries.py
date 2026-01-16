@@ -174,35 +174,36 @@ def find_contact_by_phone(phone: str) -> str:
 @function_tool
 def create_contact(
     full_name: str,
-    phone: str,
     organization_id: int,
     email: str = "",
+    phone: str = "",
 ) -> str:
     """
     Create a new contact record.
-    
+
     Args:
-        full_name: Contact's full name
-        phone: Contact's phone number
-        organization_id: ID of the organization
-        email: Contact's email address (optional)
+        full_name: Contact's full name (REQUIRED)
+        organization_id: ID of the organization (REQUIRED)
+        email: Contact's email address (optional - only include if caller provides it)
+        phone: Contact's phone number (optional)
+
+    IMPORTANT: Do NOT make up or guess email addresses. Only include email if the caller explicitly provides it.
     """
     if not full_name.strip():
         return "Full name is required."
-    if not phone.strip():
-        return "Phone number is required."
     if not organization_id:
         return "organization_id is required."
-    
+
     try:
         contact_data = {
             "full_name": full_name.strip(),
-            "phone": phone.strip(),
             "organization_id": organization_id,
         }
         if email.strip():
             contact_data["email"] = email.strip()
-        
+        if phone.strip():
+            contact_data["phone"] = phone.strip()
+
         result = db.insert("contacts", contact_data)
         if result:
             contact = result[0]
@@ -312,17 +313,18 @@ def get_device_details(device_id: int) -> str:
     try:
         params = {
             "device_id": f"eq.{device_id}",
-            "select": "*,organization:organization_id(name),location:location_id(name)"
+            "select": "*,organization:organization_id(name),location:location_id(name),os:os_id(name)"
         }
         rows = db._make_request("GET", "devices", params=params)
-        
+
         if not rows:
             return f"Device {device_id} not found."
-        
+
         d = rows[0]
         org = d.get("organization", {}) or {}
         loc = d.get("location", {}) or {}
-        
+        os_info = d.get("os", {}) or {}
+
         return (
             f"=== Device Details ===\n"
             f"Asset Name: {d.get('asset_name')}\n"
@@ -331,8 +333,8 @@ def get_device_details(device_id: int) -> str:
             f"Organization: {org.get('name', 'N/A')}\n"
             f"Location: {loc.get('name', 'N/A')}\n"
             f"Public IP: {d.get('public_ip', 'N/A')}\n"
-            f"Gateway IP: {d.get('gateway_ip', 'N/A')}\n"
-            f"OS: {d.get('os_name', 'N/A')}\n"
+            f"Gateway: {d.get('gateway', 'N/A')}\n"
+            f"OS: {os_info.get('name', 'N/A')}\n"
             f"Memory: {d.get('total_memory', 'N/A')}\n"
             f"Last Reported: {d.get('last_reported_time', 'N/A')}\n"
             f"device_id: {d.get('device_id')}"
@@ -870,8 +872,28 @@ def transfer_to_human(reason: str = "Customer requested") -> str:
     """
     Transfer the call to a human support agent.
     This will connect the caller to an available technician.
-    
+
     Args:
         reason: Reason for transfer (e.g., "Customer requested", "Complex issue")
     """
     return f"TRANSFER_TO_HUMAN|{reason}"
+
+
+# ============================================
+# Hang Up Call
+# ============================================
+
+@function_tool
+def hang_up_call(reason: str = "Conversation completed") -> str:
+    """
+    End the call gracefully when the conversation is complete.
+    Use this when:
+    - The caller says goodbye (e.g., "bye", "thanks, that's all", "have a good day")
+    - The issue has been resolved and caller confirms they're all set
+    - The caller cannot be verified (no UE code) and has been informed
+    - The caller indicates they have no more questions
+
+    Args:
+        reason: Reason for ending the call (e.g., "Caller said goodbye", "Issue resolved", "Verification failed")
+    """
+    return f"HANG_UP_CALL|{reason}"

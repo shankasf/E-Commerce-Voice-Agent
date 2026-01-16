@@ -34,9 +34,9 @@ const DEMO_USERS: Record<'admin' | 'agent', CurrentUser> = {
   },
   agent: {
     role: 'agent',
-    id: 2, // support_agent_id - Alex Support (Human agent)
-    name: 'Alex Support',
-    email: 'alex@urackit.com',
+    id: 4, // support_agent_id - Support Agent 1 (Human agent)
+    name: 'Support Agent 1',
+    email: 'agent1@urackit.com',
   },
 };
 

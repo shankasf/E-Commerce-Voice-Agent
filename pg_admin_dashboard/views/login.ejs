@@ -1,0 +1,22 @@
+<%- include('partials/header', { title }) %>
+<section class="login">
+  <div class="panel">
+    <div class="panel-header">
+      <h1>Admin sign-in</h1>
+      <p>Access the CallSphere database control plane.</p>
+    </div>
+    <form class="form" method="post" action="/login">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <label>
+        <span>Admin ID</span>
+        <input type="text" name="username" autocomplete="username" required />
+      </label>
+      <label>
+        <span>Password</span>
+        <input type="password" name="password" autocomplete="current-password" required />
+      </label>
+      <button class="primary" type="submit">Enter console</button>
+    </form>
+  </div>
+</section>
+<%- include('partials/footer') %>

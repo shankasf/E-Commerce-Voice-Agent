@@ -1,0 +1,277 @@
+<%- include('partials/header', { title }) %>
+<section class="grid">
+  <div class="panel full-width">
+    <div class="panel-header">
+      <h2>Create New Table</h2>
+      <p>Define table structure for <strong><%= dbName %></strong></p>
+    </div>
+
+    <form class="form" method="post" action="/db/<%= dbName %>/table/create" id="createTableForm">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+
+      <div class="form-row">
+        <label>
+          <span>Schema</span>
+          <select name="schema">
+            <% schemas.forEach((s) => { %>
+              <option value="<%= s.schema_name %>" <%= s.schema_name === 'public' ? 'selected' : '' %>><%= s.schema_name %></option>
+            <% }) %>
+          </select>
+        </label>
+        <label>
+          <span>Table Name</span>
+          <input type="text" name="tableName" placeholder="my_table" required />
+        </label>
+      </div>
+
+      <div class="columns-section">
+        <h3>Columns</h3>
+        <div class="columns-list" id="columnsList">
+          <div class="column-row">
+            <input type="text" name="columns[0][name]" placeholder="id" required />
+            <select name="columns[0][type]">
+              <option value="SERIAL">SERIAL (auto-increment)</option>
+              <option value="BIGSERIAL">BIGSERIAL (big auto-increment)</option>
+              <option value="INTEGER">INTEGER</option>
+              <option value="BIGINT">BIGINT</option>
+              <option value="SMALLINT">SMALLINT</option>
+              <option value="VARCHAR(255)">VARCHAR(255)</option>
+              <option value="VARCHAR(100)">VARCHAR(100)</option>
+              <option value="TEXT">TEXT</option>
+              <option value="CHAR(1)">CHAR(1)</option>
+              <option value="BOOLEAN">BOOLEAN</option>
+              <option value="TIMESTAMP">TIMESTAMP</option>
+              <option value="TIMESTAMPTZ">TIMESTAMPTZ</option>
+              <option value="DATE">DATE</option>
+              <option value="TIME">TIME</option>
+              <option value="INTERVAL">INTERVAL</option>
+              <option value="NUMERIC">NUMERIC</option>
+              <option value="NUMERIC(10,2)">NUMERIC(10,2)</option>
+              <option value="REAL">REAL</option>
+              <option value="DOUBLE PRECISION">DOUBLE PRECISION</option>
+              <option value="MONEY">MONEY</option>
+              <option value="JSONB">JSONB</option>
+              <option value="JSON">JSON</option>
+              <option value="UUID">UUID</option>
+              <option value="BYTEA">BYTEA</option>
+              <option value="INET">INET</option>
+              <option value="CIDR">CIDR</option>
+              <option value="MACADDR">MACADDR</option>
+              <option value="POINT">POINT</option>
+              <option value="INT4RANGE">INT4RANGE</option>
+              <option value="TSTZRANGE">TSTZRANGE</option>
+            </select>
+            <label class="check compact">
+              <input type="checkbox" name="columns[0][primaryKey]" checked />
+              <span>PK</span>
+            </label>
+            <label class="check compact">
+              <input type="checkbox" name="columns[0][notNull]" checked />
+              <span>NOT NULL</span>
+            </label>
+            <input type="text" name="columns[0][default]" placeholder="Default" class="small-input" />
+            <button type="button" class="ghost small danger remove-column" disabled>Remove</button>
+          </div>
+        </div>
+        <button type="button" class="ghost" id="addColumn">+ Add Column</button>
+      </div>
+
+      <div class="checks">
+        <label class="check">
+          <input type="checkbox" name="addCreatedAt" checked />
+          <span>Add created_at timestamp column</span>
+        </label>
+        <label class="check">
+          <input type="checkbox" name="addUpdatedAt" checked />
+          <span>Add updated_at timestamp column</span>
+        </label>
+      </div>
+
+      <button class="primary" type="submit">Create Table</button>
+    </form>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <h2>SQL Preview</h2>
+      <p>Generated CREATE TABLE statement</p>
+    </div>
+    <pre id="sqlPreview" class="sql-preview">-- SQL will appear here as you define columns</pre>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Common Templates</h2>
+      <p>Quick-start table structures</p>
+    </div>
+    <div class="template-list">
+      <button class="ghost template-btn" data-template="users">Users Table</button>
+      <button class="ghost template-btn" data-template="posts">Posts/Articles</button>
+      <button class="ghost template-btn" data-template="orders">Orders</button>
+      <button class="ghost template-btn" data-template="logs">Audit Logs</button>
+    </div>
+  </div>
+</section>
+
+<script>
+(function() {
+  const columnsList = document.getElementById('columnsList');
+  const addColumnBtn = document.getElementById('addColumn');
+  const sqlPreview = document.getElementById('sqlPreview');
+  const form = document.getElementById('createTableForm');
+  let columnIndex = 1;
+
+  const templates = {
+    users: [
+      { name: 'id', type: 'SERIAL', primaryKey: true, notNull: true },
+      { name: 'email', type: 'VARCHAR(255)', notNull: true },
+      { name: 'password_hash', type: 'VARCHAR(255)', notNull: true },
+      { name: 'name', type: 'VARCHAR(255)' },
+      { name: 'role', type: 'VARCHAR(50)', default: "'user'" },
+      { name: 'active', type: 'BOOLEAN', default: 'true' }
+    ],
+    posts: [
+      { name: 'id', type: 'SERIAL', primaryKey: true, notNull: true },
+      { name: 'title', type: 'VARCHAR(255)', notNull: true },
+      { name: 'slug', type: 'VARCHAR(255)', notNull: true },
+      { name: 'content', type: 'TEXT' },
+      { name: 'author_id', type: 'INTEGER' },
+      { name: 'published', type: 'BOOLEAN', default: 'false' },
+      { name: 'published_at', type: 'TIMESTAMPTZ' }
+    ],
+    orders: [
+      { name: 'id', type: 'SERIAL', primaryKey: true, notNull: true },
+      { name: 'user_id', type: 'INTEGER', notNull: true },
+      { name: 'status', type: 'VARCHAR(50)', default: "'pending'" },
+      { name: 'total', type: 'NUMERIC', notNull: true },
+      { name: 'currency', type: 'VARCHAR(3)', default: "'USD'" },
+      { name: 'notes', type: 'TEXT' }
+    ],
+    logs: [
+      { name: 'id', type: 'BIGSERIAL', primaryKey: true, notNull: true },
+      { name: 'level', type: 'VARCHAR(20)', notNull: true },
+      { name: 'message', type: 'TEXT', notNull: true },
+      { name: 'context', type: 'JSONB' },
+      { name: 'source', type: 'VARCHAR(100)' },
+      { name: 'user_id', type: 'INTEGER' }
+    ]
+  };
+
+  addColumnBtn.addEventListener('click', function() {
+    addColumnRow();
+  });
+
+  function addColumnRow(data) {
+    const row = document.createElement('div');
+    row.className = 'column-row';
+    const dataTypes = [
+      'SERIAL', 'BIGSERIAL', 'INTEGER', 'BIGINT', 'SMALLINT',
+      'VARCHAR(255)', 'VARCHAR(100)', 'TEXT', 'CHAR(1)',
+      'BOOLEAN', 'TIMESTAMP', 'TIMESTAMPTZ', 'DATE', 'TIME', 'INTERVAL',
+      'NUMERIC', 'NUMERIC(10,2)', 'REAL', 'DOUBLE PRECISION', 'MONEY',
+      'JSONB', 'JSON', 'UUID', 'BYTEA', 'INET', 'CIDR', 'MACADDR', 'POINT',
+      'INT4RANGE', 'TSTZRANGE'
+    ];
+    const typeOptions = dataTypes.map(t =>
+      `<option value="${t}" ${data?.type === t ? 'selected' : ''}>${t}</option>`
+    ).join('');
+    row.innerHTML = `
+      <input type="text" name="columns[${columnIndex}][name]" placeholder="column_name" value="${data?.name || ''}" required />
+      <select name="columns[${columnIndex}][type]">${typeOptions}</select>
+      <label class="check compact">
+        <input type="checkbox" name="columns[${columnIndex}][primaryKey]" ${data?.primaryKey ? 'checked' : ''} />
+        <span>PK</span>
+      </label>
+      <label class="check compact">
+        <input type="checkbox" name="columns[${columnIndex}][notNull]" ${data?.notNull ? 'checked' : ''} />
+        <span>NOT NULL</span>
+      </label>
+      <input type="text" name="columns[${columnIndex}][default]" placeholder="Default" class="small-input" value="${data?.default || ''}" />
+      <button type="button" class="ghost small danger remove-column">Remove</button>
+    `;
+    columnsList.appendChild(row);
+    columnIndex++;
+    updateRemoveButtons();
+    updateSqlPreview();
+  }
+
+  columnsList.addEventListener('click', function(e) {
+    if (e.target.classList.contains('remove-column')) {
+      e.target.closest('.column-row').remove();
+      updateRemoveButtons();
+      updateSqlPreview();
+    }
+  });
+
+  columnsList.addEventListener('input', updateSqlPreview);
+  columnsList.addEventListener('change', updateSqlPreview);
+  form.addEventListener('input', updateSqlPreview);
+  form.addEventListener('change', updateSqlPreview);
+
+  function updateRemoveButtons() {
+    const rows = columnsList.querySelectorAll('.column-row');
+    rows.forEach(function(row, i) {
+      row.querySelector('.remove-column').disabled = rows.length <= 1;
+    });
+  }
+
+  function updateSqlPreview() {
+    const tableName = form.querySelector('input[name="tableName"]').value || 'table_name';
+    const schema = form.querySelector('select[name="schema"]').value || 'public';
+    const rows = columnsList.querySelectorAll('.column-row');
+    const addCreatedAt = form.querySelector('input[name="addCreatedAt"]').checked;
+    const addUpdatedAt = form.querySelector('input[name="addUpdatedAt"]').checked;
+
+    let columns = [];
+    let primaryKeys = [];
+
+    rows.forEach(function(row) {
+      const name = row.querySelector('input[name*="[name]"]').value || 'column';
+      const type = row.querySelector('select[name*="[type]"]').value;
+      const pk = row.querySelector('input[name*="[primaryKey]"]').checked;
+      const notNull = row.querySelector('input[name*="[notNull]"]').checked;
+      const defaultVal = row.querySelector('input[name*="[default]"]').value;
+
+      let def = '  ' + name + ' ' + type;
+      if (notNull) def += ' NOT NULL';
+      if (defaultVal) def += ' DEFAULT ' + defaultVal;
+      columns.push(def);
+      if (pk) primaryKeys.push(name);
+    });
+
+    if (addCreatedAt) {
+      columns.push('  created_at TIMESTAMPTZ DEFAULT NOW()');
+    }
+    if (addUpdatedAt) {
+      columns.push('  updated_at TIMESTAMPTZ DEFAULT NOW()');
+    }
+
+    if (primaryKeys.length > 0) {
+      columns.push('  PRIMARY KEY (' + primaryKeys.join(', ') + ')');
+    }
+
+    const sql = 'CREATE TABLE ' + schema + '.' + tableName + ' (\n' + columns.join(',\n') + '\n);';
+    sqlPreview.textContent = sql;
+  }
+
+  document.querySelectorAll('.template-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      const template = templates[this.dataset.template];
+      if (!template) return;
+
+      columnsList.innerHTML = '';
+      columnIndex = 0;
+
+      template.forEach(function(col) {
+        addColumnRow(col);
+      });
+
+      form.querySelector('input[name="tableName"]').value = this.dataset.template;
+      updateSqlPreview();
+    });
+  });
+
+  updateSqlPreview();
+})();
+</script>
+<%- include('partials/footer') %>

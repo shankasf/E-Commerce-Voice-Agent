@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Phone } from "lucide-react";
+import { Phone, Mic } from "lucide-react";
 
 type ConversationEntry = {
   id: string;
@@ -211,11 +211,11 @@ const industryScripts: { [key: string]: ConversationEntry[] } = {
   ]
 };
 
-const industryMeta: { [key: string]: { icon: string; phone: string; color: string } } = {
-  "Property Management": { icon: "🏢", phone: "+1 (555) 100-2001", color: "bg-emerald-100 text-emerald-700" },
-  "Healthcare": { icon: "⚕️", phone: "+1 (555) 100-2002", color: "bg-blue-100 text-blue-700" },
-  "IT MSPs": { icon: "💻", phone: "+1 (555) 100-2003", color: "bg-amber-100 text-amber-700" },
-  "Logistics": { icon: "🚚", phone: "+1 (555) 100-2004", color: "bg-purple-100 text-purple-700" },
+const industryMeta: { [key: string]: { icon: string; phone?: string; isLiveVoice?: boolean; comingSoon?: boolean; color: string } } = {
+  "Property Management": { icon: "🏢", isLiveVoice: true, color: "bg-emerald-100 text-emerald-700" },
+  "Healthcare": { icon: "⚕️", isLiveVoice: true, color: "bg-blue-100 text-blue-700" },
+  "IT MSPs": { icon: "💻", isLiveVoice: true, color: "bg-amber-100 text-amber-700" },
+  "Logistics": { icon: "🚚", comingSoon: true, color: "bg-purple-100 text-purple-700" },
 };
 
 const industries = Object.keys(industryScripts);
@@ -275,10 +275,26 @@ export function IndustryDemoCard() {
           </div>
           <div className="flex-1">
             <p className="text-lg font-semibold text-foreground">{activeIndustry}</p>
-            <p className="flex items-center gap-1 text-sm text-muted-foreground">
-              <Phone className="h-3 w-3" />
-              {meta.phone}
-            </p>
+            {meta.isLiveVoice ? (
+              <p className="inline-flex items-center gap-1.5 text-sm text-emerald-600">
+                <Mic className="h-3.5 w-3.5" />
+                <span className="font-medium">Tap to Talk</span>
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75"></span>
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                </span>
+              </p>
+            ) : meta.comingSoon ? (
+              <p className="inline-flex items-center gap-1.5 text-sm text-slate-400">
+                <Mic className="h-3.5 w-3.5" />
+                <span className="font-medium">Coming Soon</span>
+              </p>
+            ) : (
+              <p className="flex items-center gap-1 text-sm text-muted-foreground">
+                <Phone className="h-3 w-3" />
+                {meta.phone}
+              </p>
+            )}
           </div>
         </div>
 
