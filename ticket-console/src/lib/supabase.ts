@@ -1,28 +1,36 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseServiceKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+// Service role key is server-only (not exposed to browser)
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
-// Create supabase client with service role key to bypass RLS
+// Determine if we're on server or client
+const isServer = typeof window === 'undefined';
+
+// Use service role key on server, anon key on client
+const supabaseKey = isServer && supabaseServiceKey ? supabaseServiceKey : supabaseAnonKey;
+
+// Create supabase client
 let supabase: SupabaseClient;
 
-if (supabaseUrl && supabaseServiceKey) {
-  supabase = createClient(supabaseUrl, supabaseServiceKey, {
+if (supabaseUrl && supabaseKey) {
+  supabase = createClient(supabaseUrl, supabaseKey, {
     auth: {
-      autoRefreshToken: false,
-      persistSession: false
+      autoRefreshToken: !isServer,
+      persistSession: !isServer
     },
     db: {
       schema: 'public'
     },
-    global: {
+    global: supabaseServiceKey && isServer ? {
       headers: {
         Authorization: `Bearer ${supabaseServiceKey}`
       }
-    }
+    } : undefined
   });
 } else {
-  // Fallback for SSR - create a dummy client that will be replaced on client
+  // Fallback - create a dummy client that will fail gracefully
   supabase = createClient('https://placeholder.supabase.co', 'placeholder-key');
 }
 
@@ -149,7 +157,7 @@ export interface TicketMessage {
   ticket_id: number;
   sender_agent_id?: number;
   sender_contact_id?: number;
-  message_time: string;
+  created_at: string;
   content: string;
   message_type: string;
   sender_agent?: SupportAgent;

@@ -2,18 +2,30 @@ const { createServer } = require('http');
 const { parse } = require('url');
 const next = require('next');
 const { Server } = require('ws');
-const { spawn } = require('child_process');
-const os = require('os');
+const { createClient } = require('@supabase/supabase-js');
 
 const dev = process.env.NODE_ENV !== 'production';
-const hostname = 'localhost';
+const hostname = process.env.HOSTNAME || 'localhost';
 const port = parseInt(process.env.PORT || '3001', 10);
 
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
-// Store active terminal sessions
-const terminalSessions = new Map();
+// Supabase client for database operations
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const supabase = supabaseUrl && supabaseServiceKey 
+  ? createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+      global: { headers: { Authorization: `Bearer ${supabaseServiceKey}` } }
+    })
+  : null;
+
+// Store active device connections
+const deviceSessions = new Map(); // sessionId -> { ws, lastHeartbeat, heartbeatInterval }
+
+// Heartbeat timeout (60 seconds)
+const HEARTBEAT_TIMEOUT = 60000;
 
 app.prepare().then(() => {
   const server = createServer(async (req, res) => {
@@ -27,119 +39,151 @@ app.prepare().then(() => {
     }
   });
 
-  // Create WebSocket server for terminal connections
-  const wss = new Server({ 
+  // Create primitive WebSocket server for device connections (Windows app)
+  const deviceWss = new Server({ 
     server,
-    path: '/api/terminal/ws'
+    path: '/api/device/ws'
   });
 
-  wss.on('connection', (ws, req) => {
-    const sessionId = req.url.split('?')[1]?.split('&').find(p => p.startsWith('session='))?.split('=')[1] || 
-                     `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  // Primitive device WebSocket server - just heartbeat monitoring
+  deviceWss.on('connection', async (ws, req) => {
+    const urlParams = new URLSearchParams(req.url.split('?')[1] || '');
+    const sessionId = urlParams.get('session');
     
-    console.log(`[Terminal WS] New connection: ${sessionId}`);
-    
-    let terminalProcess = null;
-    let isExecuting = false;
-    
-    const session = { ws, process: terminalProcess, isExecuting };
-    terminalSessions.set(sessionId, session);
+    if (!sessionId) {
+      console.error('[Device WS] Missing session_id');
+      ws.close(1008, 'Missing session_id');
+      return;
+    }
 
-    // Send welcome message
-    ws.send(JSON.stringify({
-      type: 'ready',
+    console.log(`[Device WS] New connection: ${sessionId}`);
+
+    // Look up connection in database
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('device_connections')
+        .select('*')
+        .eq('session_id', sessionId)
+        .single();
+
+      if (error || !data) {
+        console.error(`[Device WS] Connection not found in database: ${sessionId}`);
+        ws.close(1008, 'Connection not found');
+        return;
+      }
+
+      // Set is_active = true
+      await supabase
+        .from('device_connections')
+        .update({
+          is_active: true,
+          connected_at: new Date().toISOString(),
+          last_heartbeat: new Date().toISOString(),
+        })
+        .eq('session_id', sessionId);
+      console.log(`[Device WS] Set is_active = true for session: ${sessionId}`);
+    }
+
+    // Track heartbeat
+    let lastHeartbeat = Date.now();
+    let heartbeatInterval = null;
+
+    // Start heartbeat monitoring
+    heartbeatInterval = setInterval(async () => {
+      const now = Date.now();
+      const timeSinceHeartbeat = now - lastHeartbeat;
+
+      // If no heartbeat for HEARTBEAT_TIMEOUT, disconnect
+      if (timeSinceHeartbeat > HEARTBEAT_TIMEOUT) {
+        console.log(`[Device WS] Heartbeat timeout for session: ${sessionId} - disconnecting`);
+        clearInterval(heartbeatInterval);
+        
+        // Set isActive to false in database
+        if (supabase) {
+          await supabase
+            .from('device_connections')
+            .update({
+              is_active: false,
+              disconnected_at: new Date().toISOString(),
+            })
+            .eq('session_id', sessionId);
+        }
+        
+        ws.close(1008, 'Heartbeat timeout');
+        deviceSessions.delete(sessionId);
+      }
+    }, 15000); // Check every 15 seconds
+
+    // Store session
+    const deviceSession = {
+      ws,
       sessionId,
-      platform: os.platform(),
-      cwd: process.cwd(),
-      message: 'Terminal connected. Ready for commands.',
-    }));
+      lastHeartbeat,
+      heartbeatInterval,
+    };
+    deviceSessions.set(sessionId, deviceSession);
 
+    // Handle messages
     ws.on('message', async (data) => {
       try {
         const message = JSON.parse(data.toString());
-        console.log(`[Terminal WS] ${sessionId} received:`, message.type);
+        
+        // Update heartbeat on any message
+        lastHeartbeat = Date.now();
+        deviceSession.lastHeartbeat = lastHeartbeat;
 
-        switch (message.type) {
-          case 'execute':
-            const session = terminalSessions.get(sessionId);
-            if (session && session.isExecuting) {
-              ws.send(JSON.stringify({
-                type: 'error',
-                error: 'Another command is already executing',
-              }));
-              return;
-            }
+        // Handle heartbeat message
+        if (message.type === 'heartbeat') {
+          if (supabase) {
+            await supabase
+              .from('device_connections')
+              .update({
+                last_heartbeat: new Date().toISOString(),
+              })
+              .eq('session_id', sessionId);
+          }
+          ws.send(JSON.stringify({ type: 'heartbeat_ack' }));
+        }
 
-            const command = message.command?.trim();
-            if (!command) {
-              ws.send(JSON.stringify({
-                type: 'error',
-                error: 'Empty command',
-              }));
-              return;
-            }
-
-            // Security: Check if command is allowed
-            if (!isCommandAllowed(command, message.userRole || 'requester')) {
-              ws.send(JSON.stringify({
-                type: 'error',
-                error: 'Command not allowed for your role',
-              }));
-              return;
-            }
-
-            session.isExecuting = true;
-            isExecuting = true;
-            await executeCommand(ws, command, message.cwd || process.cwd(), sessionId, session);
-            session.isExecuting = false;
-            isExecuting = false;
-            break;
-
-          case 'cancel':
-            const cancelSession = terminalSessions.get(sessionId);
-            if (cancelSession && cancelSession.process) {
-              cancelSession.process.kill('SIGTERM');
-              cancelSession.process = null;
-              cancelSession.isExecuting = false;
-              ws.send(JSON.stringify({
-                type: 'cancelled',
-              }));
-            }
-            break;
-
-          case 'ping':
-            ws.send(JSON.stringify({ type: 'pong' }));
-            break;
-
-          default:
-            ws.send(JSON.stringify({
-              type: 'error',
-              error: `Unknown message type: ${message.type}`,
-            }));
+        // Handle handshake
+        if (message.type === 'handshake') {
+          ws.send(JSON.stringify({
+            type: 'handshake_ack',
+            session_id: sessionId,
+            timestamp: new Date().toISOString(),
+          }));
         }
       } catch (error) {
-        console.error(`[Terminal WS] ${sessionId} error:`, error);
-        ws.send(JSON.stringify({
-          type: 'error',
-          error: error.message,
-        }));
+        console.error(`[Device WS] ${sessionId} error:`, error);
       }
     });
 
-    ws.on('close', () => {
-      console.log(`[Terminal WS] ${sessionId} disconnected`);
-      const session = terminalSessions.get(sessionId);
-      if (session && session.process) {
-        session.process.kill();
-        session.process = null;
+    ws.on('close', async () => {
+      console.log(`[Device WS] ${sessionId} disconnected`);
+      
+      // Clear heartbeat interval
+      if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
       }
-      terminalSessions.delete(sessionId);
+
+      // Set isActive to false in database
+      if (supabase) {
+        await supabase
+          .from('device_connections')
+          .update({
+            is_active: false,
+            disconnected_at: new Date().toISOString(),
+          })
+          .eq('session_id', sessionId);
+        console.log(`[Device WS] Set is_active = false for session: ${sessionId}`);
+      }
+
+      deviceSessions.delete(sessionId);
     });
 
     ws.on('error', (error) => {
-      console.error(`[Terminal WS] ${sessionId} WebSocket error:`, error);
+      console.error(`[Device WS] ${sessionId} WebSocket error:`, error);
     });
-
   });
 
   server.on('error', (err) => {
@@ -148,123 +192,6 @@ app.prepare().then(() => {
 
   server.listen(port, () => {
     console.log(`> Ready on http://${hostname}:${port}`);
-    console.log(`> Terminal WebSocket server ready on ws://${hostname}:${port}/api/terminal/ws`);
+    console.log(`> Device WebSocket server ready on ws://${hostname}:${port}/api/device/ws`);
   });
 });
-
-// Execute command in terminal
-function executeCommand(ws, command, workingDir, sessionId, session) {
-  return new Promise((resolve) => {
-    console.log(`[Terminal WS] ${sessionId} Executing: ${command}`);
-
-    const platform = os.platform();
-    const shell = platform === 'win32' ? 'cmd.exe' : '/bin/bash';
-    const shellArgs = platform === 'win32' ? ['/c'] : ['-c'];
-
-    const process = spawn(shell, [...shellArgs, command], {
-      cwd: workingDir,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env },
-    });
-
-    // Update session with process
-    if (session) {
-      session.process = process;
-    }
-
-    // Stream stdout
-    process.stdout.on('data', (data) => {
-      const output = data.toString();
-      ws.send(JSON.stringify({
-        type: 'output',
-        data: output,
-      }));
-    });
-
-    // Stream stderr
-    process.stderr.on('data', (data) => {
-      const error = data.toString();
-      ws.send(JSON.stringify({
-        type: 'error',
-        data: error,
-      }));
-    });
-
-    // Handle exit
-    process.on('exit', (code) => {
-      console.log(`[Terminal WS] ${sessionId} Command exited with code ${code}`);
-      ws.send(JSON.stringify({
-        type: 'exit',
-        code: code || 0,
-      }));
-      
-      if (session) {
-        session.process = null;
-        session.isExecuting = false;
-      }
-      
-      resolve();
-    });
-
-    // Handle errors
-    process.on('error', (error) => {
-      console.error(`[Terminal WS] ${sessionId} Process error:`, error);
-      ws.send(JSON.stringify({
-        type: 'error',
-        error: error.message,
-      }));
-      
-      if (session) {
-        session.process = null;
-        session.isExecuting = false;
-      }
-      
-      resolve();
-    });
-  });
-}
-
-// Security: Command whitelisting
-function isCommandAllowed(command, userRole) {
-  const lowerCommand = command.toLowerCase().trim();
-
-  // Dangerous commands that should never be allowed
-  const blacklist = [
-    'rm -rf /',
-    'rm -rf ~',
-    'format c:',
-    'del /f /s /q',
-    'mkfs',
-    'dd if=',
-    'shutdown',
-    'reboot',
-    'halt',
-  ];
-
-  for (const blocked of blacklist) {
-    if (lowerCommand.includes(blocked)) {
-      return false;
-    }
-  }
-
-  // Role-based permissions
-  if (userRole === 'requester') {
-    // Requesters: Read-only commands
-    const requesterWhitelist = [
-      'ls', 'dir', 'pwd', 'cd', 'cat', 'type', 'head', 'tail',
-      'grep', 'find', 'which', 'where', 'whoami', 'uname',
-      'date', 'echo', 'env', 'printenv', 'ps', 'top', 'htop',
-      'df', 'du', 'free', 'uptime', 'ping', 'curl', 'wget',
-      'git status', 'git log', 'git diff', 'git branch',
-      'npm list', 'npm view', 'node --version', 'python --version',
-    ];
-
-    return requesterWhitelist.some(allowed => lowerCommand.startsWith(allowed));
-  } else if (userRole === 'agent' || userRole === 'admin') {
-    // Agents/Admins: Extended permissions (but still restricted)
-    // Allow most commands except dangerous ones
-    return true;
-  }
-
-  return false;
-}

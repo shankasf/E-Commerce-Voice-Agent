@@ -107,18 +107,27 @@ export default function LoginPage() {
       return;
     }
 
+    if (!organization?.organization_id) {
+      setDetailsError('Organization not found. Please go back and re-enter your U&E code.');
+      return;
+    }
+
     setIsCreating(true);
     setDetailsError('');
 
     try {
+      const requestBody = {
+        fullName: fullName.trim(),
+        email: email.trim(),
+        organizationId: organization.organization_id,
+      };
+
+      console.log('[Create Contact] Sending:', requestBody);
+
       const response = await fetch('/api/auth/create-contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fullName: fullName.trim(),
-          email: email.trim(),
-          organizationId: organization?.organization_id,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const data = await response.json();

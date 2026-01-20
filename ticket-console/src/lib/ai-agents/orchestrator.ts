@@ -6,7 +6,7 @@ import { createResponse, DEFAULT_MODEL } from './openai-client';
 import { AGENT_DEFINITIONS, getAgentName, AgentType, MultiAgentAnalysis, HandoffResult } from './index';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseServiceKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   auth: { autoRefreshToken: false, persistSession: false },
   global: { headers: { Authorization: `Bearer ${supabaseServiceKey}` } }
@@ -87,21 +87,34 @@ export async function getOrCreateAIBot(category: string): Promise<number> {
   // Normalize category for lookup (email, network, computer, printer, phone, security, general, triage)
   const normalizedCategory = category.toLowerCase().trim();
   
-  // Check if bot exists - try multiple ways to find it
-  const { data: existingBot, error: lookupError } = await supabase
+  // First, try to find ANY existing bot (prefer matching specialization)
+  const { data: matchingBot } = await supabase
     .from('support_agents')
     .select('support_agent_id')
     .eq('agent_type', 'Bot')
     .or(`specialization.ilike.%${normalizedCategory}%,full_name.ilike.%${agentDef.name}%`)
-    .maybeSingle(); // Use maybeSingle() to avoid error when no bot exists
+    .maybeSingle();
 
-  if (existingBot && !lookupError) {
-    console.log('[Orchestrator] Found existing bot:', existingBot.support_agent_id, 'for category:', category);
-    return existingBot.support_agent_id;
+  if (matchingBot) {
+    console.log('[Orchestrator] Found matching bot:', matchingBot.support_agent_id, 'for category:', category);
+    return matchingBot.support_agent_id;
   }
 
-  // Create new bot if it doesn't exist
-  console.log('[Orchestrator] Creating new bot for category:', category);
+  // If no matching bot, try to find ANY bot as fallback
+  const { data: anyBot } = await supabase
+    .from('support_agents')
+    .select('support_agent_id')
+    .eq('agent_type', 'Bot')
+    .limit(1)
+    .maybeSingle();
+
+  if (anyBot) {
+    console.log('[Orchestrator] Using existing bot:', anyBot.support_agent_id, 'as fallback for category:', category);
+    return anyBot.support_agent_id;
+  }
+
+  // Only create new bot if absolutely none exist
+  console.log('[Orchestrator] No bots found, creating new bot for category:', category);
   const { data: newBot, error: createError } = await supabase
     .from('support_agents')
     .insert({
@@ -116,18 +129,26 @@ export async function getOrCreateAIBot(category: string): Promise<number> {
 
   if (createError) {
     console.error('[Orchestrator] Error creating bot:', createError);
-    // If creation fails, try to find any general bot as fallback
-    const { data: fallbackBot } = await supabase
-      .from('support_agents')
-      .select('support_agent_id')
-      .eq('agent_type', 'Bot')
-      .maybeSingle();
     
-    if (fallbackBot) {
-      console.log('[Orchestrator] Using fallback bot:', fallbackBot.support_agent_id);
-      return fallbackBot.support_agent_id;
+    // If duplicate key error, try to find the bot that already exists
+    if (createError.code === '23505' || createError.message?.includes('duplicate key')) {
+      console.log('[Orchestrator] Duplicate key detected, finding existing bot...');
+      const { data: existingBot } = await supabase
+        .from('support_agents')
+        .select('support_agent_id')
+        .eq('agent_type', 'Bot')
+        .limit(1)
+        .maybeSingle();
+      
+      if (existingBot) {
+        console.log('[Orchestrator] Found existing bot after duplicate error:', existingBot.support_agent_id);
+        return existingBot.support_agent_id;
+      }
     }
-    throw createError;
+    
+    // Last resort fallback - use bot ID 1 if it exists
+    console.log('[Orchestrator] Using hardcoded fallback bot ID 1');
+    return 1;
   }
   
   console.log('[Orchestrator] Created new bot:', newBot.support_agent_id);

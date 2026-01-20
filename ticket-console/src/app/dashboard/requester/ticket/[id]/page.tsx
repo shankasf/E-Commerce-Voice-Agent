@@ -42,9 +42,12 @@ export default function RequesterTicketDetail() {
   const [showTerminal, setShowTerminal] = useState(false);
   const [terminalMinimized, setTerminalMinimized] = useState(false);
   const [terminalStatus, setTerminalStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
+  const [terminalWidth, setTerminalWidth] = useState(50); // Percentage width
+  const [isResizing, setIsResizing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prevMessageCountRef = useRef<number>(0);
   const terminalComponentRef = useRef<any>(null);
+  const resizeRef = useRef<{ startX: number; startWidth: number } | null>(null);
 
   // Notification sound for new messages
   useMessageNotification(messages, user?.id, 'requester');
@@ -77,6 +80,46 @@ export default function RequesterTicketDetail() {
     }
     prevMessageCountRef.current = messages.length;
   }, [messages, showTerminal]);
+
+  // Handle terminal resizing
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!resizeRef.current) return;
+      
+      const deltaX = resizeRef.current.startX - e.clientX; // Inverted because terminal is on the right
+      const deltaPercent = (deltaX / window.innerWidth) * 100;
+      const newWidth = Math.max(30, Math.min(70, resizeRef.current.startWidth + deltaPercent));
+      setTerminalWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      resizeRef.current = null;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
+
+  const handleResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+    resizeRef.current = {
+      startX: e.clientX,
+      startWidth: terminalWidth,
+    };
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  };
 
   // Memoized load functions
   const loadTicket = useCallback(async () => {
@@ -228,45 +271,57 @@ export default function RequesterTicketDetail() {
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col relative">
 
-      {/* Terminal Section - Fixed Position on Right Side - Seamlessly Integrated with left border */}
+      {/* Terminal Section - Fixed Position on Right Side - Resizable */}
       {showTerminal && (
         <div 
-          className="fixed right-0 w-[50%] min-w-[500px] flex flex-col bg-slate-900 z-50 top-0 bottom-0 border-l-2 border-slate-700" 
+          className="fixed right-0 flex flex-col bg-slate-900 z-50 top-0 bottom-0 border-l-2 border-slate-700 will-change-[width] group" 
           style={{ 
+            width: `${terminalWidth}%`,
+            minWidth: '400px',
+            maxWidth: '70%',
             height: '100vh'
           }}
         >
+          {/* Resize handle - positioned on the left border */}
+          <div
+            className="absolute -left-1 top-0 bottom-0 w-3 bg-transparent hover:bg-blue-500/50 cursor-col-resize z-10 transition-colors"
+            style={{ left: '-2px' }}
+            onMouseDown={handleResizeStart}
+          />
           <div className="px-4 py-3 border-b border-slate-700 bg-slate-800 shrink-0">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wide">Local Terminal</h3>
-                <p className="text-xs text-slate-400">Your local terminal - AI agent has direct access</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wide">Local Terminal</h3>
+                  <p className="text-xs text-slate-400">Your local terminal - AI agent has direct access</p>
+                </div>
+                <button
+                  onClick={() => setShowTerminal(false)}
+                  className="p-1.5 hover:bg-slate-700/50 text-slate-400 hover:text-slate-200 transition-colors border border-slate-700/50 bg-slate-800/50"
+                  title="Close Terminal"
+                  style={{ borderRadius: 0 }}
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
-              <button
-                onClick={() => setShowTerminal(false)}
-                className="p-1.5 hover:bg-slate-700/50 text-slate-400 hover:text-slate-200 transition-colors border border-slate-700/50 bg-slate-800/50"
-                title="Close Terminal"
-                style={{ borderRadius: 0 }}
-              >
-                <X className="w-4 h-4" />
-              </button>
             </div>
-          </div>
-          <div className="flex-1 overflow-hidden" style={{ minHeight: 0, height: '100%' }}>
-            <Terminal
-              ticketId={ticketId}
-              userId={user.id}
-              userRole="requester"
-              isMinimized={terminalMinimized}
-              onMinimize={setTerminalMinimized}
-              messages={messages}
-            />
-          </div>
+            <div className="flex-1 overflow-hidden" style={{ minHeight: 0, height: '100%' }}>
+              <Terminal
+                ticketId={ticketId}
+                userId={user.id}
+                userRole="requester"
+                isMinimized={terminalMinimized}
+                onMinimize={setTerminalMinimized}
+                messages={messages}
+              />
+            </div>
         </div>
       )}
 
       {/* Header - Dark Theme, Squeezes when terminal is open */}
-      <header className={`bg-slate-900 border-b border-slate-700 shrink-0 transition-all ${showTerminal ? 'mr-[50%]' : ''}`}>
+      <header 
+        className={`bg-slate-900 border-b border-slate-700 shrink-0 transition-all will-change-[margin-right]`}
+        style={{ marginRight: showTerminal ? `${terminalWidth}%` : '0' }}
+      >
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <button
             onClick={() => window.history.back()}
@@ -300,7 +355,10 @@ export default function RequesterTicketDetail() {
 
       {/* Description - Dark Theme, Squeezes when terminal is open */}
       {ticket.description && (
-        <div className={`bg-slate-900 border-b border-slate-700 shrink-0 transition-all ${showTerminal ? 'mr-[50%]' : ''}`}>
+        <div 
+          className={`bg-slate-900 border-b border-slate-700 shrink-0 transition-all will-change-[margin-right]`}
+          style={{ marginRight: showTerminal ? `${terminalWidth}%` : '0' }}
+        >
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-3">Initial Description</h3>
             <div className="bg-slate-800/50 border border-slate-700/50 p-5 rounded-xl">
@@ -311,7 +369,10 @@ export default function RequesterTicketDetail() {
       )}
 
       {/* Messages Section - Dark Theme, Scrollable, with right padding when terminal is open */}
-      <div className={`flex-1 flex flex-col bg-slate-900 ${showTerminal ? 'mr-[50%]' : ''} transition-all`}>
+      <div 
+        className={`flex-1 flex flex-col bg-slate-900 transition-all will-change-[margin-right]`}
+        style={{ marginRight: showTerminal ? `${terminalWidth}%` : '0' }}
+      >
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="mb-6 flex items-center justify-between max-w-4xl mx-auto">
             <div>

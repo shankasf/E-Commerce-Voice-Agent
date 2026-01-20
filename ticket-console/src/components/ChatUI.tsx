@@ -3,7 +3,7 @@
 import { User, Bot, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { TicketMessage } from '@/lib/supabase';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, memo } from 'react';
 
 // Streaming text component for ChatGPT-like effect
 function StreamingText({ text, onComplete }: { text: string; onComplete?: () => void }) {
@@ -107,7 +107,7 @@ interface ChatMessageProps {
     shouldStream?: boolean;
 }
 
-export function ChatMessage({ message, currentUserId, userRole, shouldStream = false }: ChatMessageProps) {
+export const ChatMessage = memo(function ChatMessage({ message, currentUserId, userRole, shouldStream = false }: ChatMessageProps) {
     const isAgent = !!message.sender_agent_id;
     const isBot = isAgent && (message.sender_agent as any)?.agent_type === 'Bot';
 
@@ -175,7 +175,7 @@ export function ChatMessage({ message, currentUserId, userRole, shouldStream = f
                 <div className={`flex items-center gap-2.5 mb-2 ${isFromMe ? 'flex-row-reverse' : ''}`}>
                     <span className="text-sm font-bold text-slate-200">{senderName}</span>
                     <span className="text-xs text-slate-400 font-medium">
-                        {format(new Date(message.message_time), 'MMM d, h:mm a')}
+                        {message.created_at ? format(new Date(message.created_at), 'MMM d, h:mm a') : 'Just now'}
                     </span>
                     {isBot && (
                         <span className="badge badge-purple bg-purple-600/20 border border-purple-500/50 text-purple-300">
@@ -199,7 +199,7 @@ export function ChatMessage({ message, currentUserId, userRole, shouldStream = f
             </div>
         </div>
     );
-}
+});
 
 interface ChatContainerProps {
     messages: TicketMessage[];
@@ -231,7 +231,7 @@ export function ChatContainer({
             const msg = messages[i];
             const isBot = msg.sender_agent_id && (msg.sender_agent as any)?.agent_type === 'Bot';
             // Only stream if message is from the last 5 seconds
-            const messageTime = new Date(msg.message_time).getTime();
+            const messageTime = msg.created_at ? new Date(msg.created_at).getTime() : now;
             const isRecent = (now - messageTime) < 5000;
             if (isBot && isRecent && !streamedMessageIds.has(msg.message_id)) {
                 return msg.message_id;

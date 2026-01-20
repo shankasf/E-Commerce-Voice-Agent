@@ -64,7 +64,7 @@ export const requesterAPI = {
         sender_contact:sender_contact_id(full_name)
       `)
       .eq('ticket_id', ticketId)
-      .order('message_time', { ascending: true });
+      .order('created_at', { ascending: true });
     
     if (error) throw error;
     return data || [];
@@ -220,7 +220,7 @@ export const adminAPI = {
         sender_contact:sender_contact_id(full_name)
       `)
       .eq('ticket_id', ticketId)
-      .order('message_time', { ascending: true });
+      .order('created_at', { ascending: true });
     
     if (error) throw error;
     return data || [];
@@ -528,7 +528,7 @@ export const agentAPI = {
         sender_contact:sender_contact_id(full_name)
       `)
       .eq('ticket_id', ticketId)
-      .order('message_time', { ascending: true });
+      .order('created_at', { ascending: true });
     
     if (error) throw error;
     return data || [];

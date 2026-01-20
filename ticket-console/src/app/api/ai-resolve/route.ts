@@ -18,6 +18,7 @@ import {
   TriageResult,
   SatisfactionResult,
 } from '@/lib/ai-agents';
+import { createSixDigitCodeForTerminal } from '@/lib/ai-agents/mcp-tools';
 
 // Detect user intent using Chat Completions API (JSON output)
 async function detectUserIntent(userMessage: string, conversationHistory: string): Promise<{
@@ -190,31 +191,37 @@ WHEN USER WANTS HUMAN HELP:
 - Don't ask for device details when user wants transfer
 
 TERMINAL ACCESS (CRITICAL):
-You have DIRECT access to the user's local terminal through the web interface. You can automatically open the terminal and execute commands when needed.
+You have access to the user's local terminal through a secure Windows application connection. When you need terminal access, you must FIRST generate a 6-digit code for the user.
 
-AUTOMATIC TERMINAL OPENING:
-If the user's question requires terminal access (checking directories, running commands, diagnostics, installing software, etc.), automatically open the terminal by including this marker at the START of your response:
-OPEN_TERMINAL
+MCP TOOL: CREATE_TERMINAL_CODE
+When the user's issue requires terminal access (checking directories, running commands, diagnostics, installing software, system checks, etc.), you MUST:
+1. Use the MCP tool to create a 6-digit code
+2. Display the code to the user in your response
+3. Tell them to enter this code in their Windows Terminal Bridge application
+4. After they connect, you can execute commands
 
-Then execute the command using:
-EXECUTE_COMMAND: [command here]
+To use the MCP tool, include this marker in your response:
+CREATE_TERMINAL_CODE
 
-Examples:
-- User: "show me what's in my current directory" → OPEN_TERMINAL\nEXECUTE_COMMAND: ls -la
-- User: "what's my current directory?" → OPEN_TERMINAL\nEXECUTE_COMMAND: pwd
-- User: "check my system info" → OPEN_TERMINAL\nEXECUTE_COMMAND: uname -a
-- User: "install express" → OPEN_TERMINAL\nEXECUTE_COMMAND: npm install express
-- User: "check if node is installed" → OPEN_TERMINAL\nEXECUTE_COMMAND: node --version
-- User: "list my files" → OPEN_TERMINAL\nEXECUTE_COMMAND: ls -la
-- User: "check network connectivity" → OPEN_TERMINAL\nEXECUTE_COMMAND: ping -c 3 google.com
+This will automatically:
+- Generate a unique 6-digit code (e.g., "C8PKRV")
+- Create a secure WebSocket connection
+- Store the connection session in the database
+
+After including CREATE_TERMINAL_CODE, tell the user:
+"I need terminal access to help with this. Please open your Windows Terminal Bridge application and enter this 6-digit code: [CODE]. Once connected, I can run the necessary commands."
+
+Then wait for user confirmation that they've entered the code and are connected.
+
+For executing commands AFTER connection is established:
+- Use OPEN_TERMINAL marker to open terminal in web interface
+- Use EXECUTE_COMMAND: [command] to execute commands
 
 IMPORTANT RULES:
-1. If the user's question requires ANY terminal command, ALWAYS include OPEN_TERMINAL first
-2. DO NOT tell the user to "type ls" or "run this command" - EXECUTE IT DIRECTLY
-3. The terminal will open automatically when you include OPEN_TERMINAL
-4. Commands will require user approval before execution (for security)
-5. After executing, show the output naturally in your response
-6. You can execute multiple commands in sequence if needed
+1. ALWAYS generate a 6-digit code FIRST using CREATE_TERMINAL_CODE when terminal access is needed
+2. Display the code clearly in your response
+3. DO NOT execute commands until user confirms connection
+4. After connection, you can use OPEN_TERMINAL and EXECUTE_COMMAND for actual command execution
 
 INTERNAL MARKERS (place at END of message only):
 - ESCALATE_TO_HUMAN: ONLY for critical issues (security breach, office-wide outage)
@@ -292,8 +299,14 @@ Be VERY strict about shouldClose - it requires explicit mention of closing the t
 export async function POST(request: NextRequest) {
   // Check if OpenAI API key is configured
   const openaiApiKey = process.env.OPENAI_API_KEY || '';
+  console.log('[AI Resolve] Checking API key...', {
+    keyLength: openaiApiKey ? openaiApiKey.length : 0,
+    keyExists: !!openaiApiKey,
+    keyPrefix: openaiApiKey ? openaiApiKey.substring(0, 10) : 'N/A'
+  });
+  
   if (!openaiApiKey || openaiApiKey.trim() === '') {
-    console.error('OPENAI_API_KEY is not configured');
+    console.error('[AI Resolve] OPENAI_API_KEY is not configured');
     return NextResponse.json({ 
       error: 'AI service is not configured. Please add OPENAI_API_KEY to your environment variables.',
       details: 'The OpenAI API key is missing. AI responses cannot be generated without it.'
@@ -327,7 +340,7 @@ export async function POST(request: NextRequest) {
       .from('ticket_messages')
       .select('*, sender_agent:sender_agent_id(full_name, agent_type), sender_contact:sender_contact_id(full_name)')
       .eq('ticket_id', ticketId)
-      .order('message_time', { ascending: true });
+      .order('created_at', { ascending: true });
 
     const conversationHistory = (messages || [])
       .map(m => `${m.sender_agent?.full_name || m.sender_contact?.full_name || 'Unknown'}: ${m.content}`)
@@ -452,6 +465,15 @@ export async function POST(request: NextRequest) {
       if (assignmentError || !assignment || !assignment.support_agent_id) {
         console.log('[AI Resolve] No bot assigned, triaging and assigning bot...');
         
+        // Check if there are already messages in this ticket (if yes, don't send greeting)
+        const { data: existingMessages } = await supabase
+          .from('ticket_messages')
+          .select('message_id')
+          .eq('ticket_id', ticketId)
+          .limit(1);
+        
+        const isFirstMessage = !existingMessages || existingMessages.length === 0;
+        
         // Triage the ticket to determine category
         const triage = await triageTicket(ticket.subject, ticket.description || '');
         console.log('[AI Resolve] Triage result:', triage);
@@ -473,28 +495,31 @@ export async function POST(request: NextRequest) {
           updated_at: new Date().toISOString(),
         }).eq('ticket_id', ticketId);
 
-        // Build customer context for greeting
-        const customerContext = await buildTicketContext(ticket);
-        const orgMatch = customerContext.match(/Organization: (.+)/);
-        const managerMatch = customerContext.match(/Account Manager: (.+)/);
-        const orgName = orgMatch ? orgMatch[1].trim() : 'your organization';
-        const managerName = managerMatch ? managerMatch[1].trim() : null;
-        
-        // Build simple greeting
-        let greeting = `🤖 Hello! I'm the AI ${getAgentName(triage.category)}.\n\n`;
-        greeting += `✅ Organization verified: **${orgName}**\n`;
-        if (managerName) {
-          greeting += `👤 Your Account Manager: **${managerName}**\n`;
-        }
-        greeting += `\nHow can I assist you today?`;
+        // Only send greeting if this is the first message in the ticket
+        if (isFirstMessage) {
+          // Build customer context for greeting
+          const customerContext = await buildTicketContext(ticket);
+          const orgMatch = customerContext.match(/Organization: (.+)/);
+          const managerMatch = customerContext.match(/Account Manager: (.+)/);
+          const orgName = orgMatch ? orgMatch[1].trim() : 'your organization';
+          const managerName = managerMatch ? managerMatch[1].trim() : null;
+          
+          // Build simple greeting
+          let greeting = `🤖 Hello! I'm the AI ${getAgentName(triage.category)}.\n\n`;
+          greeting += `✅ Organization verified: **${orgName}**\n`;
+          if (managerName) {
+            greeting += `👤 Your Account Manager: **${managerName}**\n`;
+          }
+          greeting += `\nHow can I assist you today?`;
 
-        // Add initial bot message
-        await supabase.from('ticket_messages').insert({
-          ticket_id: ticketId,
-          sender_agent_id: botId,
-          content: greeting,
-          message_type: 'text',
-        });
+          // Add initial bot message
+          await supabase.from('ticket_messages').insert({
+            ticket_id: ticketId,
+            sender_agent_id: botId,
+            content: greeting,
+            message_type: 'text',
+          });
+        }
 
         // Now set assignment for the response
         assignment = {
@@ -854,6 +879,38 @@ export async function POST(request: NextRequest) {
           action: 'closed',
           response: cleaned,
         });
+      }
+
+      // Check if AI wants to create 6-digit code for terminal access
+      const shouldCreateTerminalCode = response.includes('CREATE_TERMINAL_CODE');
+      
+      if (shouldCreateTerminalCode) {
+        // Call MCP tool to create 6-digit code (only once, even if marker appears multiple times)
+        const codeResult = await createSixDigitCodeForTerminal(
+          ticketId,
+          ticket.contact_id,
+          ticket.device_id || 1, // Use device_id from ticket or default to 1
+          ticket.organization_id
+        );
+
+        if (codeResult.success && codeResult.code) {
+          // Replace only the FIRST occurrence of CREATE_TERMINAL_CODE marker with actual code
+          const codeMessage = `I need terminal access to help with this. Please open your Windows Terminal Bridge application and enter this 6-digit code: **${codeResult.code}**\n\nOnce you've entered the code and connected, let me know and I'll proceed with the commands.`;
+          response = response.replace('CREATE_TERMINAL_CODE', codeMessage);
+          // Remove any remaining CREATE_TERMINAL_CODE markers (to prevent duplicate codes)
+          response = response.replace(/CREATE_TERMINAL_CODE/g, '');
+          console.log('[AI Resolve] 6-digit code created:', codeResult.code);
+        } else {
+          // If code creation failed (e.g., recent code exists), remove all markers
+          // Check if it's a duplicate code error
+          if (codeResult.error?.includes('recently generated')) {
+            response = response.replace(/CREATE_TERMINAL_CODE/g, 'I see you already have a code. Please use the code I provided earlier, or wait a few minutes if you need a new one.');
+          } else {
+            // Other errors
+            response = response.replace(/CREATE_TERMINAL_CODE/g, 'I attempted to set up terminal access but encountered an issue. Please contact support for assistance.');
+          }
+          console.error('[AI Resolve] Failed to create 6-digit code:', codeResult.error);
+        }
       }
 
       // Check if terminal should be opened

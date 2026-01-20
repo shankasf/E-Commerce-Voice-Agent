@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseServiceKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   auth: { autoRefreshToken: false, persistSession: false },
   global: { headers: { Authorization: `Bearer ${supabaseServiceKey}` } }
@@ -13,7 +13,10 @@ export async function POST(request: NextRequest) {
   try {
     const { fullName, email, organizationId } = await request.json();
 
+    console.log('[Create Contact] Request:', { fullName, email, organizationId });
+
     if (!fullName || !email || !organizationId) {
+      console.error('[Create Contact] Missing fields:', { fullName: !!fullName, email: !!email, organizationId: !!organizationId });
       return NextResponse.json(
         { success: false, error: 'Full name, email, and organization ID are required' },
         { status: 400 }
@@ -53,9 +56,13 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error('Error creating contact:', error);
+      console.error('[Create Contact] Database error:', error);
       return NextResponse.json(
-        { success: false, error: 'Failed to create contact profile' },
+        { 
+          success: false, 
+          error: 'Failed to create contact profile',
+          details: error.message || 'Unknown error'
+        },
         { status: 500 }
       );
     }

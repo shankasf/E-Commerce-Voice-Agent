@@ -1,6 +1,5 @@
 node_modules/
 dist/
-*.exe
-*.log
-.env
+*.dmg
+*.zip
 .DS_Store

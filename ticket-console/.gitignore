@@ -54,3 +54,4 @@ coverage/
 *.sqlite
 *.sqlite3
 *.db
+.env.local.backup
