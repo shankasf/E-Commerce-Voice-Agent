@@ -189,15 +189,22 @@ export default function AdminDashboard() {
           </div>
           <div className="flex items-center gap-4">
             <button
+              onClick={() => window.location.href = '/dashboard/admin/chat-monitor'}
+              className="flex items-center gap-2 bg-purple-500 hover:bg-purple-400 px-4 py-2 rounded-lg transition-colors text-sm"
+            >
+              <MessageSquare className="w-4 h-4" />
+              Chat Monitor
+            </button>
+            <button
               onClick={() => window.location.href = '/dashboard/admin/chat'}
-              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg transition-colors"
+              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg transition-colors text-sm"
             >
               <MessageSquare className="w-4 h-4" />
               AI Chat
             </button>
             <button
               onClick={() => setShowMetrics(true)}
-              className="flex items-center gap-2 bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg transition-colors"
+              className="flex items-center gap-2 bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg transition-colors text-sm"
             >
               <BarChart3 className="w-4 h-4" />
               AI Metrics

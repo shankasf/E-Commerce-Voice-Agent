@@ -4,13 +4,17 @@ import { useAuth } from '@/lib/auth-context';
 import { useEffect, useState, useRef } from 'react';
 import { ArrowLeft, Terminal } from 'lucide-react';
 import { ChatWindow } from '@/components/ChatWindow';
+import { ChatSidebar } from '@/components/ChatSidebar';
+import { ChatSessionProvider, useChatSessionContext } from '@/lib/chat-session-context';
 
-export default function RequesterChatPage() {
+function RequesterChatPageContent() {
   const { user, isLoading } = useAuth();
   const [leftWidth, setLeftWidth] = useState(50); // percentage
   const [isTerminalOpen, setIsTerminalOpen] = useState(true);
   const isDraggingRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const { sessionId, startSession, loadSession } = useChatSessionContext();
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -51,6 +55,14 @@ export default function RequesterChatPage() {
     };
   }, []);
 
+  const handleNewChat = async () => {
+    await startSession();
+  };
+
+  const handleSessionSelect = async (selectedSessionId: string) => {
+    await loadSession(selectedSessionId);
+  };
+
   if (isLoading || !user) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
@@ -85,12 +97,21 @@ export default function RequesterChatPage() {
         </div>
       </header>
 
-      {/* Main Content - Two Column Layout */}
+      {/* Main Content - Three Column Layout */}
       <div
         ref={containerRef}
         className="flex-1 overflow-hidden min-h-0 flex relative"
       >
-        {/* Left Side - Chat Window */}
+        {/* Left Sidebar - Chat History */}
+        <div className="w-64 shrink-0 bg-gray-900">
+          <ChatSidebar
+            currentSessionId={sessionId}
+            onSessionSelect={handleSessionSelect}
+            onNewChat={handleNewChat}
+          />
+        </div>
+
+        {/* Middle - Chat Window */}
         <div style={{ width: isTerminalOpen ? `${leftWidth}%` : '100%' }} className="border-r border-gray-300 overflow-hidden flex flex-col">
           <div className="flex-1 overflow-hidden">
             <ChatWindow />
@@ -149,5 +170,13 @@ export default function RequesterChatPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function RequesterChatPage() {
+  return (
+    <ChatSessionProvider>
+      <RequesterChatPageContent />
+    </ChatSessionProvider>
   );
 }

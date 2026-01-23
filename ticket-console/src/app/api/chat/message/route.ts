@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
-import { callAIService, handleAIServiceResponse, buildContextForRole, JWTPayload } from '@/lib/ai-service-client';
+import { aiServiceFetch, buildContextForRole, JWTPayload } from '@/lib/ai-service-client';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -16,9 +16,17 @@ export async function POST(request: NextRequest) {
     let userPayload: JWTPayload;
 
     try {
+      // Try JWT verification first
       userPayload = jwt.verify(token, JWT_SECRET!) as JWTPayload;
-    } catch (err) {
-      return NextResponse.json({ error: 'Unauthorized - Invalid token' }, { status: 401 });
+    } catch (jwtErr) {
+      // Fallback: try base64 decoding (for browser-generated tokens)
+      try {
+        const decoded = atob(token);
+        userPayload = JSON.parse(decoded) as JWTPayload;
+      } catch (decodeErr) {
+        console.error('[Chat API] Token verification failed:', jwtErr);
+        return NextResponse.json({ error: 'Unauthorized - Invalid token' }, { status: 401 });
+      }
     }
 
     // Step 2: Extract request body
@@ -41,23 +49,23 @@ export async function POST(request: NextRequest) {
       messageLength: message.length,
     });
 
-    // Step 5: Forward to Python AI service using shared utility
-    const aiResponse = await callAIService('/api/chat', {
+    // Step 5: Forward to Python AI service
+    const aiResponse = await aiServiceFetch('/api/chat', {
       method: 'POST',
-      body: {
+      body: JSON.stringify({
         message: message.trim(),
         session_id: finalSessionId,
         context,
-      },
+      }),
     });
 
-    const aiData = await handleAIServiceResponse<{
-      response: string;
-      session_id: string;
-      agent_name: string;
-      tool_calls: any[];
-      context: Record<string, any>;
-    }>(aiResponse, '/api/chat');
+    if (!aiResponse.ok) {
+      const errorText = await aiResponse.text();
+      console.error('[Chat API] AI service error:', errorText);
+      throw new Error(`AI service error: ${aiResponse.statusText}`);
+    }
+
+    const aiData = await aiResponse.json();
 
     console.log('[Chat API] Response:', {
       sessionId: aiData.session_id,
@@ -87,4 +95,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

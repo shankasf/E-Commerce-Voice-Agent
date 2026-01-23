@@ -33,19 +33,18 @@ export interface TokenRefreshResponse {
   error?: string;
 }
 
+// Request from AI Service to create a device connection
 export interface CreateDeviceConnectionRequest {
   user_id: number;
   organization_id: number;
   device_id: number;
-  session_token: string; // Web session token for validation
+  chat_session_id: string; // AI chat session ID (REQUIRED - links device connection to chat)
 }
 
+// Response with plain 6-digit code (for AI to show user)
 export interface CreateDeviceConnectionResponse {
   success: boolean;
-  code?: string; // 6-digit alphanumeric code
-  session_id?: string; // UUID
-  websocket_url?: string; // Full WebSocket URL
-  expires_in_seconds?: number; // 900 seconds (15 minutes)
+  code?: string; // Plain 6-digit alphanumeric code (for user)
   error?: string;
 }
 
@@ -78,6 +77,82 @@ export interface VerifyCodeResponse {
   session_id?: string;         // UUID session identifier
   expires_in_seconds?: number; // Time remaining until expiration
   error?: string;
+}
+
+// Request from Windows app to initiate connection using 6-digit code
+export interface InitiateConnectionRequest {
+  code: string; // Plain 6-digit code entered by user
+  user_id: number;
+  organization_id: number;
+  device_id: number;
+}
+
+// Response with WebSocket URL for Windows app
+export interface InitiateConnectionResponse {
+  success: boolean;
+  websocket_url?: string; // Full WebSocket URL
+  session_id?: string; // Connection session UUID (for WebSocket path)
+  chat_session_id?: string; // AI chat session ID (for chat history retrieval)
+  error?: string;
+}
+
+// Device WebSocket message types (Windows app <-> AI Service)
+export interface DeviceWebSocketMessage {
+  type: 'chat' | 'chat_history' | 'command_request' | 'command_consent' | 'command_result' | 'heartbeat' | 'heartbeat_ack' | 'connection_established' | 'error';
+}
+
+export interface DeviceChatMessage extends DeviceWebSocketMessage {
+  type: 'chat';
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp?: string;
+}
+
+export interface DeviceChatHistoryMessage extends DeviceWebSocketMessage {
+  type: 'chat_history';
+  messages: Array<{
+    role: 'user' | 'assistant';
+    content: string;
+    timestamp?: string;
+  }>;
+}
+
+export interface DeviceCommandRequest extends DeviceWebSocketMessage {
+  type: 'command_request';
+  command_id: string;
+  command_type: string;
+  description: string; // Human-readable explanation
+  parameters?: Record<string, any>;
+  requires_consent: boolean;
+}
+
+export interface DeviceCommandConsent extends DeviceWebSocketMessage {
+  type: 'command_consent';
+  command_id: string;
+  approved: boolean;
+  reason?: string; // Optional rejection reason
+}
+
+export interface DeviceCommandResult extends DeviceWebSocketMessage {
+  type: 'command_result';
+  command_id: string;
+  status: 'success' | 'error' | 'timeout' | 'cancelled';
+  output?: any;
+  error?: string;
+  execution_time_ms?: number;
+}
+
+export interface DeviceConnectionEstablished extends DeviceWebSocketMessage {
+  type: 'connection_established';
+  device_id: number;
+  user_id: number;
+  chat_session_id: string;
+}
+
+export interface DeviceErrorMessage extends DeviceWebSocketMessage {
+  type: 'error';
+  code: string;
+  message: string;
 }
 
 export interface ProblemRequest {

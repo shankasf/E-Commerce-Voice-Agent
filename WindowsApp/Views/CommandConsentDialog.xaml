@@ -1,0 +1,142 @@
+<Window x:Class="WindowsApp.Views.CommandConsentDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="Permission Required"
+        Height="320"
+        Width="450"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Background="#F5F5F5">
+
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Icon and Title -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,16">
+            <Border Background="#FFF4CE" CornerRadius="20" Width="40" Height="40" VerticalAlignment="Center">
+                <TextBlock Text="!" FontSize="24" FontWeight="Bold" Foreground="#856404"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <TextBlock Text="The AI assistant wants to run a command"
+                       FontSize="16"
+                       FontWeight="SemiBold"
+                       Foreground="#2C3E50"
+                       VerticalAlignment="Center"
+                       Margin="12,0,0,0"/>
+        </StackPanel>
+
+        <!-- Command Type -->
+        <Border Grid.Row="1" Background="#E8F4FD" CornerRadius="6" Padding="12" Margin="0,0,0,12">
+            <StackPanel>
+                <TextBlock Text="Command Type:" FontSize="12" Foreground="#666666" Margin="0,0,0,4"/>
+                <TextBlock x:Name="CommandTypeText"
+                           FontSize="14"
+                           FontWeight="SemiBold"
+                           Foreground="#007ACC"
+                           TextWrapping="Wrap"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Description -->
+        <Border Grid.Row="2" Background="White" CornerRadius="6" Padding="12" BorderBrush="#E0E0E0" BorderThickness="1">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <TextBlock Text="Description:" FontSize="12" Foreground="#666666" Margin="0,0,0,4"/>
+                    <TextBlock x:Name="DescriptionText"
+                               FontSize="14"
+                               Foreground="#2C3E50"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <!-- Denial Reason (shown when denying) -->
+        <StackPanel Grid.Row="3" x:Name="DenialReasonPanel" Visibility="Collapsed" Margin="0,12,0,0">
+            <TextBlock Text="Reason for denial (optional):" FontSize="12" Foreground="#666666" Margin="0,0,0,4"/>
+            <TextBox x:Name="DenialReasonInput"
+                     Padding="8"
+                     FontSize="13"
+                     BorderBrush="#E0E0E0"
+                     BorderThickness="1"/>
+        </StackPanel>
+
+        <!-- Buttons -->
+        <Grid Grid.Row="4" Margin="0,20,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Deny Button -->
+            <Button Grid.Column="1"
+                    x:Name="DenyButton"
+                    Content="Deny"
+                    Click="DenyButton_Click"
+                    Width="100"
+                    Padding="0,12"
+                    Background="White"
+                    Foreground="#C42B1C"
+                    BorderBrush="#C42B1C"
+                    BorderThickness="1"
+                    Cursor="Hand"
+                    Margin="0,0,8,0">
+                <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#FDE7E7"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Button.Template>
+            </Button>
+
+            <!-- Allow Button -->
+            <Button Grid.Column="2"
+                    x:Name="AllowButton"
+                    Content="Allow"
+                    Click="AllowButton_Click"
+                    Width="100"
+                    Padding="0,12"
+                    Background="#107C10"
+                    Foreground="White"
+                    BorderThickness="0"
+                    Cursor="Hand">
+                <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#0E6B0E"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Button.Template>
+            </Button>
+        </Grid>
+    </Grid>
+</Window>
