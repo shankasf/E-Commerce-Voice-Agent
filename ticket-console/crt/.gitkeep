@@ -1,0 +1,8 @@
+# This folder contains SSL/TLS certificates for secure communication
+# DO NOT commit actual certificate files to version control
+
+# Required files:
+# - ca.crt: CA certificate for trusting ai-service's SSL certificate
+
+# Copy the CA certificate from ai-service:
+# cp ../../../sunil-console/ai-service/crt/ca.crt ./ca.crt

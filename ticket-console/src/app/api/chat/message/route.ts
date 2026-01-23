@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
+import { aiServiceFetch } from '@/lib/ai-service-client';
 
-const AI_SERVICE_URL = process.env.BASE_URL_AI || 'http://localhost:8080';
-const AI_SERVICE_API_KEY = process.env.AI_SERVICE_API_KEY;
 const JWT_SECRET = process.env.JWT_SECRET;
 
 interface JWTPayload {
@@ -84,12 +83,8 @@ export async function POST(request: NextRequest) {
     });
 
     // Step 5: Forward to Python AI service
-    const aiResponse = await fetch(`${AI_SERVICE_URL}/api/chat`, {
+    const aiResponse = await aiServiceFetch('/api/chat', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-AI-Service-Key': AI_SERVICE_API_KEY!,
-      },
       body: JSON.stringify({
         message: message.trim(),
         session_id: finalSessionId,

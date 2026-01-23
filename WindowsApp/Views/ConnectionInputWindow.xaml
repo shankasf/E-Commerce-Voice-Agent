@@ -1,0 +1,250 @@
+<Window x:Class="WindowsApp.Views.ConnectionInputWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="AI Connection Setup"
+        Height="380"
+        Width="620"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        Background="Transparent"
+        WindowStyle="None"
+        AllowsTransparency="True">
+
+    <Window.Resources>
+        <!-- Custom TextBox Style -->
+        <Style x:Key="ModernTextBox" TargetType="TextBox">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Padding" Value="14,12"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="#2C3E50"/>
+            <Setter Property="CaretBrush" Value="#007ACC"/>
+            <Setter Property="SelectionBrush" Value="#B3D9FF"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6">
+                            <ScrollViewer x:Name="PART_ContentHost"
+                                        Margin="{TemplateBinding Padding}"
+                                        VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Border CornerRadius="12"
+            Background="White"
+            BorderThickness="0">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="30"
+                            Direction="270"
+                            ShadowDepth="0"
+                            Opacity="0.25"
+                            Color="#000000"/>
+        </Border.Effect>
+
+        <Grid>
+            <!-- Header Section with Gradient -->
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header with Close Button -->
+            <Border Grid.Row="0"
+                    Background="#007ACC"
+                    CornerRadius="12,12,0,0"
+                    Padding="40,30">
+                <Grid>
+                    <StackPanel>
+                        <TextBlock Text="AI Connection Setup"
+                                  FontSize="26"
+                                  FontWeight="SemiBold"
+                                  Foreground="White"
+                                  HorizontalAlignment="Left"/>
+                        <TextBlock Text="Enter your credentials to connect with AI assistant"
+                                  FontSize="13"
+                                  Foreground="#E3F2FD"
+                                  Margin="0,6,0,0"
+                                  HorizontalAlignment="Left"/>
+                    </StackPanel>
+
+                    <!-- Close Button -->
+                    <Button x:Name="CloseButton"
+                            Click="CloseButton_Click"
+                            Width="32"
+                            Height="32"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Top"
+                            Margin="0,-10,-10,0"
+                            Cursor="Hand">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}"
+                                                   CornerRadius="4">
+                                                <TextBlock Text="✕"
+                                                          FontSize="18"
+                                                          Foreground="White"
+                                                          HorizontalAlignment="Center"
+                                                          VerticalAlignment="Center"
+                                                          FontWeight="Light"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#005A9E"/>
+                                    </Trigger>
+                                    <Trigger Property="IsPressed" Value="True">
+                                        <Setter Property="Background" Value="#004578"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <!-- Content Section -->
+            <Border Grid.Row="1"
+                    Padding="40,35,40,40">
+                <StackPanel>
+                    <!-- 6-Digit Code Section -->
+                    <Grid Margin="0,0,0,24">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="10"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Orientation="Horizontal">
+                            <TextBlock Text="Paste the 6-digit code provided in the Chat"
+                                      FontSize="13"
+                                      FontWeight="SemiBold"
+                                      Foreground="#2C3E50"/>
+                            <TextBlock Text="*"
+                                      FontSize="13"
+                                      FontWeight="SemiBold"
+                                      Foreground="#E74C3C"
+                                      Margin="3,0,0,0"/>
+                        </StackPanel>
+
+                        <Border Grid.Row="2"
+                                Background="#F8F9FA"
+                                BorderBrush="#D1D5DB"
+                                BorderThickness="1.5"
+                                CornerRadius="6">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="BorderBrush" Value="#007ACC"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <Grid>
+                                <TextBox x:Name="SixDigitCodeTextBox"
+                                        Text="{Binding SixDigitCode, UpdateSourceTrigger=PropertyChanged}"
+                                        Style="{StaticResource ModernTextBox}"
+                                        MaxLength="6"
+                                        FontFamily="Consolas"
+                                        FontSize="16"/>
+                                <TextBlock Text="Enter 6-digit code"
+                                          FontSize="13"
+                                          Foreground="#9CA3AF"
+                                          Margin="14,0,0,0"
+                                          VerticalAlignment="Center"
+                                          IsHitTestVisible="False">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SixDigitCode}" Value="">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Grid>
+                        </Border>
+                    </Grid>
+
+                    <!-- Connect Button -->
+                    <Button Content="Connect to AI"
+                            Command="{Binding ConnectCommand}"
+                            Height="48"
+                            FontSize="15"
+                            FontWeight="SemiBold"
+                            Foreground="White"
+                            Cursor="Hand"
+                            Margin="0,6,0,16">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Background" Value="#007ACC"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}"
+                                                   CornerRadius="6"
+                                                   BorderThickness="0">
+                                                <Border.Effect>
+                                                    <DropShadowEffect BlurRadius="8"
+                                                                    Direction="270"
+                                                                    ShadowDepth="2"
+                                                                    Opacity="0.2"
+                                                                    Color="#007ACC"/>
+                                                </Border.Effect>
+                                                <ContentPresenter HorizontalAlignment="Center"
+                                                                VerticalAlignment="Center"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="#005A9E"/>
+                                    </Trigger>
+                                    <Trigger Property="IsPressed" Value="True">
+                                        <Setter Property="Background" Value="#004578"/>
+                                    </Trigger>
+                                    <Trigger Property="IsEnabled" Value="False">
+                                        <Setter Property="Background" Value="#CCCCCC"/>
+                                        <Setter Property="Cursor" Value="Arrow"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+                    <!-- Error Message -->
+                    <Border Background="#FEE2E2"
+                            BorderBrush="#EF4444"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="12,10"
+                            Visibility="{Binding HasError, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <TextBlock Text="{Binding ErrorMessage}"
+                                  Foreground="#991B1B"
+                                  FontSize="12"
+                                  TextWrapping="Wrap"/>
+                    </Border>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

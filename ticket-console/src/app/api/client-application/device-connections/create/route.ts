@@ -2,7 +2,7 @@
  * API Route: Create Device Connection
  * POST /api/client-application/device-connections/create
  *
- * Creates a secure device connection with 6-digit pairing code and WebSocket URL.
+ * Creates a secure device connection with 6-digit pairing code.
  * Called by AI Service (MCP Tool) when user requests a connection code.
  *
  * SECURITY:
@@ -10,17 +10,17 @@
  * - Generates cryptographically secure pairing codes
  * - Stores HASHED version of 6-digit code (SHA-256)
  * - Returns plain code to AI for display to user
+ * - Code expires in 15 minutes and is one-time use
  *
  * FLOW:
  * 1. AI Service calls this endpoint with user/device context
  * 2. Generates unique 6-digit code, hashes it, stores in DB
  * 3. Returns plain code to AI → AI shows to user
- * 4. User enters code in Windows app → Windows calls /initiate-connection
+ * 4. User enters code in Windows app → Windows connects to WebSocket with code
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 import type { CreateDeviceConnectionRequest, CreateDeviceConnectionResponse } from '../../types';
 
@@ -28,14 +28,13 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseServiceKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || '';
 const aiServiceApiKey = process.env.AI_SERVICE_API_KEY || '';
 const aiServiceAllowedIPs = (process.env.AI_SERVICE_ALLOWED_IPS || '127.0.0.1,localhost').split(',');
-const wsBaseUrl = process.env.WS_BASE_URL || '';
 
 // Validate environment variables
 if (!supabaseUrl || !supabaseServiceKey) {
   console.error('Missing required Supabase environment variables');
 }
 
-if (!aiServiceApiKey || !wsBaseUrl) {
+if (!aiServiceApiKey) {
   console.error('Missing required AI service configuration');
 }
 
@@ -71,7 +70,11 @@ function hashCode(code: string): string {
 }
 
 /**
- * Check if hashed code is unique among pending connections (is_active = false, not expired)
+ * Check if hashed code is unique among VALID pending connections
+ * A code is considered "in use" only if:
+ * - Not expired (created within last 15 minutes)
+ * - Not already used (used = false)
+ * - Not currently active (is_active = false, meaning waiting to be used)
  */
 async function isHashedCodeUnique(hashedCode: string): Promise<boolean> {
   const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
@@ -80,8 +83,8 @@ async function isHashedCodeUnique(hashedCode: string): Promise<boolean> {
     .from('device_connections')
     .select('six_digit_code')
     .eq('six_digit_code', hashedCode)
-    .eq('is_active', false)
-    .gte('created_at', fifteenMinutesAgo)
+    .eq('used', false)  // Only check unused codes
+    .gte('created_at', fifteenMinutesAgo)  // Only check non-expired codes
     .maybeSingle();
 
   if (error) {
@@ -93,10 +96,35 @@ async function isHashedCodeUnique(hashedCode: string): Promise<boolean> {
 }
 
 /**
+ * Delete any existing unused/pending codes for this user/device combination
+ * This allows generating a new code even if a previous one wasn't used
+ * We DELETE instead of UPDATE to avoid unique constraint violations
+ */
+async function deleteExistingPendingCodes(userId: number, deviceId: number): Promise<void> {
+  try {
+    const { error, count } = await supabase
+      .from('device_connections')
+      .delete()
+      .eq('user_id', userId)
+      .eq('device_id', deviceId)
+      .eq('used', false)  // Only delete unused codes
+      .eq('is_active', false);  // Only delete pending codes (not active connections)
+
+    if (error) {
+      console.error('Error deleting existing codes:', error);
+    } else {
+      console.log(`[Device Connection Create] Deleted existing pending codes for user ${userId}, device ${deviceId}`);
+    }
+  } catch (e) {
+    console.error('Exception deleting existing codes:', e);
+  }
+}
+
+/**
  * Generate unique 6-digit code with retries
  * Returns both plain code and hashed code
  */
-async function generateUniqueCode(maxRetries: number = 5): Promise<{ plainCode: string; hashedCode: string } | null> {
+async function generateUniqueCode(maxRetries: number = 10): Promise<{ plainCode: string; hashedCode: string } | null> {
   for (let i = 0; i < maxRetries; i++) {
     const plainCode = generateSecureCode();
     const hashedCode = hashCode(plainCode);
@@ -201,7 +229,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const device = assignment.device as { device_id: number; asset_name: string; organization_id: number };
+    // Handle both single object and array cases from Supabase join
+    const deviceData = Array.isArray(assignment.device) ? assignment.device[0] : assignment.device;
+    const device = deviceData as { device_id: number; asset_name: string; organization_id: number };
 
     // Verify organization matches
     if (device.organization_id !== organization_id) {
@@ -217,7 +247,11 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Device Connection Create] Device validated: ${device.asset_name}`);
 
-    // Step 4: Generate unique 6-digit code (returns plain and hashed)
+    // Step 4: Delete any existing unused codes for this user/device
+    // This allows generating a new code even if a previous one wasn't used
+    await deleteExistingPendingCodes(user_id, device_id);
+
+    // Step 5: Generate unique 6-digit code (returns plain and hashed)
     const codeResult = await generateUniqueCode();
 
     if (!codeResult) {
@@ -234,24 +268,19 @@ export async function POST(request: NextRequest) {
     const { plainCode, hashedCode } = codeResult;
     console.log(`[Device Connection Create] Generated code: ${plainCode} (DEV ONLY - remove in production)`);
 
-    // Step 5: Generate connection session ID and WebSocket URL
-    const connectionSessionId = uuidv4();
-    const websocketUrl = `wss://${wsBaseUrl}/ws/device/${connectionSessionId}`;
-
-    console.log(`[Device Connection Create] WebSocket URL generated: ${websocketUrl}`);
-
     // Step 6: Insert device connection record with HASHED code
-    // is_active defaults to false in DB
+    // No WebSocket URL or session_id - Windows app connects directly with code
+    // is_active defaults to false in DB, used=false for one-time use
     const { data: connection, error: insertError } = await supabase
       .from('device_connections')
       .insert({
         device_id: device_id,
         user_id: user_id,
         organization_id: organization_id,
-        connection_url: websocketUrl,
-        session_id: connectionSessionId,
         six_digit_code: hashedCode, // Store HASHED code
         chat_session_id: chat_session_id, // AI chat session reference (REQUIRED)
+        is_active: false,
+        used: false, // One-time use flag
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })

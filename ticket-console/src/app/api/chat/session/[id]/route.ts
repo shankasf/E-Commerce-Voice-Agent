@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
+import { aiServiceFetch } from '@/lib/ai-service-client';
 
-const AI_SERVICE_URL = process.env.BASE_URL_AI || 'http://localhost:8080';
-const AI_SERVICE_API_KEY = process.env.AI_SERVICE_API_KEY;
 const JWT_SECRET = process.env.JWT_SECRET;
 
 interface JWTPayload {
@@ -46,12 +45,8 @@ export async function GET(
     console.log('[Chat Session API] GET request for session:', sessionId);
 
     // Forward to AI service
-    const aiResponse = await fetch(`${AI_SERVICE_URL}/api/session/${sessionId}`, {
+    const aiResponse = await aiServiceFetch(`/api/session/${sessionId}`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-AI-Service-Key': AI_SERVICE_API_KEY!,
-      },
     });
 
     if (!aiResponse.ok) {
@@ -125,12 +120,8 @@ export async function DELETE(
     console.log('[Chat Session API] DELETE request for session:', sessionId);
 
     // Forward to AI service
-    const aiResponse = await fetch(`${AI_SERVICE_URL}/api/session/${sessionId}`, {
+    const aiResponse = await aiServiceFetch(`/api/session/${sessionId}`, {
       method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-AI-Service-Key': AI_SERVICE_API_KEY!,
-      },
     });
 
     if (!aiResponse.ok) {

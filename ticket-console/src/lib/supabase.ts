@@ -33,6 +33,7 @@ export { supabase };
 export type LocationType = 'Headquarters' | 'Data Center' | 'Support' | 'Remote' | 'Other';
 export type AgentType = 'Bot' | 'Human';
 
+
 export interface AccountManager {
   manager_id: number;
   full_name: string;
