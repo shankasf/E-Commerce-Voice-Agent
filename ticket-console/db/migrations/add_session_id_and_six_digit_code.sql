@@ -1,16 +1,15 @@
 -- ============================================================================
--- MIGRATION: Add session_id and six_digit_code to device_connections
+-- MIGRATION: Add session_id and six_digit_code to device_connections table
 -- ============================================================================
--- This migration adds support for 6-digit pairing codes and session tracking
--- for AI service initiated Windows application connections.
+-- This migration adds support for AI service initiated device connections
+-- using 6-digit pairing codes.
 --
 -- Changes:
--- 1. Add session_id column (UUID for tracking sessions)
--- 2. Add six_digit_code column (SHA-256 hashed version of pairing code)
--- 3. Update default for is_active to FALSE (for new code generation)
--- 4. Add unique constraint on connection_url
--- 5. Add unique constraint on session_id
--- 6. Create indexes for faster lookups
+-- 1. Add session_id column (UUID for unique session identification)
+-- 2. Add six_digit_code column (SHA-256 hashed version of the pairing code)
+-- 3. Set default is_active to FALSE (for new code generation flow)
+-- 4. Add unique constraints on connection_url and session_id
+-- 5. Add indexes for performance
 --
 -- Safe to run on existing Supabase instance (uses IF NOT EXISTS)
 -- ============================================================================

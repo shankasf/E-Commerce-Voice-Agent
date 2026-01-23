@@ -1,0 +1,41 @@
+[
+  {
+    "device_id": "dev_1767600134962_146bxpm64",
+    "device_name": "Haripriya",
+    "ticket_id": null,
+    "enrollment_code": "GENA-7386",
+    "status": "active",
+    "connected": false,
+    "created_at": "2026-01-05T08:02:14.962Z",
+    "fingerprint": "46a7cf19cc1032b14a4b2b120880e8c5",
+    "executor_info": {
+      "platform": "win32",
+      "python_version": "3.14.0 (tags/v3.14.0:ebf955d, Oct  7 2025, 10:15:03) [MSC v.1944 64 bit (AMD64)]",
+      "is_admin": false,
+      "username": "harip",
+      "hostname": "HARIPRIYA"
+    },
+    "last_seen": "2026-01-05T08:03:03.600Z",
+    "device_token": "ZGV2XzE3Njc2MDAxMzQ5NjJfMTQ2YnhwbTY0OjIwMjYtMDEtMDZUMDg6MDI6NTUuMzU2Wg=="
+  },
+  {
+    "device_id": "dev_1767935189861_ue3gco43p",
+    "device_name": "Haripriya",
+    "org_id": 2,
+    "ticket_id": 7,
+    "enrollment_code": "GKUM-5890",
+    "status": "active",
+    "connected": false,
+    "created_at": "2026-01-09T05:06:29.861Z",
+    "fingerprint": "46a7cf19cc1032b14a4b2b120880e8c5",
+    "executor_info": {
+      "platform": "win32",
+      "python_version": "3.14.0 (tags/v3.14.0:ebf955d, Oct  7 2025, 10:15:03) [MSC v.1944 64 bit (AMD64)]",
+      "is_admin": false,
+      "username": "harip",
+      "hostname": "HARIPRIYA"
+    },
+    "last_seen": "2026-01-09T05:10:47.629Z",
+    "device_token": "ZGV2XzE3Njc5MzUxODk4NjFfdWUzZ2NvNDNwOjIwMjYtMDEtMTBUMDU6MDc6MTkuMTQ3Wg=="
+  }
+]

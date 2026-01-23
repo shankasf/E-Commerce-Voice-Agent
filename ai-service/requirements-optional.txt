@@ -1,0 +1,13 @@
+# Optional Dependencies for URackIT AI Service
+# These packages require additional build tools and may fail to install on some systems.
+# Install separately if needed: pip install -r requirements-optional.txt
+
+# Enhanced file watching for uvicorn (requires Rust)
+# Note: Only needed for development with hot-reload file watching
+# watchfiles>=0.13
+
+# Knowledge Base / Vector Store
+# Requires: cmake, build tools
+# Note: Installation may fail on Windows without proper build environment
+chromadb==0.5.23
+

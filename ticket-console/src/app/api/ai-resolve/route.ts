@@ -1,12 +1,10 @@
 // AI Resolution API Route
-// Uses modular multi-agent system for ticket resolution
+// Uses Python AI Service backend for ticket resolution
 
 import { NextRequest, NextResponse } from 'next/server';
 import {
   AGENT_DEFINITIONS,
   getAgentName,
-  createResponse,
-  DEFAULT_MODEL,
   getOrCreateAIBot,
   handoffToAgent,
   needsMultiAgentSupport,
@@ -18,13 +16,32 @@ import {
   TriageResult,
   SatisfactionResult,
 } from '@/lib/ai-agents';
+import { callAIService, handleAIServiceResponse } from '@/lib/ai-service-client';
 
-// Detect user intent using Responses API (JSON output)
-async function detectUserIntent(userMessage: string, conversationHistory: string): Promise<{
+function isNewChat(messages: any[]): boolean {
+  if (!messages || messages.length === 0) {
+    return true;
+  }
+
+  const userMessages = messages.filter(m => m.sender_contact_id !== null);
+  return userMessages.length === 0;
+}
+
+function formatConversationHistory(messages: any[]): string {
+  return (messages || [])
+    .map(m => {
+      const role = m.sender_agent ? 'Assistant' : 'User';
+      return `${role}: ${m.content}`;
+    })
+    .join('\n');
+}
+
+// Detect user intent using AI Service backend
+async function detectUserIntent(userMessage: string, conversationHistory: string, ticketId?: number): Promise<{
   tool: string;
   args: any;
 }> {
-  const systemPrompt = `You are an intent detection system for IT support. Analyze the user's message and determine their intent.
+  const intentPrompt = `[INTENT_DETECTION] You are an intent detection system for IT support tickets. Analyze the user's message and determine their intent.
 
 IMPORTANT RULES:
 1. If user wants to talk to a human, escalate, transfer, handoff, speak to a real person, or anything similar - use handoff_to_human_agent
@@ -37,29 +54,62 @@ DO use handoff_to_human_agent for ANY request to speak with a human, regardless 
 Set confirmed=true for handoff_to_human_agent if:
 - User says "now", "immediately", "just do it", "right now"
 - User is confirming after being asked "would you like me to proceed?"
-- User simply says "yes", "yeah", "sure", "go ahead" after a handoff was offered`;
+- User simply says "yes", "yeah", "sure", "go ahead" after a handoff was offered
 
-  const intentSchema = `Return STRICT JSON only, with this exact shape:
+You must return valid json in this exact shape:
 { "tool": "handoff_to_human_agent" | "close_ticket" | "continue_troubleshooting", "args": { ... } }
 
 Args rules:
 - tool=handoff_to_human_agent => args: { "reason": string, "confirmed": boolean }
 - tool=close_ticket => args: { "resolution_summary": string }
-- tool=continue_troubleshooting => args: { "response_type": "greeting" | "troubleshooting" | "follow_up" | "clarification" | "acknowledgment" }`;
+- tool=continue_troubleshooting => args: { "response_type": "greeting" | "troubleshooting" | "follow_up" | "clarification" | "acknowledgment" }
+
+IMPORTANT: Return only valid json, no other text.
+
+User's message: "${userMessage}"
+Conversation history: ${conversationHistory}`;
 
   try {
-    const { output_text } = await createResponse({
-      model: DEFAULT_MODEL,
-      instructions: `${systemPrompt}\n\n${intentSchema}`,
-      input: `Conversation so far:\n${conversationHistory}\n\nUser's latest message: "${userMessage}"`,
-      temperature: 0.1,
-      text: { format: { type: 'json_object' } },
-      max_output_tokens: 220,
+    const context: any = {
+      intent_detection: true,
+    };
+    
+    if (ticketId) {
+      context.ticket_id = ticketId;
+    }
+
+    const aiResponse = await callAIService('/api/chat', {
+      method: 'POST',
+      body: {
+        message: intentPrompt,
+        session_id: `intent-${ticketId || Date.now()}`,
+        context,
+      },
     });
 
-    const parsed = JSON.parse(output_text || '{}');
-    if (parsed?.tool && parsed?.args) {
-      return { tool: parsed.tool, args: parsed.args };
+    const aiData = await handleAIServiceResponse<{
+      response: string;
+      session_id: string;
+      agent_name: string;
+    }>(aiResponse, '/api/chat');
+
+    // Parse JSON from response
+    try {
+      const parsed = JSON.parse(aiData.response || '{}');
+      if (parsed?.tool && parsed?.args) {
+        return { tool: parsed.tool, args: parsed.args };
+      }
+    } catch (parseError) {
+      // If response is not JSON, try to extract JSON from text
+      const jsonMatch = aiData.response.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          const parsed = JSON.parse(jsonMatch[0]);
+          if (parsed?.tool && parsed?.args) {
+            return { tool: parsed.tool, args: parsed.args };
+          }
+        } catch {}
+      }
     }
 
     return { tool: 'continue_troubleshooting', args: { response_type: 'troubleshooting' } };
@@ -81,106 +131,149 @@ function cleanResponse(text: string): string {
 
 // Triage ticket to determine category and urgency
 async function triageTicket(subject: string, description: string): Promise<TriageResult> {
-  const { output_text } = await createResponse({
-    model: DEFAULT_MODEL,
-    input: `Analyze this ticket and respond in json format.\n\nSubject: ${subject}\n\nDescription: ${description}`,
-    instructions: AGENT_DEFINITIONS.triage.systemPrompt,
-    temperature: 0.3,
-    text: { format: { type: 'json_object' } },
-  });
-
   try {
-    return JSON.parse(output_text || '{}');
-  } catch {
+    const aiResponse = await callAIService('/api/classify', {
+      method: 'POST',
+      body: {
+        text: `${subject}\n\n${description}`,
+        context: {},
+      },
+    });
+
+    const classification = await handleAIServiceResponse<{
+      category: string;
+      priority: string;
+      suggested_queue: string;
+      confidence: number;
+    }>(aiResponse, '/api/classify');
+
+    // Map priority to urgency
+    const urgencyMap: Record<string, 'low' | 'medium' | 'high' | 'critical'> = {
+      'low': 'low',
+      'medium': 'medium',
+      'high': 'high',
+      'critical': 'critical',
+    };
+
+    const priority = classification.priority?.toLowerCase() || 'medium';
+    const urgency = urgencyMap[priority] || 'medium';
+
+    return {
+      category: classification.category || 'general',
+      urgency: urgency,
+      initialSteps: [],
+    };
+  } catch (error) {
+    console.error('Triage error:', error);
     return { category: 'general', urgency: 'medium', initialSteps: [] };
   }
 }
 
-// Generate solution with full context and multi-agent support
-async function generateSolution(category: string, ticket: any, conversationHistory: string): Promise<string> {
-  const agentDef = AGENT_DEFINITIONS[category as AgentType] || AGENT_DEFINITIONS.general;
-  
-  // Build full context from database
-  const customerContext = await buildTicketContext(ticket);
-  
-  // Check if this is a multi-domain issue that needs collaboration
-  let multiAgentInput = '';
-  if (needsMultiAgentSupport(ticket.subject, ticket.description || '')) {
-    const collaboration = await multiAgentAnalysis(
-      `${ticket.subject}: ${ticket.description}`,
-      customerContext
-    );
+// Generate solution with full context using AI Service backend
+async function generateSolution(
+  category: string,
+  ticket: any,
+  conversationHistory: string,
+  sessionId: string,
+  isNew: boolean,
+  userMessage?: string
+): Promise<string> {
+  try {
+    // Build context from ticket
+    const context: any = {
+      organization_id: ticket.organization_id,
+      contact_id: ticket.contact_id,
+      ticket_id: ticket.ticket_id,
+      ticket_subject: ticket.subject,
+      ticket_description: ticket.description,
+    };
     
-    if (collaboration.recommendations.length > 0) {
-      multiAgentInput = `\n\nMULTI-AGENT CONSULTATION:\nOther specialists have provided input:\n${collaboration.recommendations.join('\n')}\n\nUse this advice to provide comprehensive support.`;
+    if (ticket.device_id) {
+      context.device_id = ticket.device_id;
     }
+
+    // Build full context from database
+    const customerContext = await buildTicketContext(ticket);
     
-    if (collaboration.suggestedAgent !== category && collaboration.suggestedAgent !== 'general') {
-      multiAgentInput += `\n\nNote: This issue may benefit from handoff to ${collaboration.suggestedAgent} specialist if your troubleshooting doesn't resolve it.`;
+    // Check if this is a multi-domain issue that needs collaboration
+    let multiAgentInput = '';
+    if (needsMultiAgentSupport(ticket.subject, ticket.description || '')) {
+      const collaboration = await multiAgentAnalysis(
+        `${ticket.subject}: ${ticket.description}`,
+        customerContext
+      );
+      
+      if (collaboration.recommendations.length > 0) {
+        multiAgentInput = `\n\nMULTI-AGENT CONSULTATION:\nOther specialists have provided input:\n${collaboration.recommendations.join('\n')}\n\nUse this advice to provide comprehensive support.`;
+      }
+      
+      if (collaboration.suggestedAgent !== category && collaboration.suggestedAgent !== 'general') {
+        multiAgentInput += `\n\nNote: This issue may benefit from handoff to ${collaboration.suggestedAgent} specialist if your troubleshooting doesn't resolve it.`;
+      }
     }
-  }
-  
-  const instructions = agentDef.systemPrompt + `
 
-DATABASE ACCESS:
-You have access to the following customer information:
-${customerContext}
-${multiAgentInput}
+    if (isNew) {
+      const startResponse = await callAIService(`/api/chat/start?session_id=${encodeURIComponent(sessionId)}`, {
+        method: 'POST',
+        body: {},
+      });
 
-Use this information to provide personalized support. Reference their devices, previous tickets, or organization when relevant.
+      await handleAIServiceResponse<{
+        session_id: string;
+        greeting: string;
+        timestamp: string;
+      }>(startResponse, '/api/chat/start');
 
-RESPONSE STYLE (CRITICAL - FOLLOW STRICTLY):
+      await callAIService(`/api/session/context?session_id=${encodeURIComponent(sessionId)}`, {
+        method: 'POST',
+        body: {
+          organization_id: ticket.organization_id,
+          contact_id: ticket.contact_id,
+          contact_name: ticket.contact?.full_name || null,
+        },
+      });
+    }
+
+    const message = `Ticket: ${ticket.subject}\n\nDescription: ${ticket.description || ''}\n\nCustomer Information:\n${customerContext}${multiAgentInput}\n\nConversation History:\n${conversationHistory}\n\nUser Message:\n${userMessage || ''}\n\nRESPONSE STYLE (CRITICAL - FOLLOW STRICTLY):
 - Keep ALL responses to 2-3 lines maximum
 - Be conversational, like texting a helpful colleague
 - NO bullet points, NO numbered lists, NO step-by-step formatting
 - ONE thought per message, then wait for response
 - Use simple, natural language
 
-EXAMPLE GOOD RESPONSES:
-- "Got it, let's check your internet. Can you try restarting your router? Just unplug it for 30 seconds and plug it back in."
-- "Sounds like a connection issue. Are you on WiFi or connected with a cable?"
-- "Let me look into that for you. Is this happening on just your computer or other devices too?"
-
-EXAMPLE BAD RESPONSES (NEVER DO THIS):
-- Long paragraphs with multiple steps
-- Numbered steps like "Step 1: ... Step 2: ..."
-- Bullet point lists
-- Formal language like "I apologize for the inconvenience"
-
-CONVERSATION FLOW:
-1. Ask ONE clarifying question if needed
-2. Give ONE simple instruction
-3. Wait for user to respond before continuing
-4. Keep the back-and-forth natural
-
-WHEN USER SAYS IT'S FIXED:
-- Just say: "Glad that worked! Should I close this ticket for you?"
-- Wait for their response
-
-WHEN USER WANTS HUMAN HELP:
-- The system handles this automatically - don't interfere
-- Don't ask for device details when user wants transfer
-
 INTERNAL MARKERS (place at END of message only):
 - ESCALATE_TO_HUMAN: ONLY for critical issues (security breach, office-wide outage)
 - CLOSE_TICKET_CONFIRMED: ONLY when user explicitly says "close", "yes close it"
 - HANDOFF_TO:[agent_type]: When issue needs different specialist`;
 
-  const { output_text } = await createResponse({
-    model: DEFAULT_MODEL,
-    input: `Ticket Subject: ${ticket.subject}\n\nDescription: ${ticket.description || ''}\n\nConversation so far:\n${conversationHistory}`,
-    instructions,
-    temperature: 0.5,
-    max_output_tokens: 200,
-  });
+    const aiResponse = await callAIService('/api/chat', {
+      method: 'POST',
+      body: {
+        message,
+        session_id: sessionId,
+        context,
+      },
+    });
 
-  return output_text || 'I apologize, but I encountered an issue generating a response. Let me escalate this to a human agent.';
+    const aiData = await handleAIServiceResponse<{
+      response: string;
+      session_id: string;
+      agent_name: string;
+      tool_calls: any[];
+    }>(aiResponse, '/api/chat');
+
+    return aiData.response || 'I apologize, but I encountered an issue generating a response. Let me escalate this to a human agent.';
+  } catch (error) {
+    console.error('Generate solution error:', error);
+    return 'I apologize, but I encountered an issue. Let me escalate this to a human agent.';
+  }
 }
 
-// Check user satisfaction and intent
-async function checkSatisfaction(message: string): Promise<SatisfactionResult> {
-  const instructions = `Analyze if the user's message indicates satisfaction, desire to close ticket, or need for human help.
-Respond with JSON: { "satisfied": boolean, "shouldClose": boolean, "wantsHuman": boolean, "reason": string }
+// Check user satisfaction and intent using AI Service backend
+async function checkSatisfaction(message: string, ticketId?: number): Promise<SatisfactionResult> {
+  const satisfactionPrompt = `[SATISFACTION_CHECK] Analyze if the user's message indicates satisfaction, desire to close ticket, or need for human help.
+
+Respond with json: { "satisfied": boolean, "shouldClose": boolean, "wantsHuman": boolean, "reason": string }
 
 IMPORTANT RULES:
 - satisfied: true ONLY if user explicitly says the problem is fixed/resolved/working now (e.g., "it worked", "fixed", "problem solved", "that resolved it")
@@ -191,36 +284,71 @@ IMPORTANT RULES:
 - wantsHuman: true if user asks for human, technician, real person, escalate, live agent, etc.
 - confirmsHumanHandoff: true ONLY if the previous message asked about human agent and user confirms (yes, please, sure, go ahead)
 
-Be VERY strict about shouldClose - it requires explicit mention of closing the ticket.`;
+Be VERY strict about shouldClose - it requires explicit mention of closing the ticket.
 
-  const { output_text } = await createResponse({
-    model: DEFAULT_MODEL,
-    input: `Analyze this user message and respond in json format: "${message}"`,
-    instructions,
-    temperature: 0.1,
-    text: { format: { type: 'json_object' } },
-  });
+User message: "${message}"`;
 
   try {
-    const result = JSON.parse(output_text || '{}');
-    
-    // Extra safeguard: only allow shouldClose if the message actually contains close-related words
-    const lowerMessage = message.toLowerCase();
-    const hasCloseIntent = lowerMessage.includes('close') || 
-                           lowerMessage.includes('shut') || 
-                           lowerMessage.includes('end ticket') ||
-                           lowerMessage.includes('mark as resolved');
-    
-    // Check for human handoff confirmation
-    const hasHumanConfirm = lowerMessage.match(/\b(yes|yeah|sure|please|go ahead|ok|okay|confirm)\b/);
-    
-    return { 
-      satisfied: result.satisfied || false, 
-      shouldClose: hasCloseIntent && (result.shouldClose || false),
-      wantsHuman: result.wantsHuman || false,
-      confirmsHumanHandoff: hasHumanConfirm ? true : false
+    const context: any = {
+      satisfaction_check: true,
     };
-  } catch {
+    
+    if (ticketId) {
+      context.ticket_id = ticketId;
+    }
+
+    const aiResponse = await callAIService('/api/chat', {
+      method: 'POST',
+      body: {
+        message: satisfactionPrompt,
+        session_id: `satisfaction-${ticketId || Date.now()}`,
+        context,
+      },
+    });
+
+    const aiData = await handleAIServiceResponse<{
+      response: string;
+      session_id: string;
+      agent_name: string;
+    }>(aiResponse, '/api/chat');
+
+    try {
+      // Parse JSON from response
+      let result: any = {};
+      
+      // Try direct parse
+      try {
+        result = JSON.parse(aiData.response || '{}');
+      } catch {
+        // If not JSON, try to extract JSON from text
+        const jsonMatch = aiData.response.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          result = JSON.parse(jsonMatch[0]);
+        }
+      }
+      
+      // Extra safeguard: only allow shouldClose if the message actually contains close-related words
+      const lowerMessage = message.toLowerCase();
+      const hasCloseIntent = lowerMessage.includes('close') || 
+                             lowerMessage.includes('shut') || 
+                             lowerMessage.includes('end ticket') ||
+                             lowerMessage.includes('mark as resolved');
+      
+      // Check for human handoff confirmation
+      const hasHumanConfirm = lowerMessage.match(/\b(yes|yeah|sure|please|go ahead|ok|okay|confirm)\b/);
+      
+      return { 
+        satisfied: result.satisfied || false, 
+        shouldClose: hasCloseIntent && (result.shouldClose || false),
+        wantsHuman: result.wantsHuman || false,
+        confirmsHumanHandoff: hasHumanConfirm ? true : false
+      };
+    } catch (parseError) {
+      console.error('Satisfaction parse error:', parseError);
+      return { satisfied: false, shouldClose: false, wantsHuman: false, confirmsHumanHandoff: false };
+    }
+  } catch (error) {
+    console.error('Satisfaction check error:', error);
     return { satisfied: false, shouldClose: false, wantsHuman: false, confirmsHumanHandoff: false };
   }
 }
@@ -255,9 +383,9 @@ export async function POST(request: NextRequest) {
       .eq('ticket_id', ticketId)
       .order('message_time', { ascending: true });
 
-    const conversationHistory = (messages || [])
-      .map(m => `${m.sender_agent?.full_name || m.sender_contact?.full_name || 'Unknown'}: ${m.content}`)
-      .join('\n');
+    const conversationHistory = formatConversationHistory(messages || []);
+    const isNew = isNewChat(messages || []);
+    const sessionId = `ticket-${ticketId}`;
 
     if (action === 'assign') {
       // Check if ticket is from a datacenter location - skip AI and assign human directly
@@ -377,7 +505,7 @@ export async function POST(request: NextRequest) {
       const category = (assignment?.support_agents as any)?.specialization?.toLowerCase().split(' ')[0] || 'general';
 
       // Use LLM to detect user intent with tool calling
-      const intent = await detectUserIntent(userMessage, conversationHistory);
+      const intent = await detectUserIntent(userMessage, conversationHistory, ticketId);
       console.log('[AI Intent Detection]', { userMessage, intent });
 
       // Handle handoff_to_human_agent tool call
@@ -502,7 +630,10 @@ export async function POST(request: NextRequest) {
       const response = await generateSolution(
         category,
         ticket,
-        conversationHistory + `\nUser: ${userMessage}`
+        conversationHistory,
+        sessionId,
+        isNew,
+        userMessage
       );
 
       // Check for agent handoff request
@@ -524,7 +655,10 @@ export async function POST(request: NextRequest) {
           const newAgentResponse = await generateSolution(
             targetAgent,
             ticket,
-            conversationHistory + `\nUser: ${userMessage}\nPrevious Agent: ${handoffClean}`
+            `${conversationHistory}\nPrevious Agent: ${handoffClean}`,
+            sessionId,
+            false,
+            userMessage
           );
 
           await supabase.from('ticket_messages').insert({

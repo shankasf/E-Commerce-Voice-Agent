@@ -49,21 +49,13 @@ export interface CreateDeviceConnectionResponse {
   error?: string;
 }
 
-/**
- * Request to create a 6-digit pairing code.
- * Called by AI service when it needs to connect to a Windows application.
- */
 export interface CreateSixDigitCodeRequest {
-  user_id: number;        // contact_id from contacts table
-  device_id: number;      // device_id from devices table
-  organization_id: number; // organization_id from organizations table
-  session_id?: string;    // Optional: if provided, check if it already exists
+  user_id: number;
+  device_id: number;
+  organization_id: number;
+  session_id?: string; // Optional: if provided, check if it already exists
 }
 
-/**
- * Response from creating a 6-digit pairing code.
- * The code is hashed before storage, but the original code is returned here.
- */
 export interface CreateSixDigitCodeResponse {
   success: boolean;
   code?: string;              // Original unhashed 6-digit code (for AI service to communicate to user)
@@ -73,10 +65,6 @@ export interface CreateSixDigitCodeResponse {
   error?: string;
 }
 
-/**
- * Request to verify a 6-digit code and get WebSocket URL.
- * Called by Windows application when user enters the code.
- */
 export interface VerifyCodeRequest {
   user_id: number;        // contact_id from contacts table
   device_id: number;      // device_id from devices table
@@ -84,10 +72,6 @@ export interface VerifyCodeRequest {
   six_digit_code: string; // Original 6-digit code entered by user (e.g., "C8PKRV")
 }
 
-/**
- * Response from verifying a 6-digit code.
- * Returns the WebSocket URL if code is valid and matches all parameters.
- */
 export interface VerifyCodeResponse {
   success: boolean;
   websocket_url?: string;     // Full WebSocket URL for connection

@@ -43,7 +43,7 @@ Available Specialist Agents:
 - security: Passwords, account lockouts, suspicious emails, security incidents
 - general: Miscellaneous IT issues
 
-Respond with JSON:
+Respond with json:
 {
   "primaryAgent": "the main specialist to handle this",
   "consultAgents": ["list of agents to consult for additional input"],

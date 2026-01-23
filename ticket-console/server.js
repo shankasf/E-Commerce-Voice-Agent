@@ -3,6 +3,9 @@
  * Falls back to a random available port if the preferred port is in use
  */
 
+// Load environment variables from .env file
+require('dotenv').config({ override: true });
+
 const { createServer } = require('http');
 const { parse } = require('url');
 const next = require('next');

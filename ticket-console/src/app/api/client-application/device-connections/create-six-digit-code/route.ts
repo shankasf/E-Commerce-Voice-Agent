@@ -26,7 +26,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
-import type { CreateSixDigitCodeRequest, CreateSixDigitCodeResponse } from '../../types';
+import type { CreateSixDigitCodeRequest, CreateSixDigitCodeResponse } from '../../types.ts';
 
 // Environment variables
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';

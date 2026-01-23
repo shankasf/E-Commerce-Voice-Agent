@@ -1,0 +1,33 @@
+# URackIT AI Service - Python Dependencies
+# 
+# RECOMMENDED: Use Python 3.10 or 3.12 for best compatibility
+# For Python 3.11: Using pydantic 2.11.0+ which has better wheel support
+#
+# Installation: pip install -r requirements.txt
+
+# Core
+fastapi==0.115.6
+uvicorn==0.34.0
+# Note: uvicorn[standard] requires watchfiles (needs Rust). Using base uvicorn.
+python-dotenv==1.0.1
+# Pydantic: Using 2.11.0+ for better Python 3.11 wheel support
+# Version 2.10.3 requires pydantic-core 2.27.1 (no wheels for Python 3.11)
+pydantic>=2.11.0,<2.13.0
+pydantic-settings==2.7.0
+# OpenAI Agent SDK
+openai-agents==0.0.15
+# Database
+psycopg2-binary==2.9.10
+requests==2.32.3
+# Knowledge Base / Vector Store (Optional - requires cmake)
+# chromadb==0.5.23
+# Note: ChromaDB requires cmake and build tools. Install separately if needed.
+# The code gracefully handles ChromaDB being unavailable.
+# WebSocket Support
+websockets==14.1
+# Twilio SIP Integration
+twilio==9.4.1
+# Testing
+pytest==8.3.4
+pytest-asyncio==0.25.0
+httpx==0.28.1

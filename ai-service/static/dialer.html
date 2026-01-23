@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>U Rack IT - Web Dialer</title>
+    <!-- Twilio Voice SDK v2 from unpkg CDN -->
+    <script src="https://unpkg.com/@twilio/voice-sdk@2.10.2/dist/twilio.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            max-width: 400px;
+            width: 90%;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 1.8rem;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 30px;
+            font-size: 0.9rem;
+        }
+        
+        .status-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 25px;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+        
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #666;
+            transition: background 0.3s;
+        }
+        
+        .status-dot.ready {
+            background: #4ade80;
+            box-shadow: 0 0 10px #4ade80;
+        }
+        
+        .status-dot.connecting {
+            background: #fbbf24;
+            animation: pulse 1s infinite;
+        }
+        
+        .status-dot.oncall {
+            background: #f87171;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .status-text {
+            font-size: 0.9rem;
+        }
+        
+        .phone-input-container {
+            margin-bottom: 20px;
+        }
+        
+        .phone-input-container label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.8);
+        }
+        
+        .phone-input {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.2rem;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            text-align: center;
+            letter-spacing: 2px;
+            transition: border-color 0.3s;
+        }
+        
+        .phone-input:focus {
+            outline: none;
+            border-color: #4ade80;
+        }
+        
+        .phone-input::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+        
+        .dialpad {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .dialpad-btn {
+            padding: 20px;
+            font-size: 1.4rem;
+            border: none;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.15);
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .dialpad-btn:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: scale(1.05);
+        }
+        
+        .dialpad-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .dialpad-btn .sub {
+            display: block;
+            font-size: 0.6rem;
+            color: rgba(255, 255, 255, 0.5);
+            margin-top: 2px;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+        }
+        
+        .btn {
+            flex: 1;
+            padding: 18px;
+            font-size: 1.1rem;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .btn-call {
+            background: linear-gradient(135deg, #4ade80, #22c55e);
+            color: #fff;
+        }
+        
+        .btn-call:hover:not(:disabled) {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(74, 222, 128, 0.4);
+        }
+        
+        .btn-hangup {
+            background: linear-gradient(135deg, #f87171, #ef4444);
+            color: #fff;
+        }
+        
+        .btn-hangup:hover:not(:disabled) {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(248, 113, 113, 0.4);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .call-timer {
+            text-align: center;
+            font-size: 2rem;
+            font-weight: bold;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            display: none;
+        }
+        
+        .call-timer.visible {
+            display: block;
+        }
+        
+        .error-message {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid #ef4444;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 15px;
+            font-size: 0.85rem;
+            text-align: center;
+            display: none;
+        }
+        
+        .error-message.visible {
+            display: block;
+        }
+        
+        .quick-dial {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .quick-dial-title {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .quick-dial-btn {
+            width: 100%;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .quick-dial-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .icon {
+            font-size: 1.2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛠️ U Rack IT</h1>
+        <p class="subtitle">Web Dialer - Call Support</p>
+        
+        <div class="status-bar">
+            <div class="status-dot" id="statusDot"></div>
+            <span class="status-text" id="statusText">Initializing...</span>
+        </div>
+        
+        <div class="call-timer" id="callTimer">00:00</div>
+        
+        <div class="phone-input-container">
+            <label for="phoneNumber">Phone Number</label>
+            <input type="tel" id="phoneNumber" class="phone-input" placeholder="+1 (___) ___-____" />
+        </div>
+        
+        <div class="dialpad">
+            <button class="dialpad-btn" data-digit="1">1</button>
+            <button class="dialpad-btn" data-digit="2">2<span class="sub">ABC</span></button>
+            <button class="dialpad-btn" data-digit="3">3<span class="sub">DEF</span></button>
+            <button class="dialpad-btn" data-digit="4">4<span class="sub">GHI</span></button>
+            <button class="dialpad-btn" data-digit="5">5<span class="sub">JKL</span></button>
+            <button class="dialpad-btn" data-digit="6">6<span class="sub">MNO</span></button>
+            <button class="dialpad-btn" data-digit="7">7<span class="sub">PQRS</span></button>
+            <button class="dialpad-btn" data-digit="8">8<span class="sub">TUV</span></button>
+            <button class="dialpad-btn" data-digit="9">9<span class="sub">WXYZ</span></button>
+            <button class="dialpad-btn" data-digit="*">*</button>
+            <button class="dialpad-btn" data-digit="0">0<span class="sub">+</span></button>
+            <button class="dialpad-btn" data-digit="#">#</button>
+        </div>
+        
+        <div class="action-buttons">
+            <button class="btn btn-call" id="callBtn" disabled>
+                <span class="icon">📞</span> Call
+            </button>
+            <button class="btn btn-hangup" id="hangupBtn" disabled>
+                <span class="icon">📵</span> Hang Up
+            </button>
+        </div>
+        
+        <div class="error-message" id="errorMessage"></div>
+        
+        <div class="quick-dial">
+            <div class="quick-dial-title">Quick Dial</div>
+            <button class="quick-dial-btn" id="callSupportBtn">
+                <span class="icon">🎧</span> Call U Rack IT Support
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const TOKEN_URL = '/voice-token';
+        const TWILIO_NUMBER = '+16508552762'; // Your Twilio number
+        
+        // State
+        let device = null;
+        let currentCall = null;
+        let callTimer = null;
+        let callStartTime = null;
+        
+        // DOM Elements
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const phoneInput = document.getElementById('phoneNumber');
+        const callBtn = document.getElementById('callBtn');
+        const hangupBtn = document.getElementById('hangupBtn');
+        const callTimerEl = document.getElementById('callTimer');
+        const errorMessage = document.getElementById('errorMessage');
+        const callSupportBtn = document.getElementById('callSupportBtn');
+        
+        // Initialize Twilio Device (SDK v2)
+        async function initDevice() {
+            try {
+                updateStatus('connecting', 'Connecting...');
+                
+                // Check if Twilio SDK loaded
+                if (typeof Twilio === 'undefined' || typeof Twilio.Device === 'undefined') {
+                    throw new Error('Twilio SDK not loaded. Please refresh the page.');
+                }
+                
+                console.log('Twilio SDK loaded, version:', Twilio.Device.version);
+                
+                // Fetch token from server
+                const response = await fetch(TOKEN_URL);
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail || 'Failed to get token');
+                }
+                const data = await response.json();
+                
+                console.log('Token received, creating device...');
+                
+                // Create Twilio Device (v2 API)
+                // codecPreferences takes string array per docs: ["opus", "pcmu"]
+                device = new Twilio.Device(data.token, {
+                    codecPreferences: ["opus", "pcmu"],
+                    logLevel: 1
+                });
+                
+                // Set up event handlers (v2 API)
+                device.on('registered', () => {
+                    console.log('Twilio Device registered');
+                    updateStatus('ready', 'Ready to call');
+                    callBtn.disabled = false;
+                });
+                
+                device.on('unregistered', () => {
+                    console.log('Twilio Device unregistered');
+                    updateStatus('error', 'Disconnected');
+                    callBtn.disabled = true;
+                });
+                
+                device.on('error', (error) => {
+                    console.error('Twilio Device Error:', error);
+                    showError(error.message || 'Device error');
+                    updateStatus('error', 'Error');
+                });
+                
+                device.on('incoming', (call) => {
+                    console.log('Incoming call from:', call.parameters.From);
+                    // Auto-answer incoming calls
+                    call.accept();
+                    setupCallHandlers(call);
+                });
+                
+                // Register the device to receive calls
+                await device.register();
+                console.log('Device registration initiated');
+                
+            } catch (error) {
+                console.error('Init error:', error);
+                showError(error.message);
+                updateStatus('error', 'Failed to initialize');
+            }
+        }
+        
+        // Set up call event handlers
+        function setupCallHandlers(call) {
+            currentCall = call;
+            
+            call.on('accept', () => {
+                console.log('Call accepted');
+                updateStatus('oncall', 'On Call');
+                callBtn.disabled = true;
+                hangupBtn.disabled = false;
+                startCallTimer();
+            });
+            
+            call.on('disconnect', () => {
+                console.log('Call disconnected');
+                currentCall = null;
+                updateStatus('ready', 'Ready to call');
+                callBtn.disabled = false;
+                hangupBtn.disabled = true;
+                stopCallTimer();
+            });
+            
+            call.on('cancel', () => {
+                console.log('Call cancelled');
+                currentCall = null;
+                updateStatus('ready', 'Ready to call');
+                callBtn.disabled = false;
+                hangupBtn.disabled = true;
+                stopCallTimer();
+            });
+            
+            call.on('error', (error) => {
+                console.error('Call error:', error);
+                showError(error.message || 'Call error');
+            });
+            
+            call.on('ringing', () => {
+                console.log('Ringing...');
+                updateStatus('connecting', 'Ringing...');
+            });
+        }
+        
+        // Make a call (v2 API)
+        async function makeCall(phoneNumber) {
+            if (!device) {
+                showError('Device not ready');
+                return;
+            }
+            
+            hideError();
+            updateStatus('connecting', 'Calling...');
+            
+            try {
+                // Pass the phone number to the TwiML App
+                const params = {
+                    To: phoneNumber || TWILIO_NUMBER
+                };
+                
+                const call = await device.connect({ params });
+                setupCallHandlers(call);
+                
+            } catch (error) {
+                console.error('Call error:', error);
+                showError(error.message || 'Failed to connect');
+                updateStatus('ready', 'Ready to call');
+            }
+        }
+        
+        // Hang up call
+        function hangUp() {
+            if (currentCall) {
+                currentCall.disconnect();
+            }
+        }
+        
+        // Update status display
+        function updateStatus(state, text) {
+            statusDot.className = 'status-dot ' + state;
+            statusText.textContent = text;
+        }
+        
+        // Show error message
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.add('visible');
+        }
+        
+        // Hide error message
+        function hideError() {
+            errorMessage.classList.remove('visible');
+        }
+        
+        // Call timer functions
+        function startCallTimer() {
+            callStartTime = Date.now();
+            callTimerEl.classList.add('visible');
+            callTimer = setInterval(updateCallTimer, 1000);
+        }
+        
+        function stopCallTimer() {
+            if (callTimer) {
+                clearInterval(callTimer);
+                callTimer = null;
+            }
+            callTimerEl.classList.remove('visible');
+            callTimerEl.textContent = '00:00';
+        }
+        
+        function updateCallTimer() {
+            const elapsed = Math.floor((Date.now() - callStartTime) / 1000);
+            const minutes = Math.floor(elapsed / 60).toString().padStart(2, '0');
+            const seconds = (elapsed % 60).toString().padStart(2, '0');
+            callTimerEl.textContent = `${minutes}:${seconds}`;
+        }
+        
+        // Event Listeners
+        callBtn.addEventListener('click', () => {
+            const number = phoneInput.value.replace(/\D/g, '');
+            if (number.length >= 10) {
+                makeCall('+' + number);
+            } else {
+                // Call the default Twilio number (connects to AI agent)
+                makeCall(TWILIO_NUMBER);
+            }
+        });
+        
+        hangupBtn.addEventListener('click', hangUp);
+        
+        callSupportBtn.addEventListener('click', () => {
+            phoneInput.value = TWILIO_NUMBER;
+            makeCall(TWILIO_NUMBER);
+        });
+        
+        // Dialpad
+        document.querySelectorAll('.dialpad-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const digit = btn.dataset.digit;
+                phoneInput.value += digit;
+                
+                // Send DTMF if on call
+                if (currentCall) {
+                    currentCall.sendDigits(digit);
+                }
+            });
+        });
+        
+        // Format phone number as user types
+        phoneInput.addEventListener('input', (e) => {
+            // Allow only numbers and +
+            e.target.value = e.target.value.replace(/[^\d+]/g, '');
+        });
+        
+        // Initialize on page load
+        initDevice();
+    </script>
+</body>
+</html>

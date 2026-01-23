@@ -27,6 +27,7 @@ export function ChatWindow() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+  console.log(user)
 
   // Generate JWT token when user is available
   useEffect(() => {
@@ -44,7 +45,7 @@ export function ChatWindow() {
               email: user.email,
               name: user.name,
               organizationId: (user as any).organization_id,
-              contactId: (user as any).contact_id,
+              contactId: (user as any).contact_id ?? user.id, // <- fallback
               agentId: (user as any).agent_id,
               specialization: (user as any).specialization,
             }),
