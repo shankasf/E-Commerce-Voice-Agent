@@ -1,23 +1,68 @@
 // API Route to create a contact for a requester
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { supabaseServer as supabase } from '@/lib/supabase-server';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseServiceKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: { autoRefreshToken: false, persistSession: false },
-  global: { headers: { Authorization: `Bearer ${supabaseServiceKey}` } }
-});
+// Input validation helpers
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_REGEX = /^[\d\s\-+()]{7,20}$/;
+const MAX_NAME_LENGTH = 255;
+const MIN_NAME_LENGTH = 2;
 
 export async function POST(request: NextRequest) {
   try {
     const { fullName, email, organizationId, phone } = await request.json();
 
+    // Required field validation
     if (!fullName || !email || !organizationId) {
       return NextResponse.json(
         { success: false, error: 'Full name, email, and organization ID are required' },
         { status: 400 }
       );
+    }
+
+    // Type validation
+    if (typeof fullName !== 'string' || typeof email !== 'string') {
+      return NextResponse.json(
+        { success: false, error: 'Invalid input types' },
+        { status: 400 }
+      );
+    }
+
+    // Name length validation
+    const trimmedName = fullName.trim();
+    if (trimmedName.length < MIN_NAME_LENGTH || trimmedName.length > MAX_NAME_LENGTH) {
+      return NextResponse.json(
+        { success: false, error: `Name must be between ${MIN_NAME_LENGTH} and ${MAX_NAME_LENGTH} characters` },
+        { status: 400 }
+      );
+    }
+
+    // Email format validation
+    const trimmedEmail = email.toLowerCase().trim();
+    if (!EMAIL_REGEX.test(trimmedEmail)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid email format' },
+        { status: 400 }
+      );
+    }
+
+    // Organization ID validation
+    const orgId = typeof organizationId === 'string' ? parseInt(organizationId, 10) : organizationId;
+    if (typeof orgId !== 'number' || isNaN(orgId) || orgId <= 0) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid organization ID' },
+        { status: 400 }
+      );
+    }
+
+    // Phone validation (if provided)
+    if (phone && typeof phone === 'string' && phone.trim()) {
+      if (!PHONE_REGEX.test(phone.trim())) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid phone number format' },
+          { status: 400 }
+        );
+      }
     }
 
     // Check if contact already exists with this email in the organization

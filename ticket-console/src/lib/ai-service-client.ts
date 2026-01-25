@@ -15,19 +15,53 @@ import path from 'path';
 
 const AI_SERVICE_URL = process.env.BASE_URL_AI || 'https://localhost:8080';
 const AI_SERVICE_API_KEY = process.env.AI_SERVICE_API_KEY || '';
-const AI_SERVICE_CA_CERT = process.env.AI_SERVICE_CA_CERT || './crt/ca.crt';
+const AI_SERVICE_CA_CERT = process.env.AI_SERVICE_CA_CERT;
+const NODE_ENV = process.env.NODE_ENV || 'development';
 
-// Cache the HTTPS agent - skip SSL verification for development
+// Cache the HTTPS agent
 let cachedAgent: https.Agent | null = null;
 
 /**
- * Get HTTPS agent that skips certificate verification (dev mode)
+ * Get HTTPS agent with proper SSL handling
+ * - In production: requires valid CA certificate
+ * - In development: falls back to skipping verification if no CA cert provided
  */
 function getHttpsAgent(): https.Agent {
   if (!cachedAgent) {
-    cachedAgent = new https.Agent({
-      rejectUnauthorized: false,
-    });
+    // Try to load CA certificate
+    let caCert: Buffer | undefined;
+
+    if (AI_SERVICE_CA_CERT) {
+      try {
+        const certPath = path.resolve(process.cwd(), AI_SERVICE_CA_CERT);
+        if (fs.existsSync(certPath)) {
+          caCert = fs.readFileSync(certPath);
+          console.log('[AI Service Client] Using CA certificate from:', certPath);
+        }
+      } catch (error) {
+        console.warn('[AI Service Client] Failed to load CA certificate:', error);
+      }
+    }
+
+    if (caCert) {
+      // Use CA certificate for secure connection
+      cachedAgent = new https.Agent({
+        ca: caCert,
+        rejectUnauthorized: true,
+      });
+    } else if (NODE_ENV === 'development') {
+      // Development fallback - skip verification with warning
+      console.warn('[AI Service Client] WARNING: Skipping SSL verification in development mode. Set AI_SERVICE_CA_CERT for secure connections.');
+      cachedAgent = new https.Agent({
+        rejectUnauthorized: false,
+      });
+    } else {
+      // Production without CA cert - use system defaults
+      console.warn('[AI Service Client] No CA certificate configured, using system defaults');
+      cachedAgent = new https.Agent({
+        rejectUnauthorized: true,
+      });
+    }
   }
   return cachedAgent;
 }

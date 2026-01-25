@@ -7,26 +7,16 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import jwt from 'jsonwebtoken';
+import { supabaseServer as supabase } from '@/lib/supabase-server';
 import type { DeviceAuthRequest, DeviceAuthResponse } from '../../types';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseServiceKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || '';
-const jwtSecret = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const jwtSecret = process.env.JWT_SECRET;
 
 // Validate environment variables
-if (!supabaseUrl || !supabaseServiceKey) {
-  console.error('Missing required environment variables');
+if (!jwtSecret) {
+  console.error('Missing required JWT_SECRET environment variable');
 }
-
-// Create Supabase client with service role key for admin access
-const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-});
 
 export async function POST(request: NextRequest) {
   try {
@@ -130,7 +120,7 @@ export async function POST(request: NextRequest) {
       exp: expiresAt,
     };
 
-    const jwtToken = jwt.sign(tokenPayload, jwtSecret);
+    const jwtToken = jwt.sign(tokenPayload, jwtSecret!);
 
     console.log(`[Device Auth] ✅ Authentication successful`);
 

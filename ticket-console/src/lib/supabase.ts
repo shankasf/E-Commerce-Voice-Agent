@@ -1,30 +1,14 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseServiceKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || '';
-
-// Create supabase client with service role key to bypass RLS
-let supabase: SupabaseClient;
-
-if (supabaseUrl && supabaseServiceKey) {
-  supabase = createClient(supabaseUrl, supabaseServiceKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    },
-    db: {
-      schema: 'public'
-    },
-    global: {
-      headers: {
-        Authorization: `Bearer ${supabaseServiceKey}`
-      }
-    }
-  });
-} else {
-  // Fallback for SSR - create a dummy client that will be replaced on client
-  supabase = createClient('https://placeholder.supabase.co', 'placeholder-key');
-}
+/**
+ * IMPORTANT: This file now uses server-only Supabase client.
+ * The service role key is NOT exposed to the client.
+ *
+ * For client-side data fetching, use API routes instead of direct Supabase access.
+ * The supabase client exported here will only work in:
+ * - API routes
+ * - Server Components
+ * - Server Actions
+ */
+import { supabaseServer as supabase } from './supabase-server';
 
 export { supabase };
 

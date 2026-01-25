@@ -1,14 +1,7 @@
 // Database Access Functions for AI Bots
 // Provides same access level as human agents
 
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseServiceKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: { autoRefreshToken: false, persistSession: false },
-  global: { headers: { Authorization: `Bearer ${supabaseServiceKey}` } }
-});
+import { supabaseServer as supabase } from '@/lib/supabase-server';
 
 // Get full contact details
 export async function getContactDetails(contactId: number) {

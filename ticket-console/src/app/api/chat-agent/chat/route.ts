@@ -68,7 +68,7 @@ If this fails, the issue is network-related..."`;
     let knowledgeBaseContext = '';
     if (message && message.length > 10) {
       // Extract key terms from the message for searching
-      const searchTerms = message.split(' ').filter(word => word.length > 4).slice(0, 3).join(' ');
+      const searchTerms = message.split(' ').filter((word: string) => word.length > 4).slice(0, 3).join(' ');
       const kbResults = await searchKnowledgeBase(searchTerms || message.substring(0, 50));
       
       if (kbResults && kbResults.length > 0) {

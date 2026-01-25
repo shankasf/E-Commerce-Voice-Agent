@@ -20,31 +20,17 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
+import { supabaseServer as supabase } from '@/lib/supabase-server';
 import type { CreateDeviceConnectionRequest, CreateDeviceConnectionResponse } from '../../types';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseServiceKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || '';
 const aiServiceApiKey = process.env.AI_SERVICE_API_KEY || '';
 const aiServiceAllowedIPs = (process.env.AI_SERVICE_ALLOWED_IPS || '127.0.0.1,localhost').split(',');
 
 // Validate environment variables
-if (!supabaseUrl || !supabaseServiceKey) {
-  console.error('Missing required Supabase environment variables');
-}
-
 if (!aiServiceApiKey) {
   console.error('Missing required AI service configuration');
 }
-
-// Create Supabase client
-const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-});
 
 /**
  * Generate a cryptographically secure 6-digit alphanumeric code (uppercase)

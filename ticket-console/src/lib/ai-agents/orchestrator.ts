@@ -1,16 +1,9 @@
 // Multi-Agent Orchestration System
 // Enables agents to collaborate, consult each other, and hand off tickets
 
-import { createClient } from '@supabase/supabase-js';
+import { supabaseServer as supabase } from '@/lib/supabase-server';
 import { createResponse, DEFAULT_MODEL } from './openai-client';
 import { AGENT_DEFINITIONS, getAgentName, AgentType, MultiAgentAnalysis, HandoffResult } from './index';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseServiceKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: { autoRefreshToken: false, persistSession: false },
-  global: { headers: { Authorization: `Bearer ${supabaseServiceKey}` } }
-});
 
 // Consult another specialist agent for advice
 export async function consultAgent(agentType: string, question: string, context: string): Promise<string> {

@@ -49,17 +49,11 @@ export async function POST(request: NextRequest) {
     let userPayload: JWTPayload;
 
     try {
-      // Try JWT verification first
+      // Verify JWT token - no fallback to insecure methods
       userPayload = jwt.verify(token, JWT_SECRET!) as JWTPayload;
     } catch (jwtErr) {
-      // Fallback: try base64 decoding (for browser-generated tokens)
-      try {
-        const decoded = atob(token);
-        userPayload = JSON.parse(decoded) as JWTPayload;
-      } catch (decodeErr) {
-        console.error('[Chat API] Token verification failed:', jwtErr);
-        return NextResponse.json({ error: 'Unauthorized - Invalid token' }, { status: 401 });
-      }
+      console.error('[Chat API] Token verification failed:', jwtErr);
+      return NextResponse.json({ error: 'Unauthorized - Invalid token' }, { status: 401 });
     }
 
     // Step 2: Extract request body

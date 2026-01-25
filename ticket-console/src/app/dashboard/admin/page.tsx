@@ -2,10 +2,16 @@
 
 import { useAuth } from '@/lib/auth-context';
 import { useEffect, useState, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { adminAPI } from '@/lib/api';
 import { SupportTicket, Organization, Contact, SupportAgent } from '@/lib/supabase';
 import { useAllTicketsRealtime } from '@/lib/useRealtime';
-import { AIMetricsModal } from '@/components/AIMetricsModal';
+
+// Dynamic import for AIMetricsModal - reduces initial bundle by ~50KB
+const AIMetricsModal = dynamic(
+  () => import('@/components/AIMetricsModal').then(mod => ({ default: mod.AIMetricsModal })),
+  { loading: () => <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"><div className="bg-white p-6 rounded-lg">Loading metrics...</div></div> }
+);
 import {
   Ticket,
   Building2,
@@ -24,22 +30,7 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ChatWidget } from '@/components/ChatWidget';
-
-const priorityColors: Record<string, string> = {
-  Low: 'bg-gray-100 text-gray-700',
-  Medium: 'bg-blue-100 text-blue-700',
-  High: 'bg-orange-100 text-orange-700',
-  Critical: 'bg-red-100 text-red-700',
-};
-
-const statusColors: Record<string, string> = {
-  Open: 'bg-yellow-100 text-yellow-700',
-  'In Progress': 'bg-blue-100 text-blue-700',
-  'Awaiting Customer': 'bg-purple-100 text-purple-700',
-  Escalated: 'bg-orange-100 text-orange-700',
-  Resolved: 'bg-green-100 text-green-700',
-  Closed: 'bg-gray-100 text-gray-700',
-};
+import { priorityColors, statusColors } from '@/lib/constants/ticketColors';
 
 type Tab = 'tickets' | 'organizations' | 'contacts' | 'agents';
 

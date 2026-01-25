@@ -1,15 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { supabaseServer as supabase } from '@/lib/supabase-server';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseServiceKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: { autoRefreshToken: false, persistSession: false },
-  global: { headers: { Authorization: `Bearer ${supabaseServiceKey}` } }
-});
 
 // Average time a human takes to resolve a ticket (in minutes) - industry benchmark
 const HUMAN_AVG_RESOLUTION_TIME_MINS = 45;
@@ -287,7 +280,7 @@ export async function GET(request: NextRequest) {
       human: avgHumanResponseTime * 60, // convert to seconds for comparison
     };
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       summary: {
         totalTickets,
         resolvedByAI,
@@ -309,6 +302,10 @@ export async function GET(request: NextRequest) {
         firstResponseComparison,
       },
     });
+
+    // Cache metrics for 5 minutes - reduces database load significantly
+    response.headers.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=60');
+    return response;
   } catch (error) {
     console.error('Error fetching AI metrics:', error);
     return NextResponse.json(
