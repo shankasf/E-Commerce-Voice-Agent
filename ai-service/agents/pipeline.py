@@ -177,6 +177,12 @@ class AgentPipeline:
             system_prompt += f"\nContact ID: {context['contact_id']}"
         if context.get("contact_name"):
             system_prompt += f"\nCaller: {context['contact_name']}"
+        if context.get("device_id"):
+            system_prompt += f"\nDevice ID: {context['device_id']}"
+        if context.get("device_connected"):
+            system_prompt += f"\nDevice Connected: Yes"
+        if context.get("session_id"):
+            system_prompt += f"\nsession_id: {context['session_id']}"
         
         messages = [
             {"role": "system", "content": system_prompt},
@@ -249,6 +255,8 @@ class AgentPipeline:
         tool_calls: List,
     ) -> List[str]:
         """Execute tool calls and return results."""
+        import asyncio
+        
         results = []
         
         for tool_call in tool_calls:
@@ -259,6 +267,9 @@ class AgentPipeline:
             if tool:
                 try:
                     result = tool(**function_args)
+                    # Handle async tools (like execute_powershell)
+                    if asyncio.iscoroutine(result):
+                        result = await result
                     results.append(str(result))
                 except Exception as e:
                     logger.error(f"Tool execution error: {e}")

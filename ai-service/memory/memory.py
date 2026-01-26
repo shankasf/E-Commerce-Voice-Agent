@@ -26,6 +26,8 @@ class ConversationMemory:
         self.max_turns = max_turns
         self.turns: List[ConversationTurn] = []
         self.context: Dict[str, Any] = {}
+        self.created_at: datetime = datetime.utcnow()
+        self.last_activity: datetime = self.created_at
     
     def add_turn(self, role: str, content: str, metadata: Optional[Dict] = None) -> None:
         """Add a conversation turn."""
@@ -35,6 +37,7 @@ class ConversationMemory:
             metadata=metadata or {},
         )
         self.turns.append(turn)
+        self.last_activity = turn.timestamp
         
         # Trim if exceeding max turns
         if len(self.turns) > self.max_turns:
@@ -127,3 +130,31 @@ def cleanup_old_sessions(max_age_hours: int = 24) -> int:
                 removed += 1
     
     return removed
+
+
+def get_user_sessions(user_id: int) -> List[Dict[str, Any]]:
+    """Get all sessions for a specific user."""
+    user_sessions = []
+
+    for session_id, memory in _session_memories.items():
+        context_user_id = memory.context.get("userId") or memory.context.get("user_id")
+        if context_user_id == user_id:
+            # Get first user message as preview (skip greeting)
+            preview = "New chat"
+            for turn in memory.turns:
+                if turn.role == "user":
+                    preview = turn.content[:50] + ("..." if len(turn.content) > 50 else "")
+                    break
+
+            user_sessions.append({
+                "session_id": session_id,
+                "created_at": memory.created_at.isoformat(),
+                "last_activity": memory.last_activity.isoformat(),
+                "message_count": len(memory.turns),
+                "preview": preview,
+                "context": memory.get_all_context(),
+            })
+
+    # Sort by last activity, most recent first
+    user_sessions.sort(key=lambda x: x["last_activity"], reverse=True)
+    return user_sessions

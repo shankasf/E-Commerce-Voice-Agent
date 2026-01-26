@@ -16,6 +16,7 @@ namespace WindowsApp.ViewModels
         private readonly CertificateService _certificateService;
         private readonly ConfigurationService _configService;
         private readonly SecureStorageService _secureStorageService;
+        private readonly ApiService _apiService;
 
         private string _sixDigitCode = string.Empty;
         private string _errorMessage = string.Empty;
@@ -31,6 +32,7 @@ namespace WindowsApp.ViewModels
             _certificateService = new CertificateService();
             _configService = ConfigurationService.Instance;
             _secureStorageService = new SecureStorageService();
+            _apiService = new ApiService();
 
             // Subscribe to WebSocket events
             _webSocketClientService.Authenticated += OnAuthenticated;
@@ -124,36 +126,6 @@ namespace WindowsApp.ViewModels
 
             try
             {
-                // Get WebSocket URL from configuration
-                var websocketUrl = _configService.GetWebSocketUrl();
-                if (string.IsNullOrEmpty(websocketUrl))
-                {
-                    ErrorMessage = "WebSocket URL not configured in appsettings.json";
-                    MessageBox.Show("WebSocket URL not configured", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                    return;
-                }
-
-                System.Diagnostics.Debug.WriteLine($"WebSocket URL: {websocketUrl}");
-
-                // Load client certificate for mTLS (only for wss://)
-                System.Security.Cryptography.X509Certificates.X509Certificate2? certificate = null;
-                if (websocketUrl.StartsWith("wss://", StringComparison.OrdinalIgnoreCase))
-                {
-                    try
-                    {
-                        System.Diagnostics.Debug.WriteLine("Loading client certificate for mTLS...");
-                        certificate = _certificateService.LoadClientCertificate();
-                        System.Diagnostics.Debug.WriteLine($"Certificate loaded: {certificate.Subject}");
-                    }
-                    catch (Exception certEx)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"Certificate loading failed: {certEx.Message}");
-                        ErrorMessage = $"Certificate error: {certEx.Message}";
-                        MessageBox.Show($"Certificate loading failed:\n{certEx.Message}", "Certificate Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                        return;
-                    }
-                }
-
                 // Retrieve stored authentication data (user_id, organization_id, device_id)
                 var authData = await _secureStorageService.LoadAuthenticationAsync();
                 if (authData == null || !authData.UserId.HasValue || !authData.OrganizationId.HasValue || !authData.DeviceId.HasValue)
@@ -180,6 +152,46 @@ namespace WindowsApp.ViewModels
                 }
 
                 System.Diagnostics.Debug.WriteLine($"Auth data loaded - UserId: {authData.UserId}, OrgId: {authData.OrganizationId}, DeviceId: {authData.DeviceId}");
+
+                // Step 1: Verify code and get WebSocket URL from backend
+                var initiateRequest = new InitiateConnectionRequest
+                {
+                    Code = SixDigitCode.Trim(),
+                    UserId = authData.UserId.Value,
+                    OrganizationId = authData.OrganizationId.Value,
+                    DeviceId = authData.DeviceId.Value
+                };
+
+                var initiateResponse = await _apiService.InitiateConnectionAsync(initiateRequest);
+                if (!initiateResponse.Success || string.IsNullOrEmpty(initiateResponse.WebSocketUrl))
+                {
+                    ErrorMessage = initiateResponse.Error ?? "Failed to get WebSocket URL";
+                    ConnectionStatus = "Disconnected";
+                    MessageBox.Show(ErrorMessage, "Connection Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                var websocketUrl = initiateResponse.WebSocketUrl;
+                System.Diagnostics.Debug.WriteLine($"WebSocket URL: {websocketUrl}");
+
+                // Load client certificate for mTLS (only for wss://)
+                System.Security.Cryptography.X509Certificates.X509Certificate2? certificate = null;
+                if (websocketUrl.StartsWith("wss://", StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        System.Diagnostics.Debug.WriteLine("Loading client certificate for mTLS...");
+                        certificate = _certificateService.LoadClientCertificate();
+                        System.Diagnostics.Debug.WriteLine($"Certificate loaded: {certificate.Subject}");
+                    }
+                    catch (Exception certEx)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Certificate loading failed: {certEx.Message}");
+                        ErrorMessage = $"Certificate error: {certEx.Message}";
+                        MessageBox.Show($"Certificate loading failed:\n{certEx.Message}", "Certificate Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
+                }
 
                 // Step 1: Connect to WebSocket
                 System.Diagnostics.Debug.WriteLine("Connecting to WebSocket...");

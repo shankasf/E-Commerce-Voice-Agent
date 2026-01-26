@@ -144,7 +144,7 @@ export async function GET(request: NextRequest) {
 
       const { data, error } = await supabase
         .from('contact_devices')
-        .select('device:device_id(device_id,asset_name,status,host_name)')
+        .select('device:device_id(device_id,asset_name,status,host_name,organization_id)')
         .eq('contact_id', id)
         .is('unassigned_at', null);
 
@@ -188,8 +188,11 @@ export async function GET(request: NextRequest) {
         .eq('organization_id', id);
 
       // If asset_name is also provided, filter by it
+      // Normalize the search term and make it more flexible
       if (asset_name) {
-        query = query.ilike('asset_name', `%${asset_name}%`);
+        const normalizedName = asset_name.trim().replace(/\s+/g, ' ');
+        // Use case-insensitive search with flexible matching
+        query = query.ilike('asset_name', `%${normalizedName}%`);
       }
 
       const { data, error } = await query;

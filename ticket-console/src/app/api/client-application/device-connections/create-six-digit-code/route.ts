@@ -471,10 +471,18 @@ export async function POST(request: NextRequest): Promise<NextResponse<CreateSix
       finalSessionId = uuidv4();
     }
 
-    // Step 8: Build WebSocket URL
-    const websocketUrl = `wss://${wsBaseUrl}/ws/device/${finalSessionId}?code=${code}`;
+    // Step 8: Build WebSocket URL (include session_id to make it unique)
+    // Use ws:// for development, wss:// for production
+    const websocketUrl = `ws://${wsBaseUrl}/ws/device?session=${finalSessionId}`;
 
-    console.log(`[Create Six Digit Code] WebSocket URL: wss://${wsBaseUrl}/ws/device/${finalSessionId}?code=******`);
+    console.log(`[Create Six Digit Code] WebSocket URL: ${websocketUrl}`);
+
+    // Step 8.5: Clean up old inactive connections for this device to avoid conflicts
+    await supabase
+      .from('device_connections')
+      .delete()
+      .eq('device_id', device_id)
+      .eq('is_active', false);
 
     // Step 9: Insert device connection record
     // Use upsert to handle case where session_id already exists

@@ -29,8 +29,8 @@ export async function POST(request: NextRequest) {
     const context = buildContextForRole(userPayload);
 
     console.log('[Chat Start API] Request:', {
-      userId: context.userId,
-      role: context.userRole,
+      userId: context.user_id,
+      role: context.user_role,
     });
 
     // Step 3: Call AI service to start session
@@ -50,9 +50,9 @@ export async function POST(request: NextRequest) {
         await callAIService(`/api/session/context?session_id=${encodeURIComponent(aiData.session_id)}`, {
           method: 'POST',
           body: {
-            organization_id: context.organizationId,
-            contact_id: context.contactId,
-            contact_name: context.userName,
+            organization_id: context.organization_id,
+            contact_id: context.contact_id,
+            contact_name: context.user_name,
             phone_number: null, // Can be added if available
           },
         });

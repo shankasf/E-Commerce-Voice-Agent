@@ -14,7 +14,7 @@ from db.queries import (
     get_device_details,
     transfer_to_human,
 )
-
+from tools.device import execute_powershell, check_device_connection
 
 computer_agent = Agent(
     name="URackIT_ComputerAgent",
@@ -76,6 +76,9 @@ ESCALATE IF:
         add_ticket_message,
         get_device_details,
         transfer_to_human,
+        # Device tools for remote diagnostics
+        execute_powershell,
+        check_device_connection,
     ],
     handoffs=[],
 )

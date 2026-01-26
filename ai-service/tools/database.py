@@ -11,9 +11,12 @@ import logging
 import requests
 
 from agents import function_tool
-from lib.api_client import get_api_client
+from db.connection import get_db
 
 logger = logging.getLogger(__name__)
+
+# Get database instance
+db = get_db()
 
 
 def _format_request_error(err: Exception) -> str:
@@ -36,10 +39,10 @@ def find_organization_by_ue_code(u_e_code: int) -> str:
     """
     Look up an organization by its U&E code (Unique Enterprise Code).
     This is the PRIMARY method to identify callers - always ask for U&E code first.
-    
+
     Args:
         u_e_code: The unique enterprise code (4-digit number, e.g., 3450, 3629)
-    
+
     Returns:
         Organization details if found, or error message if not found.
     """
@@ -51,36 +54,28 @@ def find_organization_by_ue_code(u_e_code: int) -> str:
                 return "U&E code must be numeric. Please say only the digits of your U&E code."
             u_e_code = int(normalized)
 
-        api_client = get_api_client()
-        rows = api_client.get("/api/agents/organizations", params={"u_e_code": u_e_code})
-        
-        # Handle both array and single object responses
+        params = {
+            "u_e_code": f"eq.{u_e_code}",
+            "select": "organization_id,name,u_e_code,manager:manager_id(full_name,email,phone)"
+        }
+        rows = db._make_request("GET", "organizations", params=params)
+
         if not rows:
             return f"No organization found with U&E code: {u_e_code}. Please ask the caller to confirm their code."
-        
-        # API Gateway returns array, take first item
-        if isinstance(rows, list):
-            org = rows[0] if rows else None
-        else:
-            org = rows
-        
-        if not org:
-            return f"No organization found with U&E code: {u_e_code}. Please ask the caller to confirm their code."
-        
+
+        org = rows[0]
         manager = org.get("manager", {}) or {}
-        org_id = org.get("organization_id")
-        
-        # Make organization_id prominent and clear - put it FIRST and emphasize it
+
         return (
             f"Organization verified successfully!\n"
-            f"IMPORTANT: Use organization_id={org_id} (NOT the U&E code {u_e_code}) for all subsequent operations.\n"
             f"Organization Name: {org.get('name')}\n"
             f"U&E Code: {org.get('u_e_code')}\n"
             f"Account Manager: {manager.get('full_name', 'Not Assigned')}\n"
-            f"organization_id: {org_id}"
+            f"organization_id: {org.get('organization_id')}"
         )
     except Exception as e:
         return f"Error looking up organization: {_format_request_error(e)}"
+
 
 @function_tool
 def find_organization_by_name(name: str) -> str:
@@ -89,23 +84,23 @@ def find_organization_by_name(name: str) -> str:
     """
     if not name.strip():
         return "Organization name is required."
-    
+
     try:
-        api_client = get_api_client()
-        rows = api_client.get("/api/agents/organizations", params={"name": name.strip()})
-        
-        if not rows or (isinstance(rows, list) and len(rows) == 0):
+        params = {
+            "name": f"ilike.*{name.strip()}*",
+            "select": "organization_id,name,u_e_code,manager:manager_id(full_name,email,phone)",
+            "limit": "5"
+        }
+        rows = db._make_request("GET", "organizations", params=params)
+
+        if not rows:
             return f"No organization found with name: {name}"
-        
-        # Ensure rows is a list
-        if not isinstance(rows, list):
-            rows = [rows]
-        
+
         result = f"Found {len(rows)} organization(s):\n"
         for org in rows:
             manager = org.get("manager", {}) or {}
             result += f"- {org.get('name')} (U&E: {org.get('u_e_code')}) - Manager: {manager.get('full_name', 'N/A')}\n"
-        
+
         return result
     except Exception as e:
         return f"Error looking up organization: {_format_request_error(e)}"
@@ -115,23 +110,22 @@ def find_organization_by_name(name: str) -> str:
 def create_organization(name: str, u_e_code: int) -> str:
     """
     Create a new organization.
-    
+
     Args:
         name: Organization name
         u_e_code: Unique enterprise code
     """
     if not name.strip():
         return "Organization name is required."
-    
+
     try:
-        api_client = get_api_client()
-        result = api_client.post("/api/agents/organizations", data={
+        org_data = {
             "name": name.strip(),
             "u_e_code": u_e_code,
-        })
-        
+        }
+        result = db.insert("organizations", org_data)
         if result:
-            org_id = result.get("organization_id")
+            org_id = result[0].get("organization_id")
             return f"Organization created successfully. organization_id: {org_id}"
         return "Failed to create organization."
     except Exception as e:
@@ -149,24 +143,22 @@ def find_contact_by_phone(phone: str) -> str:
     """
     if not phone.strip():
         return "Phone number is required."
-    
+
     try:
         clean_phone = phone.strip().replace("-", "").replace("(", "").replace(")", "").replace(" ", "")
-        
-        api_client = get_api_client()
-        rows = api_client.get("/api/agents/contacts", params={"phone": clean_phone})
-        
-        if not rows or (isinstance(rows, list) and len(rows) == 0):
+
+        params = {
+            "or": f"(phone.ilike.*{clean_phone}*,phone.ilike.*{phone.strip()}*)",
+            "select": "contact_id,organization_id,full_name,email,phone,organization:organization_id(name,u_e_code)"
+        }
+        rows = db._make_request("GET", "contacts", params=params)
+
+        if not rows:
             return f"No contact found with phone: {phone}"
-        
-        # Take first result
-        if isinstance(rows, list):
-            contact = rows[0]
-        else:
-            contact = rows
-        
+
+        contact = rows[0]
         org = contact.get("organization", {}) or {}
-        
+
         return (
             f"Contact found: {contact.get('full_name')}\n"
             f"Organization: {org.get('name', 'N/A')}\n"
@@ -183,55 +175,41 @@ def find_contact_by_phone(phone: str) -> str:
 def create_contact(
     full_name: str,
     phone: str,
-    organization_id: Optional[int] = None,
-    u_e_code: Optional[int] = None,
+    organization_id: int,
     email: str = "",
 ) -> str:
     """
     Create a new contact record.
-    
+
     Args:
         full_name: Contact's full name
         phone: Contact's phone number
-        organization_id: ID of the organization (use this if you have it)
-        u_e_code: U&E code of the organization (use this if you don't have organization_id)
+        organization_id: ID of the organization
         email: Contact's email address (optional)
-    
-    Note: Either organization_id OR u_e_code must be provided, not both.
     """
     if not full_name.strip():
         return "Full name is required."
     if not phone.strip():
         return "Phone number is required."
-    
-    if not organization_id and not u_e_code:
-        return "Either organization_id or u_e_code is required."
-    if organization_id and u_e_code:
-        return "Provide either organization_id OR u_e_code, not both."
-    
+    if not organization_id:
+        return "organization_id is required."
+
     try:
         contact_data = {
             "full_name": full_name.strip(),
             "phone": phone.strip(),
+            "organization_id": organization_id,
         }
-        
-        # Add either organization_id or u_e_code
-        if organization_id:
-            contact_data["organization_id"] = organization_id
-        else:
-            contact_data["u_e_code"] = u_e_code
-        
         if email.strip():
             contact_data["email"] = email.strip()
-        
-        api_client = get_api_client()
-        result = api_client.post("/api/agents/contacts", data=contact_data)
-        
+
+        result = db.insert("contacts", contact_data)
         if result:
+            contact = result[0]
             return (
                 f"Contact created successfully.\n"
-                f"contact_id: {result.get('contact_id')}\n"
-                f"organization_id: {result.get('organization_id')}"
+                f"contact_id: {contact.get('contact_id')}\n"
+                f"organization_id: {organization_id}"
             )
         return "Failed to create contact."
     except Exception as e:
@@ -242,32 +220,23 @@ def create_contact(
 def get_contact_devices(contact_id: int) -> str:
     """
     Get all devices assigned to a contact.
-    Returns organization_id if available for use in organization device searches.
     """
     try:
-        api_client = get_api_client()
-        rows = api_client.get("/api/agents/devices", params={"contact_id": contact_id})
-        
-        if not rows or (isinstance(rows, list) and len(rows) == 0):
+        params = {
+            "contact_id": f"eq.{contact_id}",
+            "unassigned_at": "is.null",
+            "select": "device:device_id(device_id,asset_name,status,host_name)"
+        }
+        rows = db._make_request("GET", "contact_devices", params=params)
+
+        if not rows:
             return f"No devices assigned to contact {contact_id}"
-        
-        # Ensure rows is a list
-        if not isinstance(rows, list):
-            rows = [rows]
-        
-        # Extract organization_id from first device if available
-        organization_id = None
-        if rows and rows[0]:
-            organization_id = rows[0].get('organization_id')
-        
-        result = f"Found {len(rows)} device(s):\n"
-        for d in rows:
+
+        devices = [r.get("device", {}) for r in rows if r.get("device")]
+        result = f"Found {len(devices)} device(s):\n"
+        for d in devices:
             result += f"- {d.get('asset_name')} ({d.get('status')}) - device_id: {d.get('device_id')}\n"
-        
-        # Include organization_id if found - this is critical for subsequent searches
-        if organization_id:
-            result += f"\nIMPORTANT: Use organization_id={organization_id} for organization device searches."
-        
+
         return result
     except Exception as e:
         return f"Error getting devices: {_format_request_error(e)}"
@@ -283,20 +252,18 @@ def find_device_by_name(asset_name: str) -> str:
     Look up a device by its asset name.
     """
     try:
-        api_client = get_api_client()
-        rows = api_client.get("/api/agents/devices", params={"asset_name": asset_name.strip()})
-        
-        if not rows or (isinstance(rows, list) and len(rows) == 0):
+        params = {
+            "asset_name": f"ilike.*{asset_name.strip()}*",
+            "select": "device_id,asset_name,status,host_name,public_ip,organization:organization_id(name)"
+        }
+        rows = db._make_request("GET", "devices", params=params)
+
+        if not rows:
             return f"No device found with name: {asset_name}"
-        
-        # Take first result
-        if isinstance(rows, list):
-            device = rows[0]
-        else:
-            device = rows
-        
+
+        device = rows[0]
         org = device.get("organization", {}) or {}
-        
+
         return (
             f"Device: {device.get('asset_name')}\n"
             f"Status: {device.get('status')}\n"
@@ -315,12 +282,16 @@ def get_device_status(device_id: int) -> str:
     Get the current status and details of a device.
     """
     try:
-        api_client = get_api_client()
-        device = api_client.get("/api/agents/devices", params={"device_id": device_id, "status_only": "true"})
-        
-        if not device:
+        params = {
+            "device_id": f"eq.{device_id}",
+            "select": "*"
+        }
+        rows = db._make_request("GET", "devices", params=params)
+
+        if not rows:
             return f"Device {device_id} not found."
-        
+
+        device = rows[0]
         return (
             f"Device: {device.get('asset_name')}\n"
             f"Status: {device.get('status')}\n"
@@ -339,15 +310,19 @@ def get_device_details(device_id: int) -> str:
     Get full details of a device including hardware specs.
     """
     try:
-        api_client = get_api_client()
-        d = api_client.get("/api/agents/devices", params={"device_id": device_id})
-        
-        if not d:
+        params = {
+            "device_id": f"eq.{device_id}",
+            "select": "*,organization:organization_id(name),location:location_id(name)"
+        }
+        rows = db._make_request("GET", "devices", params=params)
+
+        if not rows:
             return f"Device {device_id} not found."
-        
+
+        d = rows[0]
         org = d.get("organization", {}) or {}
         loc = d.get("location", {}) or {}
-        
+
         return (
             f"=== Device Details ===\n"
             f"Asset Name: {d.get('asset_name')}\n"
@@ -367,73 +342,31 @@ def get_device_details(device_id: int) -> str:
 
 
 @function_tool
-def create_remote_pairing_code(
-    contact_id: int,
-    device_id: int,
-    organization_id: int,
-    session_id: Optional[str] = None,
-) -> str:
-    """
-    Create a 6-digit pairing code for remote troubleshooting.
-    """
-    try:
-        api_client = get_api_client()
-        payload = {
-            "user_id": contact_id,
-            "device_id": device_id,
-            "organization_id": organization_id,
-        }
-        if session_id:
-            payload["session_id"] = session_id
-
-        result = api_client.post(
-            "/api/client-application/device-connections/create-six-digit-code",
-            data=payload,
-        )
-
-        if not result or not result.get("success"):
-            return f"Failed to create pairing code. Error: {result.get('error', 'Unknown error')}"
-
-        code = result.get("code")
-        session_id = result.get("session_id")
-        expires = result.get("expires_in_seconds")
-
-        return (
-            f"Your 6-digit pairing code is {code}. "
-            f"Expires in: {expires} seconds\n"
-            "Please open the Windows app and enter this code to connect."
-        )
-
-    except Exception as e:
-        return f"Error creating pairing code: {_format_request_error(e)}"
-
-
-@function_tool
 def get_organization_devices(organization_id: int) -> str:
     """
     Get ALL devices for an organization.
     Use this when user asks about devices for their organization.
     """
     try:
-        api_client = get_api_client()
-        rows = api_client.get("/api/agents/devices", params={"organization_id": organization_id})
-        
-        if not rows or (isinstance(rows, list) and len(rows) == 0):
+        params = {
+            "organization_id": f"eq.{organization_id}",
+            "select": "device_id,asset_name,status,host_name,location:location_id(name)",
+            "order": "status.desc,asset_name.asc"
+        }
+        rows = db._make_request("GET", "devices", params=params)
+
+        if not rows:
             return f"No devices found for organization {organization_id}"
-        
-        # Ensure rows is a list
-        if not isinstance(rows, list):
-            rows = [rows]
-        
+
         online = sum(1 for d in rows if d.get('status') == 'ONLINE')
         offline = len(rows) - online
-        
+
         result = f"Found {len(rows)} device(s) ({online} online, {offline} offline):\n\n"
         for d in rows:
             loc = d.get("location", {}) or {}
-            status_icon = "✅" if d.get('status') == 'ONLINE' else "❌"
+            status_icon = "+" if d.get('status') == 'ONLINE' else "-"
             result += f"{status_icon} {d.get('asset_name')} - {d.get('status')} @ {loc.get('name', 'Unknown')}\n"
-        
+
         return result
     except Exception as e:
         return f"Error getting devices: {_format_request_error(e)}"
@@ -454,7 +387,7 @@ def create_ticket(
 ) -> str:
     """
     Create a new support ticket.
-    
+
     Args:
         subject: Brief description of the issue
         description: Detailed description of the problem
@@ -467,26 +400,22 @@ def create_ticket(
         return "Subject is required."
     if not contact_id:
         return "contact_id is required."
-    
+
     try:
-        api_client = get_api_client()
-        
         # Get organization from contact if not provided
         if not organization_id:
-            contacts = api_client.get("/api/agents/contacts", params={"contact_id": contact_id})
+            params = {"contact_id": f"eq.{contact_id}", "select": "organization_id"}
+            contacts = db._make_request("GET", "contacts", params=params)
             if contacts:
-                if isinstance(contacts, list):
-                    organization_id = contacts[0].get("organization_id")
-                else:
-                    organization_id = contacts.get("organization_id")
-        
+                organization_id = contacts[0].get("organization_id")
+
         if not organization_id:
             return "Could not determine organization."
-        
+
         # Map priority to ID
         priority_map = {"low": 1, "medium": 2, "high": 3, "critical": 4}
         priority_id = priority_map.get(priority.lower().strip(), 2)
-        
+
         ticket_data = {
             "subject": subject.strip(),
             "description": description.strip() or None,
@@ -498,10 +427,11 @@ def create_ticket(
         }
         if device_id:
             ticket_data["device_id"] = device_id
-        
-        result = api_client.post("/api/agents/tickets", data=ticket_data)
+
+        result = db.insert("support_tickets", ticket_data)
         if result:
-            return f"Ticket created successfully. Ticket ID: {result.get('ticket_id')}"
+            ticket = result[0]
+            return f"Ticket created successfully. Ticket ID: {ticket.get('ticket_id')}"
         return "Failed to create ticket."
     except Exception as e:
         return f"Error creating ticket: {_format_request_error(e)}"
@@ -513,17 +443,21 @@ def lookup_ticket(ticket_id: int) -> str:
     Look up a ticket by its ID.
     """
     try:
-        api_client = get_api_client()
-        ticket = api_client.get("/api/agents/tickets", params={"ticket_id": ticket_id})
-        
-        if not ticket:
+        params = {
+            "ticket_id": f"eq.{ticket_id}",
+            "select": "*,contact:contact_id(full_name,phone),organization:organization_id(name),status:status_id(name),priority:priority_id(name)"
+        }
+        rows = db._make_request("GET", "support_tickets", params=params)
+
+        if not rows:
             return f"Ticket {ticket_id} not found."
-        
+
+        ticket = rows[0]
         contact = ticket.get("contact", {}) or {}
         org = ticket.get("organization", {}) or {}
         status = ticket.get("status", {}) or {}
         priority = ticket.get("priority", {}) or {}
-        
+
         return (
             f"Ticket #{ticket_id}\n"
             f"Subject: {ticket.get('subject')}\n"
@@ -544,22 +478,23 @@ def get_tickets_by_contact(contact_id: int) -> str:
     Get all tickets for a specific contact.
     """
     try:
-        api_client = get_api_client()
-        rows = api_client.get("/api/agents/tickets", params={"contact_id": contact_id})
-        
-        if not rows or (isinstance(rows, list) and len(rows) == 0):
+        params = {
+            "contact_id": f"eq.{contact_id}",
+            "select": "ticket_id,subject,status:status_id(name),priority:priority_id(name),created_at",
+            "order": "created_at.desc",
+            "limit": "10"
+        }
+        rows = db._make_request("GET", "support_tickets", params=params)
+
+        if not rows:
             return f"No tickets found for contact {contact_id}"
-        
-        # Ensure rows is a list
-        if not isinstance(rows, list):
-            rows = [rows]
-        
+
         result = f"Found {len(rows)} ticket(s):\n"
         for t in rows:
             status = t.get("status", {}) or {}
             priority = t.get("priority", {}) or {}
             result += f"- #{t.get('ticket_id')}: {t.get('subject')} [{status.get('name')}]\n"
-        
+
         return result
     except Exception as e:
         return f"Error getting tickets: {_format_request_error(e)}"
@@ -571,22 +506,24 @@ def get_tickets_by_organization(organization_id: int) -> str:
     Get all open tickets for an organization.
     """
     try:
-        api_client = get_api_client()
-        rows = api_client.get("/api/agents/tickets", params={"organization_id": organization_id})
-        
-        if not rows or (isinstance(rows, list) and len(rows) == 0):
+        params = {
+            "organization_id": f"eq.{organization_id}",
+            "status_id": "in.(1,2,3,4)",
+            "select": "ticket_id,subject,status:status_id(name),priority:priority_id(name),contact:contact_id(full_name)",
+            "order": "created_at.desc",
+            "limit": "20"
+        }
+        rows = db._make_request("GET", "support_tickets", params=params)
+
+        if not rows:
             return f"No open tickets for organization {organization_id}"
-        
-        # Ensure rows is a list
-        if not isinstance(rows, list):
-            rows = [rows]
-        
+
         result = f"Found {len(rows)} open ticket(s):\n"
         for t in rows:
             contact = t.get("contact", {}) or {}
             status = t.get("status", {}) or {}
             result += f"- #{t.get('ticket_id')}: {t.get('subject')} - {contact.get('full_name', 'Unknown')} [{status.get('name')}]\n"
-        
+
         return result
     except Exception as e:
         return f"Error getting tickets: {_format_request_error(e)}"
@@ -596,7 +533,7 @@ def get_tickets_by_organization(organization_id: int) -> str:
 def update_ticket_status(ticket_id: int, status: str) -> str:
     """
     Update the status of a ticket.
-    
+
     Args:
         ticket_id: The ticket ID
         status: Open, In Progress, Awaiting Customer, Escalated, Resolved, Closed
@@ -609,18 +546,17 @@ def update_ticket_status(ticket_id: int, status: str) -> str:
         "resolved": 5,
         "closed": 6
     }
-    
+
     status_id = status_map.get(status.lower().strip())
     if not status_id:
         return f"Invalid status. Use: {', '.join(status_map.keys())}"
-    
+
     try:
-        api_client = get_api_client()
-        update_data = {"status": status_id}
+        update_data = {"status_id": status_id, "updated_at": datetime.utcnow().isoformat()}
         if status_id in [5, 6]:
             update_data["closed_at"] = datetime.utcnow().isoformat()
-        
-        result = api_client.put("/api/agents/tickets", data=update_data, params={"ticket_id": ticket_id})
+
+        result = db.update("support_tickets", update_data, {"ticket_id": f"eq.{ticket_id}"})
         if result:
             return f"Ticket {ticket_id} status updated to: {status}"
         return f"Failed to update ticket {ticket_id}"
@@ -635,11 +571,16 @@ def add_ticket_message(ticket_id: int, message: str) -> str:
     """
     if not message.strip():
         return "Message content is required."
-    
+
     try:
-        api_client = get_api_client()
-        result = api_client.post(f"/api/agents/tickets/{ticket_id}/messages", data={"message": message.strip()})
-        
+        message_data = {
+            "ticket_id": ticket_id,
+            "content": message.strip(),
+            "message_type": "text",
+            "sender_agent_id": 1,  # Bot agent
+        }
+
+        result = db.insert("ticket_messages", message_data)
         if result:
             return f"Message added to ticket {ticket_id}"
         return "Failed to add message."
@@ -651,23 +592,28 @@ def add_ticket_message(ticket_id: int, message: str) -> str:
 def escalate_ticket(ticket_id: int, reason: str, to_human: bool = True) -> str:
     """
     Escalate a ticket and mark for human agent.
-    
+
     Args:
         ticket_id: The ticket ID
         reason: Reason for escalation
         to_human: Whether to mark as requiring human agent
     """
     try:
-        api_client = get_api_client()
-        result = api_client.put("/api/agents/tickets", data={
-            "escalate": True,
+        update_data = {
+            "status_id": 4,
+            "requires_human_agent": to_human,
+            "updated_at": datetime.utcnow().isoformat()
+        }
+        db.update("support_tickets", update_data, {"ticket_id": f"eq.{ticket_id}"})
+
+        escalation_data = {
+            "ticket_id": ticket_id,
+            "from_agent_id": 1,
             "reason": reason,
-            "to_human": to_human
-        }, params={"ticket_id": ticket_id})
-        
-        if result:
-            return f"Ticket {ticket_id} escalated. Reason: {reason}"
-        return f"Failed to escalate ticket {ticket_id}"
+        }
+        db.insert("ticket_escalations", escalation_data)
+
+        return f"Ticket {ticket_id} escalated. Reason: {reason}"
     except Exception as e:
         return f"Error escalating ticket: {_format_request_error(e)}"
 
@@ -676,15 +622,9 @@ def escalate_ticket(ticket_id: int, reason: str, to_human: bool = True) -> str:
 def get_ticket_statuses() -> str:
     """Get all available ticket statuses."""
     try:
-        api_client = get_api_client()
-        rows = api_client.get("/api/agents/tickets/statuses")
-        if not rows or (isinstance(rows, list) and len(rows) == 0):
+        rows = db._make_request("GET", "ticket_statuses", params={"select": "*"})
+        if not rows:
             return "No statuses found."
-        
-        # Ensure rows is a list
-        if not isinstance(rows, list):
-            rows = [rows]
-        
         result = "Available statuses:\n"
         for s in rows:
             result += f"- {s.get('name')} (ID: {s.get('status_id')})\n"
@@ -697,15 +637,9 @@ def get_ticket_statuses() -> str:
 def get_ticket_priorities() -> str:
     """Get all available ticket priorities."""
     try:
-        api_client = get_api_client()
-        rows = api_client.get("/api/agents/tickets/priorities")
-        if not rows or (isinstance(rows, list) and len(rows) == 0):
+        rows = db._make_request("GET", "ticket_priorities", params={"select": "*"})
+        if not rows:
             return "No priorities found."
-        
-        # Ensure rows is a list
-        if not isinstance(rows, list):
-            rows = [rows]
-        
         result = "Available priorities:\n"
         for p in rows:
             result += f"- {p.get('name')} (ID: {p.get('priority_id')})\n"
@@ -726,54 +660,42 @@ def lookup_organization_data(
 ) -> str:
     """
     Universal lookup tool for organization data.
-    
+
     Args:
         organization_id: The organization ID from U&E code verification
         query_type: devices, locations, contacts, tickets, summary, find_device, find_contact
         search_term: Search term for find_* query types
-    
+
     Returns:
         Requested data for the organization
     """
     query_type = query_type.lower().strip()
-    
+
     try:
         if query_type == "devices":
             return get_organization_devices(organization_id)
-        
+
         elif query_type == "locations":
             return get_organization_locations(organization_id)
-        
+
         elif query_type == "contacts":
             return get_organization_contacts(organization_id)
-        
+
         elif query_type == "tickets":
             return get_tickets_by_organization(organization_id)
-        
+
         elif query_type == "summary":
             return get_organization_summary(organization_id)
-        
+
         elif query_type == "find_device" and search_term:
-            api_client = get_api_client()
-            rows = api_client.get(f"/api/agents/organizations/{organization_id}/lookup", params={
-                "query_type": "find_device",
-                "search_term": search_term
-            })
-            if not rows or (isinstance(rows, list) and len(rows) == 0):
-                return f"No device found matching '{search_term}' in this organization"
-            if not isinstance(rows, list):
-                rows = [rows]
-            result = f"Found {len(rows)} matching device(s):\n"
-            for d in rows:
-                result += f"- {d.get('asset_name')} ({d.get('status')}) - {d.get('host_name', 'N/A')}\n"
-            return result
-        
+            return get_device_by_name_for_org(search_term, organization_id)
+
         elif query_type == "find_contact" and search_term:
             return get_contact_by_name_for_org(search_term, organization_id)
-        
+
         else:
             return f"Unknown query type: {query_type}. Use: devices, locations, contacts, tickets, summary"
-    
+
     except Exception as e:
         return f"Error: {_format_request_error(e)}"
 
@@ -782,16 +704,15 @@ def lookup_organization_data(
 def get_organization_locations(organization_id: int) -> str:
     """Get all locations for an organization."""
     try:
-        api_client = get_api_client()
-        rows = api_client.get(f"/api/agents/organizations/{organization_id}/locations")
-        
-        if not rows or (isinstance(rows, list) and len(rows) == 0):
+        params = {
+            "organization_id": f"eq.{organization_id}",
+            "select": "location_id,name,location_type"
+        }
+        rows = db._make_request("GET", "locations", params=params)
+
+        if not rows:
             return f"No locations found for organization {organization_id}"
-        
-        # Ensure rows is a list
-        if not isinstance(rows, list):
-            rows = [rows]
-        
+
         result = f"Found {len(rows)} location(s):\n"
         for loc in rows:
             result += f"- {loc.get('name')} ({loc.get('location_type', 'Office')})\n"
@@ -804,16 +725,15 @@ def get_organization_locations(organization_id: int) -> str:
 def get_organization_contacts(organization_id: int) -> str:
     """Get all contacts for an organization."""
     try:
-        api_client = get_api_client()
-        rows = api_client.get(f"/api/agents/organizations/{organization_id}/contacts")
-        
-        if not rows or (isinstance(rows, list) and len(rows) == 0):
+        params = {
+            "organization_id": f"eq.{organization_id}",
+            "select": "contact_id,full_name,email,phone"
+        }
+        rows = db._make_request("GET", "contacts", params=params)
+
+        if not rows:
             return f"No contacts found for organization {organization_id}"
-        
-        # Ensure rows is a list
-        if not isinstance(rows, list):
-            rows = [rows]
-        
+
         result = f"Found {len(rows)} contact(s):\n"
         for c in rows:
             result += f"- {c.get('full_name')} - {c.get('phone', 'N/A')}\n"
@@ -826,20 +746,46 @@ def get_organization_contacts(organization_id: int) -> str:
 def get_organization_summary(organization_id: int) -> str:
     """Get a summary overview of an organization."""
     try:
-        api_client = get_api_client()
-        summary = api_client.get(f"/api/agents/organizations/{organization_id}/summary")
-        
-        if not summary:
-            return f"Organization {organization_id} not found."
-        
+        # Get organization details
+        org_rows = db._make_request("GET", "organizations", params={
+            "organization_id": f"eq.{organization_id}",
+            "select": "name,u_e_code,manager:manager_id(full_name)"
+        })
+
+        org = org_rows[0] if org_rows else {}
+        manager = org.get("manager", {}) or {}
+
+        # Count devices
+        devices = db._make_request("GET", "devices", params={
+            "organization_id": f"eq.{organization_id}",
+            "select": "status"
+        })
+        device_count = len(devices)
+        online_count = sum(1 for d in devices if d.get("status") == "ONLINE")
+
+        # Count contacts
+        contacts = db._make_request("GET", "contacts", params={
+            "organization_id": f"eq.{organization_id}",
+            "select": "contact_id"
+        })
+        contact_count = len(contacts)
+
+        # Count open tickets
+        tickets = db._make_request("GET", "support_tickets", params={
+            "organization_id": f"eq.{organization_id}",
+            "status_id": "in.(1,2,3,4)",
+            "select": "ticket_id"
+        })
+        ticket_count = len(tickets)
+
         return (
             f"=== Organization Summary ===\n"
-            f"Name: {summary.get('name', 'Unknown')}\n"
-            f"U&E Code: {summary.get('u_e_code', 'N/A')}\n"
-            f"Account Manager: {summary.get('account_manager', {}).get('full_name', 'Not Assigned')}\n\n"
-            f"Devices: {summary.get('device_count', 0)} ({summary.get('online_devices', 0)} online, {summary.get('offline_devices', 0)} offline)\n"
-            f"Contacts: {summary.get('contact_count', 0)}\n"
-            f"Open Tickets: {summary.get('open_tickets', 0)}"
+            f"Name: {org.get('name', 'Unknown')}\n"
+            f"U&E Code: {org.get('u_e_code', 'N/A')}\n"
+            f"Account Manager: {manager.get('full_name', 'Not Assigned')}\n\n"
+            f"Devices: {device_count} ({online_count} online, {device_count - online_count} offline)\n"
+            f"Contacts: {contact_count}\n"
+            f"Open Tickets: {ticket_count}"
         )
     except Exception as e:
         return f"Error: {_format_request_error(e)}"
@@ -849,37 +795,19 @@ def get_organization_summary(organization_id: int) -> str:
 def get_device_by_name_for_org(asset_name: str, organization_id: int) -> str:
     """Find a device by name within an organization."""
     try:
-        api_client = get_api_client()
-        rows = api_client.get("/api/agents/devices", params={
-            "organization_id": organization_id,
-            "asset_name": asset_name.strip()
-        })
-        
-        if not rows or (isinstance(rows, list) and len(rows) == 0):
-            return f"No device found matching '{asset_name}' in this organization"
-        
-        # Ensure rows is a list
-        if not isinstance(rows, list):
-            rows = [rows]
-        
-        # If exactly one match, return the device_id explicitly
-        if len(rows) == 1:
-            d = rows[0]
-            return (
-                f"Device: {d.get('asset_name')}\n"
-                f"Status: {d.get('status')}\n"
-                f"Hostname: {d.get('host_name', 'N/A')}\n"
-                f"device_id: {d.get('device_id')}\n"
-                f"organization_id: {organization_id}"
-            )
+        params = {
+            "organization_id": f"eq.{organization_id}",
+            "asset_name": f"ilike.*{asset_name.strip()}*",
+            "select": "device_id,asset_name,status,host_name,public_ip"
+        }
+        rows = db._make_request("GET", "devices", params=params)
 
-        # Multiple matches - list with device_id for disambiguation
+        if not rows:
+            return f"No device found matching '{asset_name}' in this organization"
+
         result = f"Found {len(rows)} matching device(s):\n"
         for d in rows:
-            result += (
-                f"- {d.get('asset_name')} ({d.get('status')}) - "
-                f"{d.get('host_name', 'N/A')} - device_id: {d.get('device_id')}\n"
-            )
+            result += f"- {d.get('asset_name')} ({d.get('status')}) - {d.get('host_name', 'N/A')}\n"
         return result
     except Exception as e:
         return f"Error: {_format_request_error(e)}"
@@ -889,22 +817,30 @@ def get_device_by_name_for_org(asset_name: str, organization_id: int) -> str:
 def get_contact_by_name_for_org(name: str, organization_id: int) -> str:
     """Find a contact by name within an organization."""
     try:
-        api_client = get_api_client()
-        rows = api_client.get(f"/api/agents/organizations/{organization_id}/lookup", params={
-            "query_type": "find_contact",
-            "search_term": name.strip()
-        })
-        
-        if not rows or (isinstance(rows, list) and len(rows) == 0):
+        params = {
+            "organization_id": f"eq.{organization_id}",
+            "full_name": f"ilike.*{name.strip()}*",
+            "select": "contact_id,full_name,email,phone"
+        }
+        rows = db._make_request("GET", "contacts", params=params)
+
+        if not rows:
             return f"No contact found matching '{name}' in this organization"
-        
-        # Ensure rows is a list
-        if not isinstance(rows, list):
-            rows = [rows]
-        
+
+        # If exact match or single result, return detailed info with contact_id
+        if len(rows) == 1:
+            c = rows[0]
+            return (
+                f"Contact found: {c.get('full_name')}\n"
+                f"Phone: {c.get('phone', 'N/A')}\n"
+                f"Email: {c.get('email', 'N/A')}\n"
+                f"contact_id: {c.get('contact_id')}"
+            )
+
+        # Multiple matches - list them all with IDs
         result = f"Found {len(rows)} matching contact(s):\n"
         for c in rows:
-            result += f"- {c.get('full_name')} - {c.get('phone', 'N/A')} - {c.get('email', 'N/A')}\n"
+            result += f"- {c.get('full_name')} - {c.get('phone', 'N/A')} - contact_id: {c.get('contact_id')}\n"
         return result
     except Exception as e:
         return f"Error: {_format_request_error(e)}"
@@ -914,12 +850,19 @@ def get_contact_by_name_for_org(name: str, organization_id: int) -> str:
 def get_account_manager(organization_id: int) -> str:
     """Get the account manager for an organization."""
     try:
-        api_client = get_api_client()
-        manager = api_client.get(f"/api/agents/organizations/{organization_id}/account-manager")
-        
+        params = {
+            "organization_id": f"eq.{organization_id}",
+            "select": "manager:manager_id(full_name,email,phone)"
+        }
+        rows = db._make_request("GET", "organizations", params=params)
+
+        if not rows:
+            return f"Organization {organization_id} not found"
+
+        manager = rows[0].get("manager", {}) or {}
         if not manager:
             return "No account manager assigned"
-        
+
         return (
             f"Account Manager: {manager.get('full_name', 'N/A')}\n"
             f"Email: {manager.get('email', 'N/A')}\n"
@@ -938,52 +881,8 @@ def transfer_to_human(reason: str = "Customer requested") -> str:
     """
     Transfer the call to a human support agent.
     This will connect the caller to an available technician.
-    
+
     Args:
         reason: Reason for transfer (e.g., "Customer requested", "Complex issue")
     """
     return f"TRANSFER_TO_HUMAN|{reason}"
-
-
-# ============================================
-# Remote Device Connection Management
-# ============================================
-
-@function_tool
-def check_device_remote_connection(device_id: int) -> str:
-    """
-    Check if a device has an active remote connection for troubleshooting.
-    
-    Args:
-        device_id: The device ID to check
-    
-    Returns:
-        Connection status information
-    """
-    try:
-        api_client = get_api_client()
-        result = api_client.get(
-            "/api/agents/device-connections",
-            params={"device_id": device_id, "check_remote": "true"}
-        )
-        
-        if not result or not result.get("has_active_connection"):
-            return f"Device {device_id} is not connected for remote troubleshooting. Please ensure the MCP Agent is running on the device."
-        
-        connection_info = result.get("connection", {})
-        remote_info = result.get("remote_connection", {})
-        
-        response = (
-            f"Device {device_id} is connected for remote troubleshooting.\n"
-            f"Connection ID: {connection_info.get('connection_id')}\n"
-            f"Connected at: {connection_info.get('connected_at')}\n"
-        )
-        
-        if remote_info and remote_info.get("connected"):
-            response += f"Remote connection: Active\n"
-        else:
-            response += f"Remote connection: Not active\n"
-        
-        return response
-    except Exception as e:
-        return f"Error checking device connection: {str(e)}"

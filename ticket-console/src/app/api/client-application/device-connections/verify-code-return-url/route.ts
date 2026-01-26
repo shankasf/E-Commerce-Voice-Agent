@@ -219,33 +219,12 @@ export async function POST(request: NextRequest): Promise<NextResponse<VerifyCod
       );
     }
 
-    // Step 10: Mark code as used (set is_active=TRUE and update connected_at)
-    const { error: updateError } = await supabase
-      .from('device_connections')
-      .update({
-        is_active: true,
-        connected_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq('connection_id', connection.connection_id);
-
-    if (updateError) {
-      console.error('[Verify Code] Failed to mark code as used:', updateError);
-      return NextResponse.json<VerifyCodeResponse>(
-        {
-          success: false,
-          error: 'Failed to activate connection',
-        },
-        { status: 500 }
-      );
-    }
-
     console.log(`[Verify Code] ✅ Code verified successfully (Connection ID: ${connection.connection_id}, Session: ${connection.session_id})`);
 
-    // Step 11: Calculate remaining time
+    // Step 10: Calculate remaining time
     const remainingSeconds = getRemainingSeconds(connection.created_at);
 
-    // Step 12: Return success response with WebSocket URL
+    // Step 11: Return success response with WebSocket URL
     return NextResponse.json<VerifyCodeResponse>({
       success: true,
       websocket_url: connection.connection_url,

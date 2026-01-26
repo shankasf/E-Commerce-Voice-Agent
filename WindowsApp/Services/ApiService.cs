@@ -190,7 +190,7 @@ public class ApiService
         {
             // Get base URL from configuration loaded at application startup
             var baseUrl = _configService.GetApiBaseUrl();
-            var endpoint = $"{baseUrl}/api/client-application/device-connections/initiate-connection";
+            var endpoint = $"{baseUrl}/api/client-application/device-connections/verify-code-return-url";
 
             // Serialize request object to JSON for POST body
             var jsonContent = JsonConvert.SerializeObject(request);

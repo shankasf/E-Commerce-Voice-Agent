@@ -18,16 +18,17 @@ const AI_SERVICE_API_KEY = process.env.AI_SERVICE_API_KEY || '';
 const AI_SERVICE_CA_CERT = process.env.AI_SERVICE_CA_CERT || './crt/ca.crt';
 
 export interface ChatContext {
-  userId: number | null;
-  userRole: string;
-  userEmail: string | null;
-  userName: string | null;
-  organizationId: number | null;
-  contactId?: number | null;
-  deviceId?: number | null;
-  agentId?: number | null;
+  // Using snake_case to match Python AI service expectations
+  user_id: number | null;
+  user_role: string;
+  user_email: string | null;
+  user_name: string | null;
+  organization_id: number | null;
+  contact_id?: number | null;
+  device_id?: number | null;
+  agent_id?: number | null;
   specialization?: string | null;
-  maxPermissions: string;
+  max_permissions: string;
 }
 
 export interface JWTPayload {
@@ -52,6 +53,7 @@ export interface JWTPayload {
 
 /**
  * Build context object from JWT payload based on user role
+ * Uses snake_case keys to match Python AI service expectations
  */
 export function buildContextForRole(userPayload: JWTPayload): ChatContext {
   // Extract user info with fallbacks for different JWT formats
@@ -62,43 +64,44 @@ export function buildContextForRole(userPayload: JWTPayload): ChatContext {
   const organizationId = userPayload.organizationId || userPayload.organization_id || null;
 
   const baseContext: ChatContext = {
-    userId,
-    userRole,
-    userEmail,
-    userName,
-    organizationId,
-    maxPermissions: 'read_own_tickets',
+    user_id: userId,
+    user_role: userRole,
+    user_email: userEmail,
+    user_name: userName,
+    organization_id: organizationId,
+    max_permissions: 'read_own_tickets',
   };
 
   // Role-specific context enrichment
   switch (userRole.toLowerCase()) {
     case 'requester':
+      // For device auth, user_id IS the contact_id (from contact_devices table)
       return {
         ...baseContext,
-        contactId: userPayload.contactId || userPayload.contact_id || null,
-        deviceId: userPayload.deviceId || userPayload.device_id || null,
-        maxPermissions: 'read_own_tickets',
+        contact_id: userPayload.contactId || userPayload.contact_id || userId,
+        device_id: userPayload.deviceId || userPayload.device_id || null,
+        max_permissions: 'read_own_tickets',
       };
 
     case 'agent':
       return {
         ...baseContext,
-        agentId: userPayload.agentId || userPayload.support_agent_id || null,
+        agent_id: userPayload.agentId || userPayload.support_agent_id || null,
         specialization: userPayload.specialization || null,
-        maxPermissions: 'manage_assigned_tickets',
+        max_permissions: 'manage_assigned_tickets',
       };
 
     case 'admin':
       return {
         ...baseContext,
-        maxPermissions: 'full_access',
+        max_permissions: 'full_access',
       };
 
     default:
       console.warn(`[AI Service Client] Unknown role: ${userRole}, defaulting to requester`);
       return {
         ...baseContext,
-        maxPermissions: 'read_own_tickets',
+        max_permissions: 'read_own_tickets',
       };
   }
 }

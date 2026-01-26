@@ -7,6 +7,7 @@ Handles printer-related issues: printing, jams, connectivity.
 from agents import Agent
 from memory.knowledge_base import lookup_support_info
 from db.queries import create_ticket, escalate_ticket, transfer_to_human
+from tools.device import execute_powershell, check_device_connection
 
 
 printer_agent = Agent(
@@ -69,6 +70,9 @@ ESCALATE IF:
         create_ticket,
         escalate_ticket,
         transfer_to_human,
+        # Device tools for remote diagnostics
+        execute_powershell,
+        check_device_connection,
     ],
     handoffs=[],
 )

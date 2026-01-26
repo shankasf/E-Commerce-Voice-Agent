@@ -40,11 +40,11 @@ export async function POST(request: NextRequest) {
     const context = buildContextForRole(userPayload);
 
     // Step 4: Generate or use provided session ID
-    const finalSessionId = sessionId || `chat-${context.userId}-${Date.now()}`;
+    const finalSessionId = sessionId || `chat-${context.user_id}-${Date.now()}`;
 
     console.log('[Chat API] Request:', {
-      userId: context.userId,
-      role: context.userRole,
+      userId: context.user_id,
+      role: context.user_role,
       sessionId: finalSessionId,
       messageLength: message.length,
     });

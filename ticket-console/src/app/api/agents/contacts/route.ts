@@ -157,6 +157,9 @@ export async function GET(request: NextRequest) {
 /**
  * POST /api/agents/contacts
  * Create a new contact
+ * 
+ * Accepts either organization_id OR u_e_code (U&E code).
+ * If u_e_code is provided, looks up the organization_id first.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -165,7 +168,7 @@ export async function POST(request: NextRequest) {
     if (authError) return authError;
 
     const body = await request.json();
-    const { full_name, phone, organization_id, email } = body;
+    const { full_name, phone, organization_id, u_e_code, email } = body;
 
     // Validate required fields
     if (!full_name || !full_name.trim()) {
@@ -190,40 +193,114 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!organization_id || isNaN(parseInt(String(organization_id), 10))) {
+    // Validate that either organization_id OR u_e_code is provided
+    if (!organization_id && !u_e_code) {
       return NextResponse.json(
         {
           success: false,
-          error: 'organization_id is required and must be numeric',
+          error: 'Either organization_id or u_e_code is required',
           data: null,
         },
         { status: 400 }
       );
     }
 
-    // Verify organization exists
-    const { data: org } = await supabase
-      .from('organizations')
-      .select('organization_id')
-      .eq('organization_id', parseInt(String(organization_id), 10))
-      .maybeSingle();
-
-    if (!org) {
+    if (organization_id && u_e_code) {
       return NextResponse.json(
         {
           success: false,
-          error: `Organization with ID ${organization_id} not found`,
+          error: 'Provide either organization_id OR u_e_code, not both',
           data: null,
         },
-        { status: 404 }
+        { status: 400 }
       );
+    }
+
+    let actualOrganizationId: number;
+
+    // If u_e_code provided, look up organization_id first
+    if (u_e_code) {
+      const code = parseInt(String(u_e_code), 10);
+      if (isNaN(code)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'u_e_code must be numeric',
+            data: null,
+          },
+          { status: 400 }
+        );
+      }
+
+      const { data: org, error: orgError } = await supabase
+        .from('organizations')
+        .select('organization_id')
+        .eq('u_e_code', code)
+        .maybeSingle();
+
+      if (orgError) {
+        console.error('[Agents/Contacts] Organization lookup error:', orgError);
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Database error: ${orgError.message}`,
+            data: null,
+          },
+          { status: 500 }
+        );
+      }
+
+      if (!org) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Organization with U&E code ${u_e_code} not found`,
+            data: null,
+          },
+          { status: 404 }
+        );
+      }
+
+      actualOrganizationId = org.organization_id;
+    } else {
+      // Validate organization_id is numeric
+      if (isNaN(parseInt(String(organization_id), 10))) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'organization_id must be numeric',
+            data: null,
+          },
+          { status: 400 }
+        );
+      }
+
+      actualOrganizationId = parseInt(String(organization_id), 10);
+
+      // Verify organization exists
+      const { data: org } = await supabase
+        .from('organizations')
+        .select('organization_id')
+        .eq('organization_id', actualOrganizationId)
+        .maybeSingle();
+
+      if (!org) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Organization with ID ${actualOrganizationId} not found`,
+            data: null,
+          },
+          { status: 404 }
+        );
+      }
     }
 
     // Prepare contact data
     const contactData: any = {
       full_name: full_name.trim(),
       phone: phone.trim(),
-      organization_id: parseInt(String(organization_id), 10),
+      organization_id: actualOrganizationId,
     };
 
     if (email && email.trim()) {

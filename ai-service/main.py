@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 from config import get_config
 from agents import Runner
 from app_agents import triage_agent
-from memory import get_memory, clear_memory
+from memory import get_memory, clear_memory, get_user_sessions
 
 # Configure logging
 logging.basicConfig(
@@ -94,6 +94,27 @@ class HealthResponse(BaseModel):
 # ============================================
 # API Endpoints
 # ============================================
+
+def get_client_ip(websocket: WebSocket) -> str:
+    forwarded = websocket.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+
+    real_ip = websocket.headers.get("x-real-ip")
+    if real_ip:
+        return real_ip
+
+    if websocket.client:
+        return websocket.client.host
+
+    return "unknown"
+
+
+@app.websocket("/ws/device")
+async def websocket_device(websocket: WebSocket):
+    from websocket.device_handler import handle_device_websocket
+    client_ip = get_client_ip(websocket)
+    await handle_device_websocket(websocket, client_ip)
 
 @app.get("/", response_model=HealthResponse)
 async def root():
@@ -236,6 +257,24 @@ async def end_session(session_id: str):
     """End and clear a session."""
     clear_memory(session_id)
     return {"status": "cleared", "session_id": session_id}
+
+
+@app.get("/api/user-sessions/{user_id}")
+async def get_sessions_for_user(user_id: int):
+    """
+    Get all sessions for a specific user.
+    Returns list of sessions with metadata and previews.
+    """
+    try:
+        sessions = get_user_sessions(user_id)
+        return {
+            "success": True,
+            "sessions": sessions,
+            "count": len(sessions),
+        }
+    except Exception as e:
+        logger.error(f"Error fetching user sessions: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ============================================

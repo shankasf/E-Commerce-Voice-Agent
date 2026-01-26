@@ -4,7 +4,7 @@ namespace WindowsApp.Models;
 
 public class InitiateConnectionRequest
 {
-    [JsonProperty("code")]
+    [JsonProperty("six_digit_code")]
     public string Code { get; set; } = string.Empty;
 
     [JsonProperty("user_id")]
