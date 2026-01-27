@@ -377,29 +377,117 @@ def get_organization_devices(organization_id: int) -> str:
 # ============================================
 
 @function_tool
+def analyze_issue_priority(issue_description: str) -> str:
+    """
+    Analyze the user's issue description and determine the appropriate priority_id.
+
+    YOU MUST call this tool BEFORE creating a ticket to get the correct priority_id.
+    Analyze the issue description and select the category that best matches.
+
+    PRIORITY CATEGORIES (select ONE based on your analysis of the issue):
+
+    1 = LOW: Minor inconveniences, feature requests, cosmetic issues, "nice to have"
+        Examples: font looks weird, want a shortcut added, minor UI issue
+
+    2 = MEDIUM: Standard issues, single user affected, workarounds available,
+        performance issues (slow but working)
+        Examples: laptop running slow, occasional crashes, email sync delay
+
+    3 = HIGH: Important issues needing quick resolution, multiple users affected,
+        blocking work, urgent deadlines, major features broken
+        Examples: can't access files for presentation, team can't print, VPN down for department
+
+    4 = CRITICAL: System down, security incidents, data loss/corruption,
+        all users affected, business-critical outage
+        Examples: entire network down, security breach, server crashed, ransomware
+
+    Args:
+        issue_description: The user's description of their issue (analyze this carefully)
+
+    Returns:
+        JSON with priority_id (1-4) and explanation. Use this priority_id in create_ticket.
+    """
+    import json
+
+    # Return the categories - AI will analyze and select
+    return json.dumps({
+        "instruction": "Based on your analysis of the issue description, select the appropriate priority_id",
+        "issue_analyzed": issue_description,
+        "categories": {
+            "1": {"name": "Low", "description": "Minor inconvenience, feature request, cosmetic issue"},
+            "2": {"name": "Medium", "description": "Standard issue, single user, workaround available"},
+            "3": {"name": "High", "description": "Important, multiple users affected, blocking work"},
+            "4": {"name": "Critical", "description": "System down, security incident, all users affected"}
+        },
+        "action": "Return your selected priority_id (1, 2, 3, or 4) based on analyzing the issue description"
+    }, indent=2)
+
+
+@function_tool
+def get_priority_id(priority_level: int) -> str:
+    """
+    Validate and return the priority_id for ticket creation.
+
+    Call this after analyzing the issue to get the validated priority_id.
+
+    Args:
+        priority_level: The priority level (1=Low, 2=Medium, 3=High, 4=Critical)
+
+    Returns:
+        The validated priority_id to use in create_ticket.
+    """
+    import json
+
+    priority_names = {1: "Low", 2: "Medium", 3: "High", 4: "Critical"}
+
+    if priority_level not in [1, 2, 3, 4]:
+        return json.dumps({
+            "success": False,
+            "error": f"Invalid priority_level: {priority_level}. Must be 1, 2, 3, or 4."
+        })
+
+    return json.dumps({
+        "success": True,
+        "priority_id": priority_level,
+        "priority_name": priority_names[priority_level],
+        "instruction": f"Use priority_id={priority_level} when calling create_ticket"
+    })
+
+
+@function_tool
 def create_ticket(
     subject: str,
     description: str,
     contact_id: int,
+    priority_id: int,
     organization_id: int = 0,
-    priority: str = "Medium",
     device_id: int = 0,
+    location_id: int = 0,
 ) -> str:
     """
     Create a new support ticket.
+
+    BEFORE CALLING THIS TOOL:
+    1. Call analyze_issue_priority(description) to analyze the issue
+    2. Based on analysis, determine priority_id (1=Low, 2=Medium, 3=High, 4=Critical)
+    3. Call get_user_devices() to get valid device_id
+    4. Call get_organization_locations() to get valid location_id
 
     Args:
         subject: Brief description of the issue
         description: Detailed description of the problem
         contact_id: ID of the contact creating the ticket (REQUIRED)
+        priority_id: REQUIRED - 1=Low, 2=Medium, 3=High, 4=Critical (from your analysis)
         organization_id: ID of the organization
-        priority: Critical, High, Medium, or Low
-        device_id: ID of the affected device (optional)
+        device_id: ID of the affected device (from get_user_devices, or 0 if not selected)
+        location_id: ID of the location (from get_organization_locations, or 0 if not selected)
     """
     if not subject.strip():
         return "Subject is required."
     if not contact_id:
         return "contact_id is required."
+    if priority_id not in [1, 2, 3, 4]:
+        return f"Invalid priority_id: {priority_id}. Must be 1 (Low), 2 (Medium), 3 (High), or 4 (Critical)."
 
     try:
         # Get organization from contact if not provided
@@ -412,10 +500,6 @@ def create_ticket(
         if not organization_id:
             return "Could not determine organization."
 
-        # Map priority to ID
-        priority_map = {"low": 1, "medium": 2, "high": 3, "critical": 4}
-        priority_id = priority_map.get(priority.lower().strip(), 2)
-
         ticket_data = {
             "subject": subject.strip(),
             "description": description.strip() or None,
@@ -427,12 +511,348 @@ def create_ticket(
         }
         if device_id:
             ticket_data["device_id"] = device_id
+        if location_id:
+            ticket_data["location_id"] = location_id
 
         result = db.insert("support_tickets", ticket_data)
         if result:
             ticket = result[0]
-            return f"Ticket created successfully. Ticket ID: {ticket.get('ticket_id')}"
+            priority_names = {1: "Low", 2: "Medium", 3: "High", 4: "Critical"}
+            return f"Ticket created successfully. Ticket ID: {ticket.get('ticket_id')}. Priority: {priority_names.get(priority_id, 'Unknown')}"
         return "Failed to create ticket."
+    except Exception as e:
+        return f"Error creating ticket: {_format_request_error(e)}"
+
+
+# ============================================
+# CONSOLIDATED TOOLS (Reduces tool count)
+# ============================================
+
+@function_tool
+def prepare_ticket_context(contact_id: int, organization_id: int) -> str:
+    """
+    CONSOLIDATED TOOL: Get all context needed for ticket creation in ONE call.
+
+    This replaces calling multiple tools separately:
+    - get_user_devices
+    - get_organization_locations
+    - analyze_issue_priority
+
+    Returns devices, locations, and priority categories so you can:
+    1. Present device list to user
+    2. Present location list to user
+    3. Analyze issue to determine priority_id
+
+    Args:
+        contact_id: The user's contact ID
+        organization_id: The organization ID
+
+    Returns:
+        JSON with devices, locations, and priority_categories for ticket creation.
+    """
+    import json
+
+    result = {
+        "success": True,
+        "devices": [],
+        "locations": [],
+        "priority_categories": {
+            "1": {"name": "Low", "use_when": "Minor inconvenience, feature request, cosmetic issue"},
+            "2": {"name": "Medium", "use_when": "Standard issue, single user, workaround available, slow performance"},
+            "3": {"name": "High", "use_when": "Blocking work, multiple users affected, urgent deadline"},
+            "4": {"name": "Critical", "use_when": "System down, security incident, data loss, all users affected"}
+        },
+        "CRITICAL_WARNING": "You MUST present ONLY the devices and locations listed below. Do NOT make up or hallucinate options that are not in this response!",
+        "instructions": "1. Present ONLY the devices listed in 'devices' array below. 2. Present ONLY the locations listed in 'locations' array below. 3. Analyze issue to pick priority_id. 4. Call create_ticket_smart."
+    }
+
+    # Fetch devices assigned to this contact (ordered by device_id for consistency)
+    try:
+        params = {
+            "contact_id": f"eq.{contact_id}",
+            "unassigned_at": "is.null",
+            "select": "device:device_id(device_id,asset_name,status,host_name)",
+            "order": "device_id.asc"  # CRITICAL: Same order as create_ticket_smart
+        }
+        rows = db._make_request("GET", "contact_devices", params=params)
+        print(f"[DEBUG] prepare_ticket_context - Found {len(rows or [])} devices for contact {contact_id}")
+        for i, r in enumerate(rows or [], 1):
+            d = r.get("device", {})
+            if d:
+                result["devices"].append({
+                    "number": i,
+                    "device_id": d.get("device_id"),
+                    "name": d.get("asset_name", "Unknown"),
+                    "status": d.get("status", "UNKNOWN")
+                })
+                print(f"[DEBUG]   {i}. {d.get('asset_name')} (device_id={d.get('device_id')})")
+    except Exception as e:
+        result["device_error"] = str(e)
+        print(f"[DEBUG] Device fetch error: {e}")
+
+    # Fetch locations for this organization (ordered by location_id for consistency)
+    try:
+        print(f"[DEBUG] Fetching locations for organization_id={organization_id}")
+        params = {
+            "organization_id": f"eq.{organization_id}",
+            "select": "location_id,name,location_type,organization_id",
+            "order": "location_id.asc"  # CRITICAL: Same order as create_ticket_smart
+        }
+        print(f"[DEBUG] Location query params: {params}")
+        rows = db._make_request("GET", "locations", params=params)
+        print(f"[DEBUG] Raw location response: {rows}")
+        print(f"[DEBUG] prepare_ticket_context - Found {len(rows or [])} locations for org {organization_id}")
+        for i, loc in enumerate(rows or [], 1):
+            result["locations"].append({
+                "number": i,
+                "location_id": loc.get("location_id"),
+                "name": loc.get("name"),
+                "type": loc.get("location_type", "Office")
+            })
+            print(f"[DEBUG]   {i}. {loc.get('name')} (location_id={loc.get('location_id')}, org_id={loc.get('organization_id')})")
+    except Exception as e:
+        result["location_error"] = str(e)
+        print(f"[DEBUG] Location fetch error: {e}")
+        import traceback
+        traceback.print_exc()
+
+    # Build user-friendly summary with explicit counts
+    device_count = len(result["devices"])
+    location_count = len(result["locations"])
+
+    device_msg = f"DEVICES ({device_count} found - present ONLY these to user):\n" + "\n".join([f"  {d['number']}. {d['name']}" for d in result["devices"]]) if result["devices"] else "No devices found"
+    location_msg = f"LOCATIONS ({location_count} found - present ONLY these to user):\n" + "\n".join([f"  {l['number']}. {l['name']}" for l in result["locations"]]) if result["locations"] else "No locations found"
+
+    result["summary"] = f"{device_msg}\n\n{location_msg}\n\nDO NOT HALLUCINATE! Use ONLY the {device_count} device(s) and {location_count} location(s) listed above."
+
+    # GUARDRAILS: Pre-formatted messages for the validator to use
+    # These will be used verbatim if the AI hallucinates options
+    result["_user_messages"] = {
+        "device_prompt": (
+            f"Please select your device by saying the number:\n"
+            + "\n".join([f"{d['number']}. {d['name']}" for d in result["devices"]])
+        ) if result["devices"] else None,
+        "location_prompt": (
+            f"Please select your location by saying the number:\n"
+            + "\n".join([f"{l['number']}. {l['name']}" for l in result["locations"]])
+        ) if result["locations"] else None,
+        "no_devices": "I don't see any devices registered to your account. I'll create the ticket without a specific device. What issue are you experiencing?",
+        "no_locations": "I don't see any locations configured for your organization. I'll create the ticket without a specific location. Which device is having the issue?",
+    }
+
+    # GUARDRAILS: Validation metadata for the validator
+    result["_validation"] = {
+        "valid_location_names": [l["name"] for l in result["locations"]],
+        "valid_device_names": [d["name"] for d in result["devices"]],
+        "location_count": location_count,
+        "device_count": device_count,
+    }
+
+    return json.dumps(result, indent=2)
+
+
+@function_tool
+def create_ticket_smart(
+    subject: str,
+    description: str,
+    contact_id: int,
+    organization_id: int,
+    priority_id: int,
+    device_selection: str = "",
+    location_selection: str = "",
+) -> str:
+    """
+    CONSOLIDATED TOOL: Create ticket with smart device/location resolution.
+
+    CRITICAL: You MUST pass device_selection and location_selection parameters!
+    These parameters capture what the user said when selecting their device and location.
+    If you don't pass them, the ticket will have NULL device_id and location_id!
+
+    WORKFLOW:
+    1. Call prepare_ticket_context() first to get devices/locations/priorities
+    2. Present NUMBERED device list to user, get their selection (e.g., "1" or "laptop")
+    3. Present NUMBERED location list to user, get their selection (e.g., "2" or "remote")
+    4. Analyze issue to determine priority_id (1-4)
+    5. Call this tool with ALL parameters including user's selections
+
+    Args:
+        subject: Brief description of the issue
+        description: Detailed description
+        contact_id: User's contact ID
+        organization_id: Organization ID
+        priority_id: 1=Low, 2=Medium, 3=High, 4=Critical (from your analysis)
+        device_selection: REQUIRED - User's device selection (number like "1" or name like "laptop")
+        location_selection: REQUIRED - User's location selection (number like "2" or name like "remote")
+
+    EXAMPLE CALL:
+    create_ticket_smart(
+        subject="Laptop stuck on boot screen",
+        description="User's laptop is not coming out of boot screen",
+        contact_id=5,
+        organization_id=8,
+        priority_id=4,
+        device_selection="1",      # User said "yes" or "1" for first device
+        location_selection="2"     # User said "2" for second location (Remote)
+    )
+
+    Returns:
+        Success message with ticket_id or error message.
+    """
+    # DEBUG: Log all parameters received
+    print(f"\n{'='*60}")
+    print(f"[DEBUG] create_ticket_smart CALLED")
+    print(f"[DEBUG] Parameters received from AI:")
+    print(f"[DEBUG]   subject = '{subject}'")
+    print(f"[DEBUG]   description = '{description[:50]}...' (truncated)")
+    print(f"[DEBUG]   contact_id = {contact_id}")
+    print(f"[DEBUG]   organization_id = {organization_id}")
+    print(f"[DEBUG]   priority_id = {priority_id}")
+    print(f"[DEBUG]   device_selection = '{device_selection}'")
+    print(f"[DEBUG]   location_selection = '{location_selection}'")
+    print(f"{'='*60}\n")
+
+    if not subject.strip():
+        return "Error: Subject is required."
+    if not contact_id:
+        return "Error: contact_id is required."
+    if priority_id not in [1, 2, 3, 4]:
+        return f"Error: Invalid priority_id {priority_id}. Must be 1, 2, 3, or 4."
+
+    device_id = 0
+    location_id = 0
+
+    # Resolve device_selection to device_id
+    # Filter devices by contact_id and use consistent ordering
+    if device_selection:
+        print(f"[DEBUG] Resolving device_selection: '{device_selection}' for contact {contact_id}")
+        try:
+            params = {
+                "contact_id": f"eq.{contact_id}",
+                "unassigned_at": "is.null",
+                "select": "device:device_id(device_id,asset_name)",
+                "order": "device_id.asc"  # CRITICAL: Same order as prepare_ticket_context
+            }
+            rows = db._make_request("GET", "contact_devices", params=params)
+            devices = []
+            for r in rows or []:
+                d = r.get("device", {})
+                if d:
+                    devices.append({
+                        "device_id": d.get("device_id"),
+                        "name": d.get("asset_name", ""),
+                        "name_lower": d.get("asset_name", "").lower()
+                    })
+            print(f"[DEBUG] Found {len(devices)} devices for contact {contact_id}:")
+            for i, d in enumerate(devices, 1):
+                print(f"[DEBUG]   {i}. {d['name']} (device_id={d['device_id']})")
+
+            # Try to match by number (1, 2, 3, etc.) or "yes" for first device
+            selection_stripped = device_selection.strip().lower()
+            if selection_stripped.isdigit():
+                idx = int(selection_stripped) - 1
+                print(f"[DEBUG] User entered number '{selection_stripped}', index={idx}")
+                if 0 <= idx < len(devices):
+                    device_id = devices[idx]["device_id"]
+                    print(f"[DEBUG] SUCCESS: Matched to device_id={device_id} ({devices[idx]['name']})")
+                else:
+                    print(f"[DEBUG] ERROR: Index {idx} out of range (have {len(devices)} devices)")
+            elif selection_stripped in ["yes", "yeah", "yep", "correct", "that one", "1"]:
+                # User confirmed the first/only device
+                if devices:
+                    device_id = devices[0]["device_id"]
+                    print(f"[DEBUG] SUCCESS: User confirmed, using first device_id={device_id}")
+            else:
+                # Try to match by name (fuzzy matching)
+                print(f"[DEBUG] User entered name '{device_selection}', searching...")
+                for d in devices:
+                    if selection_stripped in d["name_lower"] or d["name_lower"] in selection_stripped:
+                        device_id = d["device_id"]
+                        print(f"[DEBUG] SUCCESS: Fuzzy matched to device_id={device_id} ({d['name']})")
+                        break
+                if not device_id:
+                    print(f"[DEBUG] ERROR: No fuzzy match found for '{device_selection}'")
+        except Exception as e:
+            print(f"[DEBUG] Device resolution error: {e}")
+            import traceback
+            traceback.print_exc()
+    else:
+        print(f"[DEBUG] WARNING: device_selection is empty/None - ticket will have NULL device!")
+
+    # Resolve location_selection to location_id
+    # Filter locations by organization_id and use consistent ordering
+    if location_selection:
+        print(f"[DEBUG] Resolving location_selection: '{location_selection}' for org {organization_id}")
+        try:
+            params = {
+                "organization_id": f"eq.{organization_id}",
+                "select": "location_id,name",
+                "order": "location_id.asc"  # CRITICAL: Same order as prepare_ticket_context
+            }
+            rows = db._make_request("GET", "locations", params=params)
+            # Build list with original name (for display) and lowercase (for matching)
+            locations = []
+            for loc in rows or []:
+                locations.append({
+                    "location_id": loc.get("location_id"),
+                    "name": loc.get("name", ""),
+                    "name_lower": loc.get("name", "").lower()
+                })
+            print(f"[DEBUG] Found {len(locations)} locations for org {organization_id}:")
+            for i, loc in enumerate(locations, 1):
+                print(f"[DEBUG]   {i}. {loc['name']} (location_id={loc['location_id']})")
+
+            # Try to match by number (1, 2, 3, etc.)
+            selection_stripped = location_selection.strip()
+            if selection_stripped.isdigit():
+                idx = int(selection_stripped) - 1  # Convert to 0-based index
+                print(f"[DEBUG] User entered number '{selection_stripped}', index={idx}")
+                if 0 <= idx < len(locations):
+                    location_id = locations[idx]["location_id"]
+                    print(f"[DEBUG] SUCCESS: Matched to location_id={location_id} ({locations[idx]['name']})")
+                else:
+                    print(f"[DEBUG] ERROR: Index {idx} out of range (have {len(locations)} locations)")
+            else:
+                # Try to match by name (fuzzy matching)
+                selection_lower = selection_stripped.lower()
+                print(f"[DEBUG] User entered name '{selection_stripped}', searching...")
+                for loc in locations:
+                    if selection_lower in loc["name_lower"] or loc["name_lower"] in selection_lower:
+                        location_id = loc["location_id"]
+                        print(f"[DEBUG] SUCCESS: Fuzzy matched to location_id={location_id} ({loc['name']})")
+                        break
+                if not location_id:
+                    print(f"[DEBUG] ERROR: No fuzzy match found for '{selection_stripped}'")
+        except Exception as e:
+            print(f"[DEBUG] Location resolution error: {e}")
+            import traceback
+            traceback.print_exc()
+    else:
+        print(f"[DEBUG] WARNING: location_selection is empty/None - ticket will have NULL location!")
+
+    print(f"[DEBUG] Final resolved values: device_id={device_id}, location_id={location_id}")
+
+    # Create the ticket
+    try:
+        ticket_data = {
+            "subject": subject.strip(),
+            "description": description.strip() or None,
+            "contact_id": contact_id,
+            "organization_id": organization_id,
+            "status_id": 1,
+            "priority_id": priority_id,
+            "requires_human_agent": False,
+        }
+        if device_id:
+            ticket_data["device_id"] = device_id
+        if location_id:
+            ticket_data["location_id"] = location_id
+
+        result = db.insert("support_tickets", ticket_data)
+        if result:
+            ticket = result[0]
+            priority_names = {1: "Low", 2: "Medium", 3: "High", 4: "Critical"}
+            return f"Ticket created successfully. Ticket ID: {ticket.get('ticket_id')}. Priority: {priority_names.get(priority_id)}"
+        return "Error: Failed to create ticket."
     except Exception as e:
         return f"Error creating ticket: {_format_request_error(e)}"
 
@@ -702,7 +1122,18 @@ def lookup_organization_data(
 
 @function_tool
 def get_organization_locations(organization_id: int) -> str:
-    """Get all locations for an organization."""
+    """
+    Get all locations for an organization.
+
+    IMPORTANT: Returns location_id for each location. Use the EXACT location_id
+    from this response when creating tickets. NEVER make up a location_id.
+
+    Args:
+        organization_id: The organization ID
+
+    Returns:
+        JSON with locations array containing location_id, name, and type for each location.
+    """
     try:
         params = {
             "organization_id": f"eq.{organization_id}",
@@ -711,14 +1142,33 @@ def get_organization_locations(organization_id: int) -> str:
         rows = db._make_request("GET", "locations", params=params)
 
         if not rows:
-            return f"No locations found for organization {organization_id}"
+            return f'{{"success": false, "message": "No locations found for organization {organization_id}", "locations": []}}'
 
-        result = f"Found {len(rows)} location(s):\n"
-        for loc in rows:
-            result += f"- {loc.get('name')} ({loc.get('location_type', 'Office')})\n"
-        return result
+        # Build structured response with clear location_ids
+        locations_list = []
+        for i, loc in enumerate(rows, 1):
+            locations_list.append({
+                "number": i,
+                "location_id": loc.get("location_id"),
+                "name": loc.get("name"),
+                "type": loc.get("location_type", "Office")
+            })
+
+        # Build user-friendly message
+        message = f"Found {len(rows)} location(s):\n"
+        for loc in locations_list:
+            message += f"{loc['number']}. {loc['name']} (location_id={loc['location_id']})\n"
+        message += "\nAsk user to select a location by number or name. Use the exact location_id from above."
+
+        import json
+        return json.dumps({
+            "success": True,
+            "message": message,
+            "locations": locations_list,
+            "instruction": "Use the EXACT location_id value when creating ticket. NEVER guess or make up a location_id."
+        }, indent=2)
     except Exception as e:
-        return f"Error: {_format_request_error(e)}"
+        return f'{{"success": false, "error": "{_format_request_error(e)}", "locations": []}}'
 
 
 @function_tool

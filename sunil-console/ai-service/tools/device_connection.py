@@ -273,17 +273,20 @@ def generate_device_connection_code(
 @function_tool
 def get_user_devices(user_id: int, organization_id: int) -> str:
     """
-    Get list of devices assigned to a user. MUST be called before generate_device_connection_code.
+    Get list of devices assigned to a user.
 
-    The response contains a 'devices' array with device_id values.
-    Use the exact device_id from this response when calling generate_device_connection_code.
+    CRITICAL ANTI-HALLUCINATION RULES:
+    - The response contains a 'devices' array with REAL device_id values from the database
+    - You MUST use the EXACT device_id from this response - NEVER make up a device_id
+    - If creating a ticket, use device_id from this list
+    - If user selects by number (1, 2, 3), map it to the corresponding device_id
 
     Args:
         user_id: The contact/user ID
         organization_id: The organization ID
 
     Returns:
-        JSON with devices array containing device_id, asset_name, status for each device.
+        JSON with numbered devices list. Each device has device_id, asset_name, status.
     """
     # DEBUG: Log what parameters the AI passed
     print(f"\n{'='*60}")
@@ -334,14 +337,14 @@ def get_user_devices(user_id: int, organization_id: int) -> str:
                 error="Contact administrator."
             ).to_tool_response()
 
-        # Build user-friendly message
+        # Build user-friendly numbered message
         device_list = []
-        for d in devices:
+        for i, d in enumerate(devices, 1):
             status_icon = "ONLINE" if d.status == "ONLINE" else "OFFLINE"
-            device_list.append(f"- {d.asset_name} (device_id={d.device_id}, status={status_icon})")
+            device_list.append(f"{i}. {d.asset_name} (device_id={d.device_id}, status={status_icon})")
 
         message = f"Found {len(devices)} device(s):\n" + "\n".join(device_list)
-        message += "\n\nAsk user which device to connect, then use that device_id."
+        message += "\n\nIMPORTANT: Ask user to select by number or name. Use the EXACT device_id shown above - NEVER make up a device_id."
 
         result = GetUserDevicesResult(
             success=True,

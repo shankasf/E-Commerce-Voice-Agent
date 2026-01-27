@@ -28,6 +28,10 @@ class ConversationMemory:
         self.context: Dict[str, Any] = {}
         self.created_at: datetime = datetime.utcnow()
         self.last_activity: datetime = datetime.utcnow()
+
+        # Responses API: Store the last response ID for multi-turn context
+        # This allows OpenAI to maintain conversation state server-side
+        self.last_response_id: Optional[str] = None
     
     def add_turn(self, role: str, content: str, metadata: Optional[Dict] = None) -> None:
         """Add a conversation turn."""
