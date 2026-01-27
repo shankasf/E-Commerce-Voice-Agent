@@ -84,6 +84,10 @@ async def websocket_chat(websocket: WebSocket, session_id: str):
     await websocket.accept()
     memory = get_memory(session_id)
 
+    # Store session_id in context so AI can use it for device connections and commands
+    memory.set_context("session_id", session_id)
+    memory.set_context("chat_session_id", session_id)
+
     try:
         while True:
             data = await websocket.receive_json()
