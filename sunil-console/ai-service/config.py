@@ -18,8 +18,11 @@ class Config:
     
     # OpenAI
     openai_api_key: str = field(default_factory=lambda: os.getenv("OPENAI_API_KEY", ""))
-    openai_model: str = field(default_factory=lambda: os.getenv("OPENAI_MODEL", "gpt-4o"))
+    openai_model: str = field(default_factory=lambda: os.getenv("OPENAI_MODEL", "gpt-5.2"))
     openai_realtime_model: str = field(default_factory=lambda: os.getenv("OPENAI_REALTIME_MODEL", "gpt-4o-realtime-preview"))
+
+    # Responses API settings
+    reasoning_effort: str = field(default_factory=lambda: os.getenv("OPENAI_REASONING_EFFORT", "medium"))  # none, low, medium, high, xhigh
     voice: str = field(default_factory=lambda: os.getenv("VOICE", "alloy"))
     
     # Database

@@ -33,6 +33,11 @@ from .database import (
     get_contact_by_name_for_org,
     get_account_manager,
     transfer_to_human,
+    analyze_issue_priority,
+    get_priority_id,
+    # Consolidated tools (reduces tool count)
+    prepare_ticket_context,
+    create_ticket_smart,
 )
 
 # Device command execution tools
@@ -86,6 +91,10 @@ __all__ = [
     "get_contact_by_name_for_org",
     "get_account_manager",
     "transfer_to_human",
+    "analyze_issue_priority",
+    "get_priority_id",
+    "prepare_ticket_context",
+    "create_ticket_smart",
     # Device tools
     "execute_powershell",
     "check_device_connection",

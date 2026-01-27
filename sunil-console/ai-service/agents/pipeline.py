@@ -1,8 +1,10 @@
 """
 Agent Pipeline - Orchestrates multi-agent conversations.
 
-Uses OpenAI's API for chat completions with tool calling.
+Uses OpenAI's Responses API with GPT-5.2 for tool calling.
 Manages agent handoffs and conversation flow.
+
+Includes guardrails to prevent AI hallucination of options.
 """
 
 import asyncio
@@ -13,6 +15,7 @@ from typing import Any, Dict, List, Optional
 from openai import OpenAI
 
 from config import get_config
+from guardrails import ToolResultStore, ResponseValidator, get_tool_result_store
 
 logger = logging.getLogger(__name__)
 
@@ -20,18 +23,23 @@ logger = logging.getLogger(__name__)
 class AgentPipeline:
     """
     Orchestrates the multi-agent pipeline for IT support.
-    
-    Handles:
-    - Tool calling with OpenAI API
-    - Agent handoffs
-    - Conversation context management
+
+    Uses OpenAI Responses API for:
+    - Agentic tool calling with automatic orchestration
+    - Multi-turn conversations via previous_response_id
+    - Better reasoning with GPT-5.2
     """
-    
+
     def __init__(self):
         config = get_config()
         self.client = OpenAI(api_key=config.openai_api_key)
         self.model = config.openai_model
-    
+        self.reasoning_effort = config.reasoning_effort
+
+        # Initialize guardrails for hallucination prevention
+        self.tool_store = get_tool_result_store()
+        self.validator = ResponseValidator(self.tool_store)
+
     async def process(
         self,
         agent: Any,
@@ -41,7 +49,10 @@ class AgentPipeline:
         max_tool_rounds: int = 10,
     ) -> Any:
         """
-        Process user input through the agent pipeline with autonomous tool execution.
+        Process user input through the agent pipeline using Responses API.
+
+        The Responses API handles tool orchestration automatically, but we
+        still need to execute custom function tools ourselves.
 
         Args:
             agent: The agent to process with
@@ -56,65 +67,108 @@ class AgentPipeline:
         from agents import AgentResult
 
         context = context or {}
-        messages = self._build_messages(agent, user_input, context, memory)
         tools = self._build_tools(agent)
         all_tool_calls = []
 
+        # Get session ID for guardrails
+        session_id = context.get("session_id") or context.get("chat_session_id") or "default_session"
+
+        # Build system instructions
+        instructions = self._build_instructions(agent, context)
+
+        # Build initial input from conversation history and current message
+        input_items = self._build_input(user_input, context, memory)
+
         try:
-            # Agentic loop - keep going until AI provides a final response or max rounds
+            # CRITICAL: Get previous response ID from memory for multi-turn context
+            # This allows OpenAI to maintain conversation state server-side
+            previous_response_id = None
+            if memory and hasattr(memory, 'last_response_id'):
+                previous_response_id = memory.last_response_id
+                if previous_response_id:
+                    logger.info(f"[PIPELINE] Continuing conversation with previous_response_id={previous_response_id[:30]}...")
+
+            # Agentic loop - handle function calls that need our execution
             for round_num in range(max_tool_rounds):
-                logger.info(f"[PIPELINE] Round {round_num + 1}: Making OpenAI API call...")
+                logger.info(f"[PIPELINE] Round {round_num + 1}: Making Responses API call...")
 
-                response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=messages,
-                    tools=tools if tools else None,
-                    tool_choice="auto" if tools else None,
-                )
+                # Build request parameters
+                request_params = {
+                    "model": self.model,
+                    "input": input_items,
+                    "tools": tools if tools else None,
+                    "instructions": instructions,
+                }
 
-                message = response.choices[0].message
-                logger.info(f"[PIPELINE] Round {round_num + 1}: Has tool_calls={bool(message.tool_calls)}, has_content={bool(message.content)}")
+                # Add reasoning effort for GPT-5.2
+                if self.reasoning_effort and self.reasoning_effort != "none":
+                    request_params["reasoning"] = {"effort": self.reasoning_effort}
 
-                # If no tool calls, we have the final response
-                if not message.tool_calls:
-                    output = message.content or ""
-                    logger.info(f"[PIPELINE] Final response (no tools): {output[:200]}..." if len(output) > 200 else f"[PIPELINE] Final response: {output}")
+                # Continue from previous response if in multi-turn tool loop
+                if previous_response_id:
+                    request_params["previous_response_id"] = previous_response_id
+
+                # Make the API call
+                response = self.client.responses.create(**request_params)
+
+                logger.info(f"[PIPELINE] Round {round_num + 1}: Response ID={response.id}, Status={response.status}")
+
+                # Store response ID for potential continuation
+                previous_response_id = response.id
+
+                # Check for function calls that need our execution
+                function_calls = self._extract_function_calls(response)
+
+                if not function_calls:
+                    # No function calls - we have the final response
+                    output = self._extract_output_text(response)
+                    logger.info(f"[PIPELINE] Final response: {output[:200]}..." if len(output) > 200 else f"[PIPELINE] Final response: {output}")
                     break
 
-                # Execute tool calls
-                logger.info(f"[PIPELINE] Executing {len(message.tool_calls)} tool calls...")
-                tool_results = await self._execute_tool_calls(agent, message.tool_calls, memory)
+                # Execute function calls
+                logger.info(f"[PIPELINE] Executing {len(function_calls)} function calls...")
+                function_outputs = await self._execute_function_calls(agent, function_calls, memory, session_id)
 
                 # Track all tool calls for the result
-                all_tool_calls.extend([tc.model_dump() for tc in message.tool_calls])
+                all_tool_calls.extend(function_calls)
 
-                # Log tool results
-                for i, res in enumerate(tool_results):
-                    preview = res[:300] + "..." if len(res) > 300 else res
-                    logger.info(f"[PIPELINE] Tool result {i}: {preview}")
-
-                # Add assistant message with tool calls to conversation
-                messages.append(message)
-
-                # Add tool results to conversation
-                for tool_call, result in zip(message.tool_calls, tool_results):
-                    messages.append({
-                        "role": "tool",
-                        "tool_call_id": tool_call.id,
-                        "content": result,
+                # Build function call outputs for next request
+                input_items = []
+                for fc, output in zip(function_calls, function_outputs):
+                    input_items.append({
+                        "type": "function_call_output",
+                        "call_id": fc["call_id"],
+                        "output": output,
                     })
-
-                # If the AI provided content alongside tool calls, that's intermediate output
-                if message.content:
-                    logger.info(f"[PIPELINE] Intermediate output: {message.content[:200]}...")
 
             else:
                 # Hit max rounds without final response
-                logger.warning(f"[PIPELINE] Hit max tool rounds ({max_tool_rounds}), forcing response")
-                output = message.content if message.content else "I've completed my analysis. Let me know if you need anything else."
+                logger.warning(f"[PIPELINE] Hit max tool rounds ({max_tool_rounds}), using last response")
+                output = self._extract_output_text(response) or "I've completed my analysis. Let me know if you need anything else."
+
+            # GUARDRAILS: Validate AI response before sending to user
+            validation = self.validator.validate_response(session_id, output)
+
+            if not validation.is_valid:
+                logger.warning(f"[GUARDRAILS] Hallucination detected! Violations: {[v.message for v in validation.violations]}")
+                for violation in validation.violations:
+                    logger.warning(f"[GUARDRAILS]   - {violation.type.value}: {violation.hallucinated_value}")
+
+                # Use corrected response if available
+                if validation.corrected_response:
+                    logger.info(f"[GUARDRAILS] Using corrected response instead of AI output")
+                    output = validation.corrected_response
+            else:
+                logger.info(f"[GUARDRAILS] Response validated successfully")
 
             # Check for handoff keywords
             handoff_to = self._check_handoff(agent, output)
+
+            # CRITICAL: Save response ID to memory for next turn's context
+            # This is what allows multi-turn conversations to work properly
+            if memory and hasattr(memory, 'last_response_id') and previous_response_id:
+                memory.last_response_id = previous_response_id
+                logger.info(f"[PIPELINE] Saved response_id to memory for next turn: {previous_response_id[:30]}...")
 
             return AgentResult(
                 output=output,
@@ -129,54 +183,59 @@ class AgentPipeline:
                 output=f"I apologize, but I encountered an error. Please try again or say 'technician' to speak with a human.",
                 agent_name=agent.name,
             )
-    
-    def _build_messages(
+
+    def _build_instructions(self, agent: Any, context: Dict) -> str:
+        """Build the system instructions for the Responses API."""
+        instructions = agent.instructions
+
+        # Add context to instructions
+        if context.get("organization_id"):
+            instructions += f"\n\nCurrent organization_id: {context['organization_id']}"
+        if context.get("organization_name"):
+            instructions += f"\nOrganization: {context['organization_name']}"
+        if context.get("contact_id"):
+            instructions += f"\nContact ID (user_id): {context['contact_id']}"
+        if context.get("contact_name"):
+            instructions += f"\nCaller: {context['contact_name']}"
+        if context.get("session_id"):
+            instructions += f"\nChat Session ID: {context['session_id']}"
+
+        # Add critical reminder about device_id
+        instructions += "\n\nIMPORTANT: When calling generate_device_connection_code, you MUST use the exact device_id from get_user_devices. Do NOT use device_id=1 or any other guessed value."
+
+        return instructions
+
+    def _build_input(
         self,
-        agent: Any,
         user_input: str,
         context: Dict,
         memory: Optional[Any] = None,
     ) -> List[Dict]:
-        """Build the messages array for the API call."""
-        system_prompt = agent.instructions
-
-        # Add context to system prompt
-        if context.get("organization_id"):
-            system_prompt += f"\n\nCurrent organization_id: {context['organization_id']}"
-        if context.get("organization_name"):
-            system_prompt += f"\nOrganization: {context['organization_name']}"
-        if context.get("contact_id"):
-            system_prompt += f"\nContact ID (user_id): {context['contact_id']}"
-        if context.get("contact_name"):
-            system_prompt += f"\nCaller: {context['contact_name']}"
-        if context.get("session_id"):
-            system_prompt += f"\nChat Session ID: {context['session_id']}"
-
-        # Add critical reminder about device_id
-        system_prompt += "\n\nIMPORTANT: When calling generate_device_connection_code, you MUST use the exact device_id from get_user_devices. Do NOT use device_id=1 or any other guessed value."
-
-        messages = [{"role": "system", "content": system_prompt}]
+        """Build the input array for the Responses API."""
+        input_items = []
 
         # Add conversation history if memory is provided
         if memory and hasattr(memory, 'get_recent_turns'):
             recent_turns = memory.get_recent_turns(10)  # Last 10 turns
             for turn in recent_turns:
-                messages.append({
+                input_items.append({
                     "role": turn.role,
                     "content": turn.content,
                 })
 
         # Add current user input
-        messages.append({"role": "user", "content": user_input})
+        input_items.append({
+            "role": "user",
+            "content": user_input,
+        })
 
-        return messages
-    
+        return input_items
+
     def _build_tools(self, agent: Any) -> List[Dict]:
-        """Build OpenAI tools array from agent tools."""
+        """Build tools array for the Responses API."""
         tools = []
 
         # Custom parameter descriptions for critical tools
-        # These help OpenAI understand what values to use
         custom_param_descriptions = {
             "generate_device_connection_code": {
                 "user_id": "The contact_id from context (user's ID)",
@@ -188,9 +247,8 @@ class AgentPipeline:
                 "user_id": "The contact_id from context (user's ID)",
                 "organization_id": "The organization_id from context",
             },
-            # Device command tools - all use session_id which is the chat_session_id
             "get_system_info": {
-                "session_id": "The Chat Session ID from context (use the session_id value from system prompt)",
+                "session_id": "The Chat Session ID from context",
             },
             "check_disk_space": {
                 "session_id": "The Chat Session ID from context",
@@ -240,7 +298,6 @@ class AgentPipeline:
             if not hasattr(tool, "is_tool"):
                 continue
 
-            # Get function signature for parameters
             import inspect
             sig = inspect.signature(tool.__wrapped__ if hasattr(tool, "__wrapped__") else tool)
 
@@ -262,7 +319,7 @@ class AgentPipeline:
                     elif param.annotation == bool:
                         param_type = "boolean"
 
-                # Use custom description if available, otherwise generic
+                # Use custom description if available
                 if tool_name in custom_param_descriptions and param_name in custom_param_descriptions[tool_name]:
                     description = custom_param_descriptions[tool_name][param_name]
                 else:
@@ -276,39 +333,70 @@ class AgentPipeline:
                 if param.default == inspect.Parameter.empty:
                     required.append(param_name)
 
+            # Responses API tool format
             tools.append({
                 "type": "function",
-                "function": {
-                    "name": tool.name,
-                    "description": tool.description,
-                    "parameters": {
-                        "type": "object",
-                        "properties": properties,
-                        "required": required,
-                    }
+                "name": tool.name,
+                "description": tool.description,
+                "parameters": {
+                    "type": "object",
+                    "properties": properties,
+                    "required": required,
                 }
             })
 
         return tools
-    
-    async def _execute_tool_calls(
+
+    def _extract_function_calls(self, response: Any) -> List[Dict]:
+        """Extract function calls from Responses API response."""
+        function_calls = []
+
+        # The Responses API returns output items which may include function_call types
+        if hasattr(response, 'output') and response.output:
+            for item in response.output:
+                if hasattr(item, 'type') and item.type == 'function_call':
+                    function_calls.append({
+                        "call_id": item.call_id,
+                        "name": item.name,
+                        "arguments": item.arguments,
+                    })
+
+        return function_calls
+
+    def _extract_output_text(self, response: Any) -> str:
+        """Extract the text output from Responses API response."""
+        # The Responses API provides output_text for convenience
+        if hasattr(response, 'output_text') and response.output_text:
+            return response.output_text
+
+        # Fallback: look through output items for message content
+        if hasattr(response, 'output') and response.output:
+            for item in response.output:
+                if hasattr(item, 'type') and item.type == 'message':
+                    if hasattr(item, 'content') and item.content:
+                        for content_block in item.content:
+                            if hasattr(content_block, 'text'):
+                                return content_block.text
+
+        return ""
+
+    async def _execute_function_calls(
         self,
         agent: Any,
-        tool_calls: List,
-        memory: Optional[Any] = None,
+        function_calls: List[Dict],
+        memory: Optional[Any],
+        session_id: str,
     ) -> List[str]:
-        """Execute tool calls and return results."""
-        import re
-
+        """Execute function calls and return results."""
         results = []
 
-        for tool_call in tool_calls:
-            function_name = tool_call.function.name
-            function_args = json.loads(tool_call.function.arguments)
+        for fc in function_calls:
+            function_name = fc["name"]
+            function_args = json.loads(fc["arguments"]) if isinstance(fc["arguments"], str) else fc["arguments"]
 
-            # DEBUG: Log exactly what OpenAI is sending as tool call arguments
+            # DEBUG: Log tool call
             print(f"\n{'='*60}")
-            print(f"[DEBUG] TOOL CALL FROM OPENAI:")
+            print(f"[DEBUG] TOOL CALL FROM RESPONSES API:")
             print(f"[DEBUG]   function_name = {function_name}")
             print(f"[DEBUG]   function_args = {json.dumps(function_args, indent=2)}")
             print(f"{'='*60}\n")
@@ -317,16 +405,49 @@ class AgentPipeline:
             tool = agent.get_tool_by_name(function_name)
             if tool:
                 try:
-                    # Check if tool is async and await it properly
+                    # GUARDRAIL: Prevent duplicate ticket creation
+                    if function_name == "create_ticket_smart":
+                        existing_tickets = self.tool_store.get_tickets_created(session_id)
+                        if existing_tickets:
+                            logger.warning(f"[GUARDRAILS] Blocking duplicate ticket creation! Session already has tickets: {existing_tickets}")
+                            warning_msg = (
+                                f"DUPLICATE TICKET BLOCKED: A ticket (#{existing_tickets[-1]}) was already created for this issue. "
+                                f"Do NOT create another ticket. The user's response ('yes', 'no', etc.) is about TROUBLESHOOTING, "
+                                f"not a new issue. Proceed to troubleshooting or end the call."
+                            )
+                            results.append(warning_msg)
+                            continue
+
+                    # GUARDRAIL: Warn if prepare_ticket_context is called after ticket exists
+                    if function_name == "prepare_ticket_context":
+                        existing_tickets = self.tool_store.get_tickets_created(session_id)
+                        if existing_tickets:
+                            logger.warning(f"[GUARDRAILS] prepare_ticket_context called after ticket #{existing_tickets[-1]} exists!")
+                            warning_msg = (
+                                f"WARNING: A ticket (#{existing_tickets[-1]}) already exists for this session. "
+                                f"You should NOT be starting a new ticket flow. The user's message is likely about "
+                                f"troubleshooting the existing issue, not reporting a new one. "
+                                f"Ask clarifying questions or proceed with troubleshooting."
+                            )
+                            results.append(warning_msg)
+                            continue
+
                     result = tool(**function_args)
                     if asyncio.iscoroutine(result):
                         result = await result
                     result_str = str(result)
                     results.append(result_str)
 
+                    # Store tool results for guardrails validation
+                    self.tool_store.save_result(session_id, function_name, result_str)
+
                     # Extract and save context from tool results
                     if memory:
                         self._extract_context_from_result(result_str, memory)
+
+                    # Log result preview
+                    preview = result_str[:300] + "..." if len(result_str) > 300 else result_str
+                    logger.info(f"[PIPELINE] Tool result: {preview}")
 
                 except Exception as e:
                     logger.error(f"Tool execution error: {e}")
@@ -337,15 +458,9 @@ class AgentPipeline:
         return results
 
     def _extract_context_from_result(self, result: str, memory: Any) -> None:
-        """
-        Extract IDs and important data from tool results and save to context.
-        Looks for patterns like 'organization_id: 123' and saves them.
-        """
+        """Extract IDs and important data from tool results and save to context."""
         import re
 
-        # Patterns to extract
-        # NOTE: device_id is intentionally NOT extracted here because it varies per request
-        # and should come directly from tool results, not be cached in context
         patterns = {
             "organization_id": r"organization_id:\s*(\d+)",
             "contact_id": r"contact_id:\s*(\d+)",
@@ -358,7 +473,6 @@ class AgentPipeline:
             match = re.search(pattern, result)
             if match:
                 value = match.group(1).strip()
-                # Convert to int if it's a numeric ID
                 if key.endswith("_id"):
                     try:
                         value = int(value)
@@ -367,14 +481,28 @@ class AgentPipeline:
 
                 memory.set_context(key, value)
                 logger.info(f"Extracted context: {key} = {value}")
-    
+
     def _check_handoff(self, agent: Any, output: str) -> Optional[str]:
         """Check if the output indicates a handoff to another agent."""
         output_lower = output.lower()
-        
+
         for handoff_agent in agent.handoffs:
-            # Simple keyword matching for handoff detection
             if handoff_agent.name.lower() in output_lower:
                 return handoff_agent.name
-        
+
         return None
+
+
+# Backwards compatibility alias
+class Runner:
+    """Alias for AgentPipeline for backwards compatibility."""
+
+    @staticmethod
+    async def run(
+        agent: Any,
+        text: str,
+        context: Optional[Dict] = None,
+        memory: Optional[Any] = None,
+    ) -> Any:
+        pipeline = AgentPipeline()
+        return await pipeline.process(agent, text, context, memory)
