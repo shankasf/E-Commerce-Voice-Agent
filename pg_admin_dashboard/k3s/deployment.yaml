@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pg-admin-dashboard
+  namespace: pg-admin-dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pg-admin-dashboard
+  template:
+    metadata:
+      labels:
+        app: pg-admin-dashboard
+    spec:
+      initContainers:
+        - name: init-permissions
+          image: busybox:1.36
+          command: ["sh", "-c", "mkdir -p /data/sessions /data/backups && chown -R 10001:10001 /data"]
+          volumeMounts:
+            - name: app-data
+              mountPath: /data
+      containers:
+        - name: dashboard
+          image: pg-admin-dashboard:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - secretRef:
+                name: pg-admin-dashboard-secrets
+          env:
+            - name: BACKUP_DIR
+              value: /data/backups
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: app-data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: app-data
+          hostPath:
+            path: /var/lib/pg-admin-dashboard
+            type: DirectoryOrCreate
+        - name: tmp
+          emptyDir: {}

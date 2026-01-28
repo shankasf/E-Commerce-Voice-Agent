@@ -16,7 +16,7 @@ const activeSessions: Map<string, {
   ws?: WebSocket;
   provider: string;
   startTime: Date;
-  pc?: RTCPeerConnection;
+  pc?: any; // RTCPeerConnection is browser-only
 }> = new Map();
 
 // OpenAI Realtime API WebRTC endpoint

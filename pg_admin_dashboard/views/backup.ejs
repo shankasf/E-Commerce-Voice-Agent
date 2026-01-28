@@ -1,0 +1,184 @@
+<%- include('partials/header', { title }) %>
+<section class="grid">
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Create Backup</h2>
+      <p>Export database to SQL dump file</p>
+    </div>
+    <form class="form" method="post" action="/backup/create">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <label>
+        <span>Database</span>
+        <select name="dbName" required>
+          <% databases.forEach((db) => { %>
+            <option value="<%= db.datname %>"><%= db.datname %></option>
+          <% }) %>
+        </select>
+      </label>
+      <label>
+        <span>Format</span>
+        <select name="format">
+          <option value="plain">Plain SQL (.sql)</option>
+          <option value="custom">Custom (.dump)</option>
+          <option value="tar">Tar Archive (.tar)</option>
+        </select>
+      </label>
+      <div class="checks">
+        <label class="check">
+          <input type="checkbox" name="schemaOnly" />
+          <span>Schema only (no data)</span>
+        </label>
+        <label class="check">
+          <input type="checkbox" name="dataOnly" />
+          <span>Data only (no schema)</span>
+        </label>
+        <label class="check">
+          <input type="checkbox" name="compress" checked />
+          <span>Compress output</span>
+        </label>
+      </div>
+      <button class="primary" type="submit">Create Backup</button>
+    </form>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Restore Database</h2>
+      <p>Import from SQL dump file</p>
+    </div>
+    <form class="form" method="post" action="/backup/restore" enctype="multipart/form-data">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <label>
+        <span>Target Database</span>
+        <select name="dbName" required>
+          <% databases.forEach((db) => { %>
+            <option value="<%= db.datname %>"><%= db.datname %></option>
+          <% }) %>
+        </select>
+      </label>
+      <label>
+        <span>Backup File</span>
+        <input type="file" name="backupFile" accept=".sql,.dump,.tar,.gz" required />
+      </label>
+      <div class="checks">
+        <label class="check">
+          <input type="checkbox" name="clean" />
+          <span>Clean (drop objects before restore)</span>
+        </label>
+        <label class="check">
+          <input type="checkbox" name="createDb" />
+          <span>Create database if not exists</span>
+        </label>
+      </div>
+      <button class="danger" type="submit" onclick="return confirm('This will restore data to the selected database. Continue?')">Restore Backup</button>
+    </form>
+  </div>
+
+  <div class="panel full-width">
+    <div class="panel-header">
+      <h2>Available Backups</h2>
+      <p>Previously created backup files</p>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Filename</th>
+            <th>Database</th>
+            <th>Size</th>
+            <th>Created</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (backups.length === 0) { %>
+            <tr>
+              <td colspan="5">No backups found</td>
+            </tr>
+          <% } %>
+          <% backups.forEach((backup) => { %>
+            <tr>
+              <td><strong><%= backup.filename %></strong></td>
+              <td><%= backup.database || '-' %></td>
+              <td><%= formatBytes(backup.size) %></td>
+              <td><%= backup.created %></td>
+              <td>
+                <a class="ghost small" href="/backup/download/<%= encodeURIComponent(backup.filename) %>">Download</a>
+                <form method="post" action="/backup/delete" style="display:inline;">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                  <input type="hidden" name="filename" value="<%= backup.filename %>" />
+                  <button class="ghost small danger" type="submit" onclick="return confirm('Delete this backup?')">Delete</button>
+                </form>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Export Table Data</h2>
+      <p>Export specific table to CSV</p>
+    </div>
+    <form class="form" method="post" action="/backup/export-csv">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <label>
+        <span>Database</span>
+        <select name="dbName" id="exportDbSelect" required>
+          <% databases.forEach((db) => { %>
+            <option value="<%= db.datname %>"><%= db.datname %></option>
+          <% }) %>
+        </select>
+      </label>
+      <label>
+        <span>Table (schema.table)</span>
+        <input type="text" name="tableName" placeholder="public.users" required />
+      </label>
+      <label>
+        <span>Query (optional, overrides table)</span>
+        <textarea name="query" placeholder="SELECT * FROM users WHERE active = true" rows="3"></textarea>
+      </label>
+      <button class="primary" type="submit">Export CSV</button>
+    </form>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Import CSV</h2>
+      <p>Import data from CSV file</p>
+    </div>
+    <form class="form" method="post" action="/backup/import-csv" enctype="multipart/form-data">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <label>
+        <span>Database</span>
+        <select name="dbName" required>
+          <% databases.forEach((db) => { %>
+            <option value="<%= db.datname %>"><%= db.datname %></option>
+          <% }) %>
+        </select>
+      </label>
+      <label>
+        <span>Target Table (schema.table)</span>
+        <input type="text" name="tableName" placeholder="public.users" required />
+      </label>
+      <label>
+        <span>CSV File</span>
+        <input type="file" name="csvFile" accept=".csv" required />
+      </label>
+      <div class="checks">
+        <label class="check">
+          <input type="checkbox" name="hasHeader" checked />
+          <span>First row is header</span>
+        </label>
+        <label class="check">
+          <input type="checkbox" name="truncateFirst" />
+          <span>Truncate table before import</span>
+        </label>
+      </div>
+      <button class="primary" type="submit">Import CSV</button>
+    </form>
+  </div>
+</section>
+<%- include('partials/footer') %>

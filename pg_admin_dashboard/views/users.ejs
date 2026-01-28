@@ -1,0 +1,175 @@
+<%- include('partials/header', { title }) %>
+<section class="grid">
+  <div class="panel full-width">
+    <div class="panel-header">
+      <h2>Users & roles</h2>
+      <p>Control access for Postgres roles.</p>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Role</th>
+            <th>Login</th>
+            <th>Createdb</th>
+            <th>Createrole</th>
+            <th>Superuser</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% roles.forEach((role) => { %>
+            <tr>
+              <td><strong><%= role.rolname %></strong></td>
+              <td><span class="badge <%= role.rolcanlogin ? 'badge-success' : 'badge-muted' %>"><%= role.rolcanlogin ? 'Yes' : 'No' %></span></td>
+              <td><span class="badge <%= role.rolcreatedb ? 'badge-success' : 'badge-muted' %>"><%= role.rolcreatedb ? 'Yes' : 'No' %></span></td>
+              <td><span class="badge <%= role.rolcreaterole ? 'badge-success' : 'badge-muted' %>"><%= role.rolcreaterole ? 'Yes' : 'No' %></span></td>
+              <td><span class="badge <%= role.rolsuper ? 'badge-warning' : 'badge-muted' %>"><%= role.rolsuper ? 'Yes' : 'No' %></span></td>
+              <td class="row-actions">
+                <% if (!role.rolsuper && role.rolname !== 'postgres') { %>
+                  <button class="ghost small" data-password="<%= role.rolname %>">Password</button>
+                  <form method="post" action="/users/delete" style="display:inline;">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+                    <input type="hidden" name="username" value="<%= role.rolname %>" />
+                    <button class="ghost small danger" type="submit" onclick="return confirm('Delete user <%= role.rolname %>? This cannot be undone.')">Delete</button>
+                  </form>
+                <% } %>
+              </td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Create user</h2>
+      <p>Roles with login and optional privileges.</p>
+    </div>
+    <form class="form" method="post" action="/users/create">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <label>
+        <span>Username</span>
+        <input type="text" name="username" placeholder="analytics_app" required />
+      </label>
+      <label>
+        <span>Password (min 10 chars)</span>
+        <input type="password" name="password" required />
+      </label>
+      <div class="checks">
+        <label class="check">
+          <input type="checkbox" name="canCreateDb" />
+          <span>Can create databases</span>
+        </label>
+        <label class="check">
+          <input type="checkbox" name="canCreateRole" />
+          <span>Can manage roles</span>
+        </label>
+        <% if (allowSuperuserGrant) { %>
+          <label class="check">
+            <input type="checkbox" name="isSuperuser" />
+            <span>Grant superuser</span>
+          </label>
+        <% } %>
+      </div>
+      <button class="primary" type="submit">Create user</button>
+    </form>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Grant database</h2>
+      <p>Assign full database privileges to a role.</p>
+    </div>
+    <form class="form" method="post" action="/users/grant">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <label>
+        <span>User</span>
+        <select name="username" required>
+          <% roles.forEach((role) => { %>
+            <option value="<%= role.rolname %>"><%= role.rolname %></option>
+          <% }) %>
+        </select>
+      </label>
+      <label>
+        <span>Database</span>
+        <select name="dbName" required>
+          <% databases.forEach((db) => { %>
+            <option value="<%= db.datname %>"><%= db.datname %></option>
+          <% }) %>
+        </select>
+      </label>
+      <button class="primary" type="submit">Grant access</button>
+    </form>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Revoke access</h2>
+      <p>Remove database privileges from a role.</p>
+    </div>
+    <form class="form" method="post" action="/users/revoke">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <label>
+        <span>User</span>
+        <select name="username" required>
+          <% roles.forEach((role) => { %>
+            <option value="<%= role.rolname %>"><%= role.rolname %></option>
+          <% }) %>
+        </select>
+      </label>
+      <label>
+        <span>Database</span>
+        <select name="dbName" required>
+          <% databases.forEach((db) => { %>
+            <option value="<%= db.datname %>"><%= db.datname %></option>
+          <% }) %>
+        </select>
+      </label>
+      <button class="danger" type="submit">Revoke access</button>
+    </form>
+  </div>
+
+  <div class="panel" id="passwordPanel">
+    <div class="panel-header">
+      <h2>Change password</h2>
+      <p>Update password for an existing role.</p>
+    </div>
+    <form class="form" method="post" action="/users/password">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <label>
+        <span>User</span>
+        <select name="username" id="passwordUsername" required>
+          <% roles.filter(r => r.rolcanlogin).forEach((role) => { %>
+            <option value="<%= role.rolname %>"><%= role.rolname %></option>
+          <% }) %>
+        </select>
+      </label>
+      <label>
+        <span>New password (min 10 chars)</span>
+        <input type="password" name="newPassword" required minlength="10" />
+      </label>
+      <button class="primary" type="submit">Change password</button>
+    </form>
+  </div>
+</section>
+
+<script>
+(function() {
+  const passwordButtons = document.querySelectorAll('[data-password]');
+  const passwordSelect = document.getElementById('passwordUsername');
+  const passwordPanel = document.getElementById('passwordPanel');
+
+  passwordButtons.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      const username = this.dataset.password;
+      if (passwordSelect) {
+        passwordSelect.value = username;
+        passwordPanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+  });
+})();
+</script>
+<%- include('partials/footer') %>

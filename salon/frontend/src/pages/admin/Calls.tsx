@@ -96,6 +96,47 @@ export default function AdminCalls() {
                 </div>
             ) : (
                 <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                    {/* Mobile card view */}
+                    <div className="block md:hidden divide-y divide-gray-200">
+                        {calls?.map((call) => (
+                            <div key={call.call_id} className="p-4">
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-2">
+                                        {call.direction === 'inbound' ? (
+                                            <PhoneArrowDownLeftIcon className="h-5 w-5 text-green-500" />
+                                        ) : (
+                                            <PhoneArrowUpRightIcon className="h-5 w-5 text-blue-500" />
+                                        )}
+                                        <span className="font-mono text-sm">{call.caller_phone || call.from_number || '-'}</span>
+                                    </div>
+                                    <span
+                                        className={`px-2 py-1 rounded-full text-xs ${call.status === 'completed'
+                                            ? 'bg-green-100 text-green-800'
+                                            : call.status === 'failed'
+                                                ? 'bg-red-100 text-red-800'
+                                                : 'bg-gray-100 text-gray-800'
+                                            }`}
+                                    >
+                                        {call.status}
+                                    </span>
+                                </div>
+                                <div className="flex items-center justify-between text-sm">
+                                    <span className="text-gray-600">
+                                        {call.customer ? `${call.customer.first_name} ${call.customer.last_name}` : 'Unknown'}
+                                    </span>
+                                    <span className="text-gray-500">{formatDuration(call.duration_seconds)}</span>
+                                </div>
+                                <div className="flex items-center justify-between text-xs text-gray-500 mt-1">
+                                    <span className="px-2 py-0.5 bg-gray-100 rounded">
+                                        {call.interactions?.[0]?.agent_type || call.intent_detected || '-'}
+                                    </span>
+                                    <span>{format(new Date(call.started_at), 'MMM d, h:mm a')}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    {/* Desktop table view */}
+                    <div className="hidden md:block overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
@@ -171,6 +212,7 @@ export default function AdminCalls() {
                             ))}
                         </tbody>
                     </table>
+                    </div>
                 </div>
             )}
         </div>

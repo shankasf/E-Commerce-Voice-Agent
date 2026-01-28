@@ -2,7 +2,7 @@ import { Injectable, UnauthorizedException, ConflictException, BadRequestExcepti
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcryptjs';
-import { LoginDto, RegisterDto, TokenResponseDto } from './dto/auth.dto';
+import { LoginDto, RegisterDto, TokenResponseDto, ResetPasswordDto } from './dto/auth.dto';
 import { OtpService } from './otp.service';
 
 @Injectable()
@@ -13,6 +13,9 @@ export class AuthService {
     private otpService: OtpService,
   ) {}
 
+  /**
+   * Universal password login - works for all roles
+   */
   async login(dto: LoginDto): Promise<TokenResponseDto> {
     const user = await this.prisma.users.findUnique({
       where: { email: dto.email },
@@ -22,20 +25,24 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    if (!user.password_hash) {
+      throw new UnauthorizedException('Password not set. Please use OTP login.');
+    }
+
     const isPasswordValid = await bcrypt.compare(dto.password, user.password_hash);
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const payload = { sub: user.user_id, email: user.email, role: user.role };
+    const payload = { sub: user.id, email: user.email, role: user.role };
     const accessToken = this.jwtService.sign(payload);
 
     return {
       accessToken,
       user: {
-        id: user.user_id,
+        id: user.id,
         email: user.email,
-        fullName: user.full_name,
+        fullName: user.name,
         role: user.role,
       },
     };
@@ -55,47 +62,47 @@ export class AuthService {
     const user = await this.prisma.users.create({
       data: {
         email: dto.email,
-        full_name: dto.fullName,
+        name: dto.fullName,
         password_hash: passwordHash,
-        role: dto.role || 'agent',
+        role: (dto.role as any) || 'viewer',  // Valid roles: admin, on_call, viewer
       },
     });
 
-    const payload = { sub: user.user_id, email: user.email, role: user.role };
+    const payload = { sub: user.id, email: user.email, role: user.role };
     const accessToken = this.jwtService.sign(payload);
 
     return {
       accessToken,
       user: {
-        id: user.user_id,
+        id: user.id,
         email: user.email,
-        fullName: user.full_name,
+        fullName: user.name,
         role: user.role,
       },
     };
   }
 
-  async validateUser(userId: number) {
+  async validateUser(userId: string) {
     return this.prisma.users.findUnique({
-      where: { user_id: userId },
+      where: { id: userId },
       select: {
-        user_id: true,
+        id: true,
         email: true,
-        full_name: true,
+        name: true,
         role: true,
       },
     });
   }
 
   /**
-   * Request OTP for email login (admin/agent only)
+   * Request OTP for email login (works for all roles)
    */
   async requestOTP(email: string): Promise<{ success: boolean; message: string }> {
     return this.otpService.sendOTP(email);
   }
 
   /**
-   * Verify OTP and complete login (admin/agent only)
+   * Verify OTP and complete login (works for all roles)
    */
   async verifyOTPLogin(email: string, code: string): Promise<TokenResponseDto> {
     // Verify OTP first
@@ -113,77 +120,81 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
-    // Ensure user is admin or agent
-    if (user.role !== 'admin' && user.role !== 'agent') {
-      throw new UnauthorizedException('OTP login is only available for admin and agent users');
-    }
-
     // Generate JWT token
-    const payload = { sub: user.user_id, email: user.email, role: user.role };
+    const payload = { sub: user.id, email: user.email, role: user.role };
     const accessToken = this.jwtService.sign(payload);
 
     return {
       accessToken,
       user: {
-        id: user.user_id,
+        id: user.id,
         email: user.email,
-        fullName: user.full_name,
+        fullName: user.name,
         role: user.role,
       },
     };
   }
 
   /**
-   * Requester login with password (requesters use password, not OTP)
+   * Requester login with password (kept for backward compatibility)
    */
   async requesterLogin(dto: LoginDto): Promise<TokenResponseDto> {
-    const user = await this.prisma.users.findUnique({
-      where: { email: dto.email },
-    });
-
-    if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-
-    // Ensure user is a requester
-    if (user.role !== 'requester') {
-      throw new UnauthorizedException('Please use OTP login for admin/agent accounts');
-    }
-
-    const isPasswordValid = await bcrypt.compare(dto.password, user.password_hash);
-    if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-
-    const payload = { sub: user.user_id, email: user.email, role: user.role };
-    const accessToken = this.jwtService.sign(payload);
-
-    return {
-      accessToken,
-      user: {
-        id: user.user_id,
-        email: user.email,
-        fullName: user.full_name,
-        role: user.role,
-      },
-    };
+    return this.login(dto);
   }
 
   /**
    * Get user role by email (used to determine login method)
    */
-  async getUserRole(email: string): Promise<{ role: string | null; authMethod: 'otp' | 'password' }> {
+  async getUserRole(email: string): Promise<{ role: string | null; authMethod: 'otp' | 'password' | 'both' }> {
     const user = await this.prisma.users.findUnique({
       where: { email },
       select: { role: true },
     });
 
     if (!user) {
-      return { role: null, authMethod: 'password' };
+      return { role: null, authMethod: 'both' };
     }
 
-    // Admin and Agent use OTP, Requester uses password
-    const authMethod = user.role === 'admin' || user.role === 'agent' ? 'otp' : 'password';
-    return { role: user.role, authMethod };
+    // All roles can use both OTP and password
+    return { role: user.role as string, authMethod: 'both' };
+  }
+
+  /**
+   * Request password reset - sends OTP to email
+   */
+  async forgotPassword(email: string): Promise<{ success: boolean; message: string }> {
+    return this.otpService.sendOTP(email);
+  }
+
+  /**
+   * Reset password with OTP verification
+   */
+  async resetPassword(dto: ResetPasswordDto): Promise<{ success: boolean; message: string }> {
+    // Verify OTP first
+    const otpResult = await this.otpService.verifyOTP(dto.email, dto.code);
+    if (!otpResult.valid) {
+      throw new BadRequestException(otpResult.message);
+    }
+
+    // Find user
+    const user = await this.prisma.users.findUnique({
+      where: { email: dto.email },
+    });
+
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    // Hash new password and update
+    const passwordHash = await bcrypt.hash(dto.newPassword, 10);
+    await this.prisma.users.update({
+      where: { email: dto.email },
+      data: { password_hash: passwordHash },
+    });
+
+    // Send confirmation email (non-blocking)
+    this.otpService.sendPasswordResetConfirmation(dto.email, user.name || 'User');
+
+    return { success: true, message: 'Password reset successfully' };
   }
 }

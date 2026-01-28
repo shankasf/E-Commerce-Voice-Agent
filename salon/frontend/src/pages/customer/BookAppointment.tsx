@@ -110,7 +110,7 @@ export default function BookAppointment() {
                     {steps.map((s, index) => (
                         <div key={s.id} className="flex items-center flex-1">
                             <div
-                                className={`flex items-center justify-center h-10 w-10 rounded-full border-2 ${index < currentStepIndex
+                                className={`flex items-center justify-center h-8 w-8 sm:h-10 sm:w-10 rounded-full border-2 text-sm sm:text-base ${index < currentStepIndex
                                         ? 'bg-primary-600 border-primary-600 text-white'
                                         : index === currentStepIndex
                                             ? 'border-primary-600 text-primary-600'
@@ -118,14 +118,14 @@ export default function BookAppointment() {
                                     }`}
                             >
                                 {index < currentStepIndex ? (
-                                    <CheckIcon className="h-5 w-5" />
+                                    <CheckIcon className="h-4 w-4 sm:h-5 sm:w-5" />
                                 ) : (
                                     <span>{index + 1}</span>
                                 )}
                             </div>
                             {index < steps.length - 1 && (
                                 <div
-                                    className={`flex-1 h-1 mx-2 ${index < currentStepIndex ? 'bg-primary-600' : 'bg-gray-200'
+                                    className={`flex-1 h-1 mx-1 sm:mx-2 ${index < currentStepIndex ? 'bg-primary-600' : 'bg-gray-200'
                                         }`}
                                 />
                             )}
@@ -134,8 +134,9 @@ export default function BookAppointment() {
                 </div>
                 <div className="flex mt-2">
                     {steps.map((s) => (
-                        <div key={s.id} className="flex-1 text-center text-sm text-gray-500">
-                            {s.name}
+                        <div key={s.id} className="flex-1 text-center text-xs sm:text-sm text-gray-500">
+                            <span className="hidden sm:inline">{s.name}</span>
+                            <span className="sm:hidden">{s.name.split(' ')[0]}</span>
                         </div>
                     ))}
                 </div>
@@ -259,7 +260,7 @@ export default function BookAppointment() {
                                 Available Time Slots
                             </label>
                             {availableSlots && availableSlots.length > 0 ? (
-                                <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
+                                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
                                     {availableSlots.map((slot) => (
                                         <button
                                             key={slot}

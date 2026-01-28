@@ -180,8 +180,8 @@ export default function AdminServices() {
 
             {/* Modal */}
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-                    <div className="bg-white rounded-xl p-6 w-full max-w-md">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <div className="bg-white rounded-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
                         <h2 className="text-xl font-bold mb-4">
                             {editingService ? 'Edit Service' : 'Add Service'}
                         </h2>

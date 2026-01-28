@@ -19,6 +19,41 @@ model account_managers {
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model acknowledgments {
+  id               String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  event_id         String     @db.Uuid
+  user_id          String     @db.Uuid
+  method           ack_method
+  acknowledged_at  DateTime   @db.Timestamptz(6)
+  notes            String?
+  downgrade_reason String?
+  created_at       DateTime   @default(now()) @db.Timestamptz(6)
+  events           events     @relation(fields: [event_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users            users      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([event_id], map: "idx_acknowledgments_event_id")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model admin_alerts {
+  id          String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  event_id    String?    @db.Uuid
+  alert_type  alert_type
+  message     String
+  details     Json?
+  alerted_at  DateTime   @default(now()) @db.Timestamptz(6)
+  resolved    Boolean    @default(false)
+  resolved_at DateTime?  @db.Timestamptz(6)
+  resolved_by String?    @db.Uuid
+  created_at  DateTime   @default(now()) @db.Timestamptz(6)
+  events      events?    @relation(fields: [event_id], references: [id], onUpdate: NoAction)
+  users       users?     @relation(fields: [resolved_by], references: [id], onUpdate: NoAction)
+
+  @@index([resolved], map: "idx_admin_alerts_resolved")
+  @@index([alert_type], map: "idx_admin_alerts_type")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model agent_interactions {
   interaction_id    Int             @id @default(autoincrement())
   call_id           String?         @db.VarChar(100)
@@ -100,7 +135,6 @@ model call_logs {
   wait_time_seconds     Int?                    @default(0)
   status                String?                 @default("in_progress") @db.VarChar(50)
   direction             String?                 @default("inbound") @db.VarChar(20)
-  call_source           String?                 @default("twilio") @db.VarChar(20)   // 'twilio' = PSTN via Twilio, 'webrtc' = browser direct
   was_abandoned         Boolean?                @default(false)
   abandon_reason        String?                 @db.VarChar(255)
   ai_resolution         Boolean?                @default(true)
@@ -124,6 +158,7 @@ model call_logs {
   device_type           String?                 @db.VarChar(50)
   created_at            DateTime?               @default(now()) @db.Timestamptz(6)
   updated_at            DateTime?               @default(now()) @db.Timestamptz(6)
+  call_source           String?                 @default("twilio") @db.VarChar(20)
   agent_interactions    agent_interactions[]
   ai_usage_logs         ai_usage_logs[]
   contacts              contacts?               @relation(fields: [contact_id], references: [contact_id], onDelete: NoAction, onUpdate: NoAction)
@@ -158,7 +193,7 @@ model contacts {
   contact_id       Int                @id @default(autoincrement())
   organization_id  Int
   full_name        String             @db.VarChar(255)
-  email            String             @db.VarChar(255)
+  email            String?            @db.VarChar(255)
   phone            String?            @db.VarChar(50)
   created_at       DateTime?          @default(now()) @db.Timestamptz(6)
   updated_at       DateTime?          @default(now()) @db.Timestamptz(6)
@@ -217,55 +252,20 @@ model customer_metrics {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model daily_metrics {
-  date                        DateTime  @id @db.Date
-  total_calls                 Int?      @default(0)
-  completed_calls             Int?      @default(0)
-  abandoned_calls             Int?      @default(0)
-  avg_call_duration_seconds   Int?      @default(0)
-  max_call_duration_seconds   Int?      @default(0)
-  avg_wait_time_seconds       Int?      @default(0)
-  peak_concurrent_calls       Int?      @default(0)
-  ai_resolved_calls           Int?      @default(0)
-  human_escalated_calls       Int?      @default(0)
-  ai_resolution_rate          Decimal?  @default(0) @db.Decimal(5, 4)
-  avg_ai_response_time_ms     Int?      @default(0)
-  total_tool_calls            Int?      @default(0)
-  failed_tool_calls           Int?      @default(0)
-  avg_turns_per_call          Decimal?  @default(0) @db.Decimal(5, 2)
-  fallback_responses          Int?      @default(0)
-  triage_agent_calls          Int?      @default(0)
-  email_agent_calls           Int?      @default(0)
-  network_agent_calls         Int?      @default(0)
-  printer_agent_calls         Int?      @default(0)
-  computer_agent_calls        Int?      @default(0)
-  phone_agent_calls           Int?      @default(0)
-  security_agent_calls        Int?      @default(0)
-  ticket_agent_calls          Int?      @default(0)
-  device_agent_calls          Int?      @default(0)
-  lookup_agent_calls          Int?      @default(0)
-  servicedesk_agent_calls     Int?      @default(0)
-  tickets_created             Int?      @default(0)
-  tickets_resolved            Int?      @default(0)
-  tickets_escalated           Int?      @default(0)
-  avg_ticket_resolution_hours Decimal?  @default(0) @db.Decimal(10, 2)
-  unique_callers              Int?      @default(0)
-  repeat_callers              Int?      @default(0)
-  new_callers                 Int?      @default(0)
-  avg_csat_score              Decimal?  @default(0) @db.Decimal(3, 2)
-  total_ai_tokens             Int?      @default(0)
-  total_ai_cost_cents         Decimal?  @default(0) @db.Decimal(12, 4)
-  total_twilio_minutes        Decimal?  @default(0) @db.Decimal(10, 2)
-  total_twilio_cost_cents     Decimal?  @default(0) @db.Decimal(12, 4)
-  total_cost_cents            Decimal?  @default(0) @db.Decimal(12, 4)
-  cost_per_call_cents         Decimal?  @default(0) @db.Decimal(10, 4)
-  cost_per_resolution_cents   Decimal?  @default(0) @db.Decimal(10, 4)
-  avg_uptime_percent          Decimal?  @default(1) @db.Decimal(5, 4)
-  total_errors                Int?      @default(0)
-  avg_api_latency_ms          Int?      @default(0)
-  created_at                  DateTime? @default(now()) @db.Timestamptz(6)
-  updated_at                  DateTime? @default(now()) @db.Timestamptz(6)
+  id                        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  date                      DateTime @unique @db.Date
+  total_events              Int      @default(0)
+  email_events              Int      @default(0)
+  dialpad_events            Int      @default(0)
+  escalated_events          Int      @default(0)
+  acknowledged_events       Int      @default(0)
+  missed_events             Int      @default(0)
+  avg_response_time_seconds Int?
+  sla_compliance_rate       Decimal? @db.Decimal(5, 2)
+  created_at                DateTime @default(now()) @db.Timestamptz(6)
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model device_manufacturers {
   manufacturer_id Int             @id @default(autoincrement())
   name            String          @unique @db.VarChar(255)
@@ -273,6 +273,7 @@ model device_manufacturers {
   devices         devices[]
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model device_models {
   model_id             Int                   @id @default(autoincrement())
   manufacturer_id      Int?
@@ -283,6 +284,7 @@ model device_models {
   @@unique([manufacturer_id, name], map: "device_models_unique")
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model device_types {
   device_type_id Int       @id @default(autoincrement())
   name           String    @unique @db.VarChar(255)
@@ -329,10 +331,105 @@ model devices {
   support_tickets         support_tickets[]
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model domains {
   domain_id Int       @id @default(autoincrement())
   name      String    @unique @db.VarChar(255)
   devices   devices[]
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model email_polling_status {
+  id                 String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  last_poll_at       DateTime? @db.Timestamptz(6)
+  last_success_at    DateTime? @db.Timestamptz(6)
+  messages_processed Int       @default(0)
+  errors_count       Int       @default(0)
+  last_error         String?
+  status             String    @default("idle") @db.VarChar(50)
+  created_at         DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime  @default(now()) @db.Timestamptz(6)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model emergency_keywords {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  keyword     String   @db.VarChar(100)
+  weight      Decimal  @default(1.00) @db.Decimal(3, 2)
+  category    String?  @db.VarChar(100)
+  is_negative Boolean  @default(false)
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime @default(now()) @db.Timestamptz(6)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model escalation_contacts {
+  id              String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  user_id         String            @db.Uuid
+  position        Int
+  contact_type    contact_type
+  is_active       Boolean           @default(true)
+  created_at      DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime          @default(now()) @db.Timestamptz(6)
+  users           users             @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  escalation_logs escalation_logs[]
+
+  @@unique([user_id, contact_type])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model escalation_logs {
+  id                      String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  event_id                String              @db.Uuid
+  contact_id              String              @db.Uuid
+  user_id                 String              @db.Uuid
+  attempt_number          Int
+  call_sid                String?             @db.VarChar(100)
+  call_status             call_status         @default(not_called)
+  sms_sid                 String?             @db.VarChar(100)
+  sms_status              sms_status          @default(not_sent)
+  acknowledgment_received Boolean             @default(false)
+  acknowledged_at         DateTime?           @db.Timestamptz(6)
+  error_message           String?
+  created_at              DateTime            @default(now()) @db.Timestamptz(6)
+  escalation_contacts     escalation_contacts @relation(fields: [contact_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  events                  events              @relation(fields: [event_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users                   users               @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([call_sid], map: "idx_escalation_logs_call_sid")
+  @@index([event_id], map: "idx_escalation_logs_event_id")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model events {
+  id                          String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  source                      event_source
+  subject                     String?           @db.VarChar(500)
+  body                        String?
+  sender_domain               String?           @db.VarChar(255)
+  sender_email                String?           @db.VarChar(255)
+  sender_phone                String?           @db.VarChar(50)
+  received_at                 DateTime          @db.Timestamptz(6)
+  emergency_score             Decimal?          @db.Decimal(5, 4)
+  extracted_context           Json?
+  status                      event_status      @default(pending)
+  acknowledged_by             String?           @db.Uuid
+  acknowledged_at             DateTime?         @db.Timestamptz(6)
+  downgraded_to_non_emergency Boolean           @default(false)
+  escalation_ladder_snapshot  Json?
+  voicemail_transcription     String?
+  voicemail_url               String?           @db.VarChar(500)
+  created_at                  DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at                  DateTime          @default(now()) @db.Timestamptz(6)
+  acknowledgments             acknowledgments[]
+  admin_alerts                admin_alerts[]
+  escalation_logs             escalation_logs[]
+  users                       users?            @relation(fields: [acknowledged_by], references: [id], onUpdate: NoAction)
+
+  @@index([received_at], map: "idx_events_received_at")
+  @@index([source], map: "idx_events_source")
+  @@index([status], map: "idx_events_status")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -364,6 +461,20 @@ model locations {
   support_tickets      support_tickets[]
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model on_call_rotations {
+  id                                               String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  start_date                                       DateTime @db.Date
+  end_date                                         DateTime @db.Date
+  primary_user_id                                  String   @db.Uuid
+  secondary_user_id                                String   @db.Uuid
+  created_at                                       DateTime @default(now()) @db.Timestamptz(6)
+  updated_at                                       DateTime @default(now()) @db.Timestamptz(6)
+  users_on_call_rotations_primary_user_idTousers   users    @relation("on_call_rotations_primary_user_idTousers", fields: [primary_user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users_on_call_rotations_secondary_user_idTousers users    @relation("on_call_rotations_secondary_user_idTousers", fields: [secondary_user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model operating_systems {
   os_id   Int       @id @default(autoincrement())
   name    String    @unique @db.VarChar(255)
@@ -387,12 +498,14 @@ model organizations {
   support_tickets  support_tickets[]
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model processor_architectures {
   architecture_id Int       @id @default(autoincrement())
   name            String    @unique @db.VarChar(255)
   devices         devices[]
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model processor_models {
   processor_id Int       @id @default(autoincrement())
   manufacturer String?   @db.VarChar(255)
@@ -448,33 +561,27 @@ model support_tickets {
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model system_health_logs {
-  log_id                Int       @id @default(autoincrement())
-  cpu_usage_percent     Decimal?  @db.Decimal(5, 2)
-  cpu_percent           Decimal?  @db.Decimal(5, 2)
-  memory_usage_mb       Int?
-  memory_mb             Int?
-  memory_total_mb       Int?
-  disk_usage_percent    Decimal?  @db.Decimal(5, 2)
-  disk_percent          Decimal?  @db.Decimal(5, 2)
-  active_sessions       Int?      @default(0)
-  max_sessions          Int?      @default(100)
-  websocket_connections Int?      @default(0)
-  api_response_time_ms  Int?
-  avg_response_time_ms  Int?
-  p95_response_time_ms  Int?
-  openai_latency_ms     Int?
-  twilio_latency_ms     Int?
-  database_latency_ms   Int?
-  error_count_5xx       Int?      @default(0)
-  error_count_4xx       Int?      @default(0)
-  error_count           Int?      @default(0)
-  warning_count         Int?      @default(0)
-  error_rate            Decimal?  @default(0) @db.Decimal(5, 4)
-  uptime_seconds        BigInt?   @default(0)
-  pm2_restarts          Int?      @default(0)
-  recorded_at           DateTime? @default(now()) @db.Timestamptz(6)
+  id               String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  service          String   @db.VarChar(100)
+  status           String   @db.VarChar(50)
+  response_time_ms Int?
+  error_message    String?
+  details          Json?
+  checked_at       DateTime @default(now()) @db.Timestamptz(6)
 
-  @@index([recorded_at], map: "idx_system_health_recorded")
+  @@index([service, checked_at], map: "idx_system_health_logs_service_checked")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model system_settings {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  key         String   @unique @db.VarChar(100)
+  value       String
+  description String?
+  updated_by  String?  @db.Uuid
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime @default(now()) @db.Timestamptz(6)
+  users       users?   @relation(fields: [updated_by], references: [id], onUpdate: NoAction)
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
@@ -557,26 +664,80 @@ model twilio_usage_logs {
   @@index([created_at], map: "idx_twilio_usage_created")
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model update_statuses {
   update_status_id Int       @id @default(autoincrement())
   name             String    @unique @db.VarChar(255)
   devices          devices[]
 }
 
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model users {
-  user_id       Int       @id @default(autoincrement())
-  email         String    @unique @db.VarChar(255)
-  password_hash String    @db.VarChar(255)
-  full_name     String    @db.VarChar(255)
-  role          String    @default("agent") @db.VarChar(50)
-  is_active     Boolean   @default(true)
-  created_at    DateTime? @default(now()) @db.Timestamptz(6)
-  updated_at    DateTime? @default(now()) @db.Timestamptz(6)
+  id                                                           String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name                                                         String                @db.VarChar(255)
+  email                                                        String                @unique @db.VarChar(255)
+  password_hash                                                String?               @db.VarChar(255)
+  phone_number                                                 String?               @db.VarChar(50)
+  role                                                         user_role             @default(viewer)
+  is_active                                                    Boolean               @default(true)
+  created_at                                                   DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at                                                   DateTime              @default(now()) @db.Timestamptz(6)
+  acknowledgments                                              acknowledgments[]
+  admin_alerts                                                 admin_alerts[]
+  escalation_contacts                                          escalation_contacts[]
+  escalation_logs                                              escalation_logs[]
+  events                                                       events[]
+  on_call_rotations_on_call_rotations_primary_user_idTousers   on_call_rotations[]   @relation("on_call_rotations_primary_user_idTousers")
+  on_call_rotations_on_call_rotations_secondary_user_idTousers on_call_rotations[]   @relation("on_call_rotations_secondary_user_idTousers")
+  system_settings                                              system_settings[]
+}
+
+enum ack_method {
+  sms
+  call
 }
 
 enum agent_type_enum {
   Bot
   Human
+}
+
+enum alert_type {
+  email_ingestion_failure
+  dialpad_webhook_failure
+  call_failure
+  sms_failure
+  no_acknowledgment
+  system_health
+}
+
+enum call_status {
+  not_called
+  ringing
+  answered
+  failed
+  no_answer
+  busy
+}
+
+enum contact_type {
+  primary
+  secondary
+  fixed
+}
+
+enum event_source {
+  email
+  dialpad
+}
+
+enum event_status {
+  pending
+  escalated
+  acknowledged
+  downgraded
+  missed
+  closed
 }
 
 enum location_type_enum {
@@ -595,7 +756,20 @@ enum site_type_enum {
   Other
 }
 
+enum sms_status {
+  not_sent
+  sent
+  delivered
+  failed
+}
+
 enum support_agent_type_enum {
   Bot
   Human
+}
+
+enum user_role {
+  admin
+  on_call
+  viewer
 }

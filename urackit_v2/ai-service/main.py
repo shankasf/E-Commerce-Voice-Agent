@@ -18,6 +18,7 @@ from config import get_config
 from agents import Runner
 from app_agents import triage_agent
 from memory import get_memory, clear_memory
+from prompt_scripts import UE_OPENING_GREETING_TEXT
 
 # Configure logging
 logging.basicConfig(
@@ -43,6 +44,9 @@ app.add_middleware(
         "http://localhost:3001",  # NestJS backend
         "http://localhost:5173",  # React frontend
         "http://localhost:8081",  # Local dev
+        "https://callsphere.tech",  # CallSphere website
+        "https://www.callsphere.tech",  # CallSphere website (www)
+        "https://webhook.callsphere.tech",  # Webhook domain
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -171,12 +175,7 @@ async def start_session():
     session_id = f"chat-{uuid.uuid4().hex[:8]}"
     memory = get_memory(session_id)
     
-    greeting = (
-        "Thank you for calling U Rack IT. I can help with email, computer, "
-        "internet or VPN issues, printers, phones, security concerns, ticket updates, "
-        "or billing. You may ask for a technician at any time. "
-        "May I have your U E code please?"
-    )
+    greeting = UE_OPENING_GREETING_TEXT
     
     memory.add_turn("assistant", greeting)
     
@@ -871,32 +870,33 @@ class WebRTCConnectResponse(BaseModel):
 @app.post("/webrtc/connect", response_model=WebRTCConnectResponse)
 async def webrtc_connect(request: WebRTCConnectRequest):
     """
-    Unified Interface: Backend proxies SDP to OpenAI Realtime API.
-    
+    Unified Interface: Backend proxies SDP to OpenAI Realtime API with system prompt.
+
     Flow:
     1. Browser sends SDP offer to our backend
-    2. Backend sends SDP to OpenAI /v1/realtime endpoint
-    3. Backend returns SDP answer to browser
-    4. Browser sets remote description and connects
-    
+    2. Backend creates ephemeral session with OpenAI (includes our instructions)
+    3. Backend sends SDP to OpenAI /v1/realtime endpoint
+    4. Backend returns SDP answer to browser
+
     Role-based access:
     - admin: Full access, 60 min max, all agents
-    - agent: Standard access, 30 min max, assigned agents  
+    - agent: Standard access, 30 min max, assigned agents
     - requester: Limited access, 15 min max, triage only
     """
     import aiohttp
     import os
     import uuid
-    
+
     try:
         from sip_integration.session_manager import get_session_manager
         from sip_integration.interfaces import CallInfo
-        
+        from sip_integration.agent_adapter import create_agent_adapter
+
         session_manager = get_session_manager()
-        
+
         # Create a WebRTC session for tracking
         webrtc_id = f"webrtc-{uuid.uuid4().hex[:12]}"
-        
+
         call_info = CallInfo(
             call_sid=webrtc_id,
             from_number=f"webrtc:{request.userEmail or 'anonymous'}",
@@ -904,10 +904,10 @@ async def webrtc_connect(request: WebRTCConnectRequest):
             direction="inbound",
             status="ringing",
         )
-        
+
         # Create session with webrtc source
         session_id = await session_manager.create_session(call_info, call_source="webrtc")
-        
+
         # Get the session and set metadata
         session = await session_manager.get_session(session_id)
         if session:
@@ -916,39 +916,106 @@ async def webrtc_connect(request: WebRTCConnectRequest):
             session.metadata['userId'] = request.userId
             session.metadata['userEmail'] = request.userEmail
             session.metadata['webrtc'] = True
-        
+
         # Get OpenAI API key
         openai_api_key = os.getenv("OPENAI_API_KEY")
         realtime_model = os.getenv("OPENAI_REALTIME_MODEL", "gpt-4o-realtime-preview-2024-12-17")
-        
+
         if not openai_api_key:
             raise HTTPException(status_code=500, detail="OpenAI API key not configured")
-        
-        # OpenAI Realtime API - POST SDP offer, get SDP answer
+
+        # Get system prompt from agent adapter (same as voice calls)
+        agent_adapter = create_agent_adapter()
+        system_prompt = agent_adapter.get_system_prompt()
+
+        full_instructions = (
+            f"{system_prompt}\n\n"
+            f"CRITICAL: When the call starts, say this EXACT greeting verbatim (word for word):\n\n{UE_OPENING_GREETING_TEXT}\n\n"
+            f"Then wait for their response and follow the CALL START FLOW."
+        )
+
+        # First, create an ephemeral session with OpenAI to configure instructions
         async with aiohttp.ClientSession() as http_session:
-            sdp_response = await http_session.post(
-                f"https://api.openai.com/v1/realtime?model={realtime_model}",
+            # Create session with instructions
+            session_response = await http_session.post(
+                "https://api.openai.com/v1/realtime/sessions",
                 headers={
                     "Authorization": f"Bearer {openai_api_key}",
-                    "Content-Type": "application/sdp",
+                    "Content-Type": "application/json",
                 },
-                data=request.sdp,
+                json={
+                    "model": realtime_model,
+                    "voice": "alloy",
+                    "instructions": full_instructions,
+                    "turn_detection": {
+                        "type": "server_vad",
+                        "threshold": 0.85,
+                        "prefix_padding_ms": 300,
+                        "silence_duration_ms": 800
+                    },
+                    "input_audio_transcription": {
+                        "model": "whisper-1"
+                    }
+                },
             )
 
-            if sdp_response.status != 200 and sdp_response.status != 201:
-                error_text = await sdp_response.text()
-                logger.error(f"OpenAI SDP error ({sdp_response.status}): {error_text}")
-                raise HTTPException(status_code=502, detail=f"OpenAI error: {error_text}")
+            if session_response.status not in [200, 201]:
+                error_text = await session_response.text()
+                logger.error(f"OpenAI session error ({session_response.status}): {error_text}")
+                # Fall back to direct SDP without instructions
+                logger.warning("Falling back to direct SDP connection without custom instructions")
+                sdp_response = await http_session.post(
+                    f"https://api.openai.com/v1/realtime?model={realtime_model}",
+                    headers={
+                        "Authorization": f"Bearer {openai_api_key}",
+                        "Content-Type": "application/sdp",
+                    },
+                    data=request.sdp,
+                )
+                if sdp_response.status not in [200, 201]:
+                    error_text = await sdp_response.text()
+                    raise HTTPException(status_code=502, detail=f"OpenAI error: {error_text}")
+                sdp_answer = await sdp_response.text()
+            else:
+                # Got ephemeral session with instructions - now do SDP exchange with that session
+                session_data = await session_response.json()
+                ephemeral_token = session_data.get("client_secret", {}).get("value")
 
-            sdp_answer = await sdp_response.text()
-        
-        logger.info(f"WebRTC session created: {session_id}, role={request.role}")
-        
+                if ephemeral_token:
+                    # Use ephemeral token for SDP exchange
+                    sdp_response = await http_session.post(
+                        f"https://api.openai.com/v1/realtime?model={realtime_model}",
+                        headers={
+                            "Authorization": f"Bearer {ephemeral_token}",
+                            "Content-Type": "application/sdp",
+                        },
+                        data=request.sdp,
+                    )
+                else:
+                    # No ephemeral token, use regular API key
+                    sdp_response = await http_session.post(
+                        f"https://api.openai.com/v1/realtime?model={realtime_model}",
+                        headers={
+                            "Authorization": f"Bearer {openai_api_key}",
+                            "Content-Type": "application/sdp",
+                        },
+                        data=request.sdp,
+                    )
+
+                if sdp_response.status not in [200, 201]:
+                    error_text = await sdp_response.text()
+                    logger.error(f"OpenAI SDP error ({sdp_response.status}): {error_text}")
+                    raise HTTPException(status_code=502, detail=f"OpenAI error: {error_text}")
+
+                sdp_answer = await sdp_response.text()
+
+        logger.info(f"WebRTC session created: {session_id}, role={request.role}, with custom instructions")
+
         return WebRTCConnectResponse(
             sdp=sdp_answer,
             sessionId=session_id,
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -991,6 +1058,156 @@ async def webrtc_disconnect(payload: dict = Body(...)):
     except Exception as e:
         logger.error(f"WebRTC disconnect error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================
+# Browser WebSocket Voice (Direct OpenAI Realtime)
+# ============================================
+
+# Store active browser voice sessions
+browser_voice_sessions: Dict[str, Any] = {}
+
+@app.websocket("/ws/voice")
+async def browser_voice_websocket(websocket: WebSocket):
+    """
+    WebSocket endpoint for browser-based voice chat with OpenAI Realtime.
+    Browser sends audio as base64 PCM, receives audio back.
+    This is a direct browser-to-AI connection without Twilio.
+    """
+    import base64
+    import asyncio
+
+    await websocket.accept()
+
+    session_id = None
+    openai_connection = None
+
+    try:
+        session_id = f"browser-{uuid.uuid4().hex[:12]}"
+        logger.info(f"Browser voice session started: {session_id}")
+
+        # Get agent configuration
+        from sip_integration.agent_adapter import create_agent_adapter
+        from sip_integration.openai_realtime import OpenAIRealtimeConnection
+        from sip_integration.interfaces import AudioChunk, AudioFormat
+
+        agent_adapter = create_agent_adapter()
+        system_prompt = agent_adapter.get_system_prompt()
+        tools = agent_adapter.get_tools_schema()
+
+        # Add greeting instruction
+        full_instructions = (
+            f"{system_prompt}\n\n"
+            f"CRITICAL: When the call starts, say this EXACT greeting verbatim (word for word):\n\n{UE_OPENING_GREETING_TEXT}\n\n"
+            f"Then wait for their response and follow the CALL START FLOW."
+        )
+
+        # Create OpenAI Realtime connection with PCM16 format for browser
+        openai_connection = OpenAIRealtimeConnection(
+            system_prompt=full_instructions,
+            tools=tools,
+            input_audio_format="pcm16",
+            output_audio_format="pcm16",
+        )
+
+        # Store session
+        browser_voice_sessions[session_id] = {
+            "connection": openai_connection,
+            "started_at": datetime.utcnow().isoformat()
+        }
+
+        # Set up audio callback - send audio to browser
+        def send_audio_to_browser(chunk: AudioChunk):
+            try:
+                # OpenAI returns PCM16 audio (configured above)
+                # Send directly to browser as base64
+                audio_b64 = base64.b64encode(chunk.data).decode('utf-8')
+                asyncio.create_task(websocket.send_json({
+                    "type": "audio",
+                    "audio": audio_b64
+                }))
+            except Exception as e:
+                logger.error(f"Error sending audio to browser: {e}")
+
+        openai_connection.set_audio_callback(send_audio_to_browser)
+
+        # Set up transcript callback
+        def send_transcript(role: str, text: str):
+            try:
+                asyncio.create_task(websocket.send_json({
+                    "type": "transcript",
+                    "role": role,
+                    "text": text
+                }))
+            except Exception as e:
+                logger.error(f"Error sending transcript: {e}")
+
+        openai_connection.set_text_callback(send_transcript)
+
+        # Set up function call handler
+        async def handle_function(name: str, arguments: Dict[str, Any]) -> str:
+            logger.info(f"Function call: {name} with args: {arguments}")
+            # For now, return a simple response
+            # In production, route to appropriate agent tools
+            return f"Function {name} executed with args: {arguments}"
+
+        openai_connection.set_function_callback(handle_function)
+
+        # Connect to OpenAI
+        connected = await openai_connection.connect(session_id)
+        if not connected:
+            await websocket.send_json({"type": "error", "message": "Failed to connect to AI"})
+            await websocket.close()
+            return
+
+        # Notify browser we're ready
+        await websocket.send_json({"type": "ready", "sessionId": session_id})
+
+        # Start greeting
+        await openai_connection.start_greeting()
+
+        # Handle incoming messages from browser
+        while True:
+            try:
+                data = await websocket.receive_json()
+                msg_type = data.get("type")
+
+                if msg_type == "audio":
+                    # Browser sends audio as base64 PCM
+                    audio_b64 = data.get("audio", "")
+                    if audio_b64:
+                        audio_bytes = base64.b64decode(audio_b64)
+                        chunk = AudioChunk(
+                            data=audio_bytes,
+                            format=AudioFormat.PCM16,
+                            timestamp=0
+                        )
+                        await openai_connection.send_audio(chunk)
+
+                elif msg_type == "text":
+                    # Text input
+                    text = data.get("text", "")
+                    if text:
+                        await openai_connection.send_text(text)
+
+                elif msg_type == "end":
+                    # Client wants to end
+                    break
+
+            except WebSocketDisconnect:
+                break
+            except Exception as e:
+                logger.error(f"Error handling browser message: {e}")
+                break
+
+    except Exception as e:
+        logger.error(f"Browser voice session error: {e}")
+    finally:
+        if openai_connection:
+            await openai_connection.disconnect()
+        if session_id and session_id in browser_voice_sessions:
+            del browser_voice_sessions[session_id]
+        logger.info(f"Browser voice session ended: {session_id}")
 
 
 # ============================================

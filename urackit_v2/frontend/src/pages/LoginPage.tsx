@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {
     Phone,
     Mail,
@@ -13,7 +13,9 @@ import {
     AlertCircle,
     Loader2,
     Eye,
-    EyeOff
+    EyeOff,
+    KeyRound,
+    MessageSquare
 } from 'lucide-react';
 import { useAuth } from '../context';
 import { authApi } from '../services/api';
@@ -21,34 +23,31 @@ import clsx from 'clsx';
 
 type LoginTab = 'admin' | 'agent' | 'requester';
 type LoginStep = 'email' | 'otp' | 'password';
+type AuthMethod = 'otp' | 'password';
 
 const tabConfig: Record<LoginTab, {
     label: string;
     icon: React.FC<{ className?: string }>;
     description: string;
     gradient: string;
-    authMethod: 'otp' | 'password';
 }> = {
     admin: {
         label: 'Administrator',
         icon: Shield,
         description: 'Full system access & configuration',
         gradient: 'from-purple-500 to-indigo-600',
-        authMethod: 'otp',
     },
     agent: {
         label: 'Support Agent',
         icon: Headphones,
         description: 'Handle tickets & voice calls',
         gradient: 'from-blue-500 to-cyan-600',
-        authMethod: 'otp',
     },
     requester: {
         label: 'Requester',
         icon: User,
         description: 'Submit and track support tickets',
         gradient: 'from-emerald-500 to-teal-600',
-        authMethod: 'password',
     },
 };
 
@@ -57,6 +56,7 @@ export function LoginPage() {
     const { login, isAuthenticated } = useAuth();
 
     const [activeTab, setActiveTab] = useState<LoginTab>('agent');
+    const [authMethod, setAuthMethod] = useState<AuthMethod>('otp');
     const [step, setStep] = useState<LoginStep>('email');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -96,14 +96,23 @@ export function LoginPage() {
         setSuccess('');
     };
 
+    const handleAuthMethodChange = (method: AuthMethod) => {
+        setAuthMethod(method);
+        setStep('email');
+        setPassword('');
+        setOtp(['', '', '', '', '', '']);
+        setError('');
+        setSuccess('');
+    };
+
     const handleEmailSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
         setIsLoading(true);
 
         try {
-            if (config.authMethod === 'otp') {
-                // Request OTP for admin/agent
+            if (authMethod === 'otp') {
+                // Request OTP
                 const response = await authApi.requestOTP(email);
                 if (response.success) {
                     setSuccess('Verification code sent to your email');
@@ -114,7 +123,7 @@ export function LoginPage() {
                     setError(response.message || 'Failed to send verification code');
                 }
             } else {
-                // Show password field for requester
+                // Show password field
                 setStep('password');
             }
         } catch (err: any) {
@@ -182,11 +191,13 @@ export function LoginPage() {
         setIsLoading(true);
 
         try {
-            const response = await authApi.requesterLogin({ email, password });
+            const response = await authApi.login({ email, password });
             login(response.accessToken, response.user);
             setSuccess('Login successful! Redirecting...');
-            // Requesters always go to requester dashboard
-            setTimeout(() => navigate('/requester'), 500);
+            // Navigate based on role
+            const userRole = response.user.role;
+            const redirectPath = userRole === 'requester' ? '/requester' : userRole === 'agent' ? '/agent' : '/overview';
+            setTimeout(() => navigate(redirectPath), 500);
         } catch (err: any) {
             setError(err.response?.data?.message || 'Invalid credentials');
         } finally {
@@ -278,7 +289,7 @@ export function LoginPage() {
                     {/* Form Content */}
                     <div className="p-8">
                         {/* Role Description */}
-                        <div className="flex items-center gap-3 mb-6 p-4 rounded-xl bg-dark-800/50">
+                        <div className="flex items-center gap-3 mb-4 p-4 rounded-xl bg-dark-800/50">
                             <div className={clsx(
                                 'w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-br',
                                 config.gradient
@@ -290,6 +301,36 @@ export function LoginPage() {
                                 <p className="text-sm text-dark-400">{config.description}</p>
                             </div>
                         </div>
+
+                        {/* Auth Method Toggle */}
+                        {step === 'email' && (
+                            <div className="flex gap-2 mb-6 p-1 bg-dark-800/50 rounded-xl">
+                                <button
+                                    onClick={() => handleAuthMethodChange('otp')}
+                                    className={clsx(
+                                        'flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium transition-all',
+                                        authMethod === 'otp'
+                                            ? 'bg-primary-500 text-white shadow-lg'
+                                            : 'text-dark-400 hover:text-white'
+                                    )}
+                                >
+                                    <MessageSquare className="w-4 h-4" />
+                                    Email OTP
+                                </button>
+                                <button
+                                    onClick={() => handleAuthMethodChange('password')}
+                                    className={clsx(
+                                        'flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium transition-all',
+                                        authMethod === 'password'
+                                            ? 'bg-primary-500 text-white shadow-lg'
+                                            : 'text-dark-400 hover:text-white'
+                                    )}
+                                >
+                                    <KeyRound className="w-4 h-4" />
+                                    Password
+                                </button>
+                            </div>
+                        )}
 
                         {/* Status Messages */}
                         {error && (
@@ -346,7 +387,7 @@ export function LoginPage() {
                                 </button>
 
                                 <p className="text-center text-xs text-dark-400 mt-4">
-                                    {config.authMethod === 'otp' ? (
+                                    {authMethod === 'otp' ? (
                                         <>
                                             <Sparkles className="w-3 h-3 inline mr-1" />
                                             Secure passwordless login via email verification
@@ -455,7 +496,7 @@ export function LoginPage() {
                                             type={showPassword ? 'text' : 'password'}
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
-                                            placeholder="••••••••"
+                                            placeholder="Enter your password"
                                             required
                                             minLength={6}
                                             className="w-full pl-12 pr-12 py-3.5 bg-dark-800/50 border border-dark-600 rounded-xl text-white placeholder-dark-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
@@ -490,13 +531,21 @@ export function LoginPage() {
                                     )}
                                 </button>
 
-                                <button
-                                    type="button"
-                                    onClick={() => setStep('email')}
-                                    className="w-full text-center text-sm text-dark-400 hover:text-white transition-colors"
-                                >
-                                    ← Back to email
-                                </button>
+                                <div className="flex items-center justify-between text-sm">
+                                    <button
+                                        type="button"
+                                        onClick={() => setStep('email')}
+                                        className="text-dark-400 hover:text-white transition-colors"
+                                    >
+                                        ← Back to email
+                                    </button>
+                                    <Link
+                                        to="/forgot-password"
+                                        className="text-primary-400 hover:text-primary-300 transition-colors"
+                                    >
+                                        Forgot password?
+                                    </Link>
+                                </div>
                             </form>
                         )}
                     </div>

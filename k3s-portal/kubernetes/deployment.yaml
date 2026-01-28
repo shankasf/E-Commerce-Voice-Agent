@@ -1,0 +1,102 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k3s-portal-backend
+  namespace: k3s-portal
+  labels:
+    app.kubernetes.io/name: k3s-portal
+    app.kubernetes.io/component: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: k3s-portal
+      app.kubernetes.io/component: backend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: k3s-portal
+        app.kubernetes.io/component: backend
+    spec:
+      serviceAccountName: k3s-portal
+      containers:
+        - name: backend
+          image: k3s-portal-backend:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 3010
+          envFrom:
+            - secretRef:
+                name: k3s-portal-secrets
+          env:
+            - name: PORT
+              value: "3010"
+            - name: NODE_ENV
+              value: "production"
+          resources:
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3010
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3010
+            initialDelaySeconds: 30
+            periodSeconds: 30
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k3s-portal-frontend
+  namespace: k3s-portal
+  labels:
+    app.kubernetes.io/name: k3s-portal
+    app.kubernetes.io/component: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: k3s-portal
+      app.kubernetes.io/component: frontend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: k3s-portal
+        app.kubernetes.io/component: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: k3s-portal-frontend:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 80
+          resources:
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 30

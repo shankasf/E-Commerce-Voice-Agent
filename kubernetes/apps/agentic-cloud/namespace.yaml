@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: agentic-cloud
+  labels:
+    app.kubernetes.io/name: agentic-cloud
+    app.kubernetes.io/part-of: callsphere

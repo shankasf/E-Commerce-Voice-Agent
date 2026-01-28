@@ -1,0 +1,177 @@
+<%- include('partials/header', { title }) %>
+<section class="query-section">
+  <div class="panel query-panel">
+    <div class="panel-header">
+      <h2>SQL Query Editor</h2>
+      <p>Execute queries against <strong><%= dbName %></strong></p>
+    </div>
+    <form class="query-form" id="queryForm">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <div class="query-editor-wrap">
+        <textarea
+          name="sql"
+          id="sqlEditor"
+          class="query-editor"
+          placeholder="SELECT * FROM your_table LIMIT 100;"
+          spellcheck="false"
+        ><%= query || '' %></textarea>
+      </div>
+      <div class="query-actions">
+        <button class="primary" type="submit" id="runQuery">Run Query</button>
+        <button class="ghost" type="button" id="clearQuery">Clear</button>
+        <span class="query-hint">Ctrl+Enter to execute</span>
+      </div>
+    </form>
+  </div>
+
+  <div class="panel results-panel">
+    <div class="panel-header">
+      <h2>Results</h2>
+      <p id="resultStatus">Ready to execute</p>
+    </div>
+    <div class="results-wrap" id="resultsContainer">
+      <div class="results-empty">Run a query to see results</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Quick Reference</h2>
+      <p>Available tables in this database</p>
+    </div>
+    <div class="table-list">
+      <% if (tables.length === 0) { %>
+        <p class="muted">No tables found</p>
+      <% } else { %>
+        <% tables.forEach((t) => { %>
+          <div class="table-item" data-insert="SELECT * FROM <%= t.table_schema %>.<%= t.table_name %> LIMIT 100;">
+            <span class="table-schema"><%= t.table_schema %></span>.<span class="table-name"><%= t.table_name %></span>
+          </div>
+        <% }) %>
+      <% } %>
+    </div>
+  </div>
+</section>
+
+<script>
+(function() {
+  const form = document.getElementById('queryForm');
+  const editor = document.getElementById('sqlEditor');
+  const runBtn = document.getElementById('runQuery');
+  const clearBtn = document.getElementById('clearQuery');
+  const resultsContainer = document.getElementById('resultsContainer');
+  const resultStatus = document.getElementById('resultStatus');
+  const tableItems = document.querySelectorAll('.table-item');
+  const csrfToken = '<%= csrfToken %>';
+
+  editor.addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.key === 'Enter') {
+      e.preventDefault();
+      executeQuery();
+    }
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const start = this.selectionStart;
+      const end = this.selectionEnd;
+      this.value = this.value.substring(0, start) + '  ' + this.value.substring(end);
+      this.selectionStart = this.selectionEnd = start + 2;
+    }
+  });
+
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    executeQuery();
+  });
+
+  clearBtn.addEventListener('click', function() {
+    editor.value = '';
+    editor.focus();
+  });
+
+  tableItems.forEach(function(item) {
+    item.addEventListener('click', function() {
+      editor.value = this.dataset.insert;
+      editor.focus();
+    });
+  });
+
+  async function executeQuery() {
+    const sql = editor.value.trim();
+    if (!sql) {
+      resultStatus.textContent = 'Please enter a query';
+      return;
+    }
+
+    runBtn.disabled = true;
+    runBtn.textContent = 'Running...';
+    resultStatus.textContent = 'Executing query...';
+
+    try {
+      const response = await fetch('/db/<%= dbName %>/query/execute', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken
+        },
+        body: JSON.stringify({ sql })
+      });
+
+      const data = await response.json();
+
+      if (data.error) {
+        resultsContainer.innerHTML = '<div class="results-error">' + escapeHtml(data.error) + '</div>';
+        resultStatus.textContent = 'Query failed';
+      } else {
+        renderResults(data);
+        resultStatus.textContent = data.rowCount + ' row(s) returned in ' + data.duration + 'ms';
+      }
+    } catch (err) {
+      resultsContainer.innerHTML = '<div class="results-error">Network error: ' + escapeHtml(err.message) + '</div>';
+      resultStatus.textContent = 'Error';
+    } finally {
+      runBtn.disabled = false;
+      runBtn.textContent = 'Run Query';
+    }
+  }
+
+  function renderResults(data) {
+    if (!data.rows || data.rows.length === 0) {
+      if (data.command && data.command !== 'SELECT') {
+        resultsContainer.innerHTML = '<div class="results-success">Query executed successfully. ' + (data.rowCount || 0) + ' row(s) affected.</div>';
+      } else {
+        resultsContainer.innerHTML = '<div class="results-empty">No rows returned</div>';
+      }
+      return;
+    }
+
+    const columns = data.fields || Object.keys(data.rows[0]);
+    let html = '<div class="table-wrap"><table><thead><tr>';
+    columns.forEach(function(col) {
+      const name = typeof col === 'object' ? col.name : col;
+      html += '<th>' + escapeHtml(name) + '</th>';
+    });
+    html += '</tr></thead><tbody>';
+
+    data.rows.forEach(function(row) {
+      html += '<tr>';
+      columns.forEach(function(col) {
+        const key = typeof col === 'object' ? col.name : col;
+        const value = row[key];
+        const display = value === null ? '<span class="null">NULL</span>' : escapeHtml(String(value));
+        html += '<td>' + display + '</td>';
+      });
+      html += '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+    resultsContainer.innerHTML = html;
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+})();
+</script>
+<%- include('partials/footer') %>

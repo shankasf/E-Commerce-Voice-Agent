@@ -21,8 +21,8 @@ COPY . .
 # Create necessary directories
 RUN mkdir -p logs db
 
-# Expose port
-EXPOSE 8085
+# Expose port (configurable via PORT env var)
+EXPOSE ${PORT:-8089}
 
-# Start the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8085"]
+# Start the application with reload for development
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8089} --reload"]

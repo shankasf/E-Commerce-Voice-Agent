@@ -1,0 +1,75 @@
+# Kubernetes Namespaces for All Applications
+# Each app gets its own namespace for isolation and resource management
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: google-map
+  labels:
+    app.kubernetes.io/name: google-map
+    app.kubernetes.io/part-of: callsphere-apps
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: realestate-voice
+  labels:
+    app.kubernetes.io/name: realestate-voice
+    app.kubernetes.io/part-of: callsphere-apps
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: salon
+  labels:
+    app.kubernetes.io/name: salon
+    app.kubernetes.io/part-of: callsphere-apps
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ticket-console
+  labels:
+    app.kubernetes.io/name: ticket-console
+    app.kubernetes.io/part-of: callsphere-apps
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: urackit-v2
+  labels:
+    app.kubernetes.io/name: urackit-v2
+    app.kubernetes.io/part-of: callsphere-apps
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: healthcare-voice
+  labels:
+    app.kubernetes.io/name: healthcare-voice
+    app.kubernetes.io/part-of: callsphere-apps
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: afterhours-escalation
+  labels:
+    app.kubernetes.io/name: afterhours-escalation
+    app.kubernetes.io/part-of: callsphere-apps
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: quiz
+  labels:
+    app.kubernetes.io/name: quiz
+    app.kubernetes.io/part-of: callsphere-apps
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: callsphere-website
+  labels:
+    app.kubernetes.io/name: callsphere-website
+    app.kubernetes.io/part-of: callsphere-apps

@@ -1,0 +1,188 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: salon-backend
+  namespace: salon
+  labels:
+    app: salon-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: salon-backend
+  template:
+    metadata:
+      labels:
+        app: salon-backend
+    spec:
+      containers:
+        - name: backend
+          image: node:20-alpine
+          imagePullPolicy: IfNotPresent
+          workingDir: /app
+          command: ["sh", "-c", "npm install && npm run start:dev"]
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NODE_ENV
+              value: "development"
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: openai-secret
+                  key: OPENAI_API_KEY
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          volumeMounts:
+            - name: backend-source
+              mountPath: /app
+      volumes:
+        - name: backend-source
+          hostPath:
+            path: /home/ubuntu/apps/salon/backend
+            type: Directory
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: salon-frontend
+  namespace: salon
+  labels:
+    app: salon-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: salon-frontend
+  template:
+    metadata:
+      labels:
+        app: salon-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: node:20-alpine
+          imagePullPolicy: IfNotPresent
+          workingDir: /app
+          command: ["sh", "-c", "npm install && npm run dev -- --host 0.0.0.0"]
+          ports:
+            - containerPort: 5173
+          env:
+            - name: NODE_ENV
+              value: "development"
+            - name: VITE_API_URL
+              value: "http://salon-backend:3000"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          volumeMounts:
+            - name: frontend-source
+              mountPath: /app
+      volumes:
+        - name: frontend-source
+          hostPath:
+            path: /home/ubuntu/apps/salon/frontend
+            type: Directory
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: salon-ai
+  namespace: salon
+  labels:
+    app: salon-ai
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: salon-ai
+  template:
+    metadata:
+      labels:
+        app: salon-ai
+    spec:
+      containers:
+        - name: ai
+          image: python:3.11-slim
+          imagePullPolicy: IfNotPresent
+          workingDir: /app
+          command: ["sh", "-c", "pip install -r requirements.txt && python main.py"]
+          ports:
+            - containerPort: 8000
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: openai-secret
+                  key: OPENAI_API_KEY
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "200m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          volumeMounts:
+            - name: ai-source
+              mountPath: /app
+      volumes:
+        - name: ai-source
+          hostPath:
+            path: /home/ubuntu/apps/salon/ai-service
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: salon-backend
+  namespace: salon
+spec:
+  type: NodePort
+  selector:
+    app: salon-backend
+  ports:
+    - port: 3000
+      targetPort: 3000
+      nodePort: 30020
+      name: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: salon-frontend
+  namespace: salon
+spec:
+  type: NodePort
+  selector:
+    app: salon-frontend
+  ports:
+    - port: 5173
+      targetPort: 5173
+      nodePort: 30021
+      name: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: salon-ai
+  namespace: salon
+spec:
+  type: NodePort
+  selector:
+    app: salon-ai
+  ports:
+    - port: 8000
+      targetPort: 8000
+      nodePort: 30086
+      name: http

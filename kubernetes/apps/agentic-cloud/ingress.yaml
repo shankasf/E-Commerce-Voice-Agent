@@ -1,0 +1,32 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: agentic-cloud
+  namespace: agentic-cloud
+  labels:
+    app.kubernetes.io/name: agentic-cloud
+  annotations:
+    # Traefik annotations (default for k3s)
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    # Cert-manager for automatic TLS
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    # Security headers
+    traefik.ingress.kubernetes.io/router.middlewares: agentic-cloud-security-headers@kubernetescrd
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - cloud.callsphere.tech
+      secretName: agentic-cloud-tls
+  rules:
+    - host: cloud.callsphere.tech
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: agentic-cloud
+                port:
+                  name: http

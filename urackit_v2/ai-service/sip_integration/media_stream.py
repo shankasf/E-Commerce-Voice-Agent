@@ -173,12 +173,16 @@ class MediaStreamHandler:
                 
                 stream_type = "conference" if self.is_conference_stream else "main"
                 logger.info(f"Media stream started ({stream_type}): {self.stream_sid}")
-                
+
                 # NOW trigger the greeting - AFTER stream_sid is set so audio can be sent
                 # Only for main stream, not conference stream
                 if not self.is_conference_stream and self.openai_connection:
                     caller_phone = self.session.call_info.from_number if self.session.call_info else None
+                    logger.info(f"Triggering AI greeting for caller: {caller_phone}")
+                    # Small delay to ensure Twilio stream is fully ready
+                    await asyncio.sleep(0.5)
                     await self.openai_connection.start_greeting(caller_phone=caller_phone)
+                    logger.info("AI greeting triggered successfully")
             
             elif event_type == "media":
                 # Audio data from caller
@@ -366,7 +370,17 @@ class MediaStreamHandler:
                 # Initiate transfer in background
                 asyncio.create_task(self._initiate_transfer(reason))
                 result_str = "Transferring you to a human agent now. Please hold."
-            
+
+            # Check if this is a hangup request
+            elif result_str.startswith("HANG_UP_CALL|") or result_str.startswith("HANG_UP_CALL:"):
+                reason = result_str.replace("HANG_UP_CALL|", "").replace("HANG_UP_CALL:", "").strip()
+                logger.info(f"Hang up call requested: {reason}")
+
+                # Initiate hangup in background (will wait for AI to finish speaking)
+                asyncio.create_task(self._initiate_hangup(reason))
+
+                result_str = "Call ending."
+
             self.session.add_tool_call(name, arguments, result_str, success=True)
             return result_str
         except Exception as e:
@@ -582,7 +596,73 @@ class MediaStreamHandler:
             logger.error(traceback.format_exc())
             self._silent_mode = False  # Revert to normal mode on failure
             logger.info("   ℹ️  Reverted to normal AI mode")
-    
+
+    async def _initiate_hangup(self, reason: str) -> None:
+        """
+        End the call gracefully using Twilio API.
+
+        This is called when the AI determines the conversation is complete
+        (e.g., caller says goodbye, issue resolved, verification failed).
+        """
+        try:
+            from twilio.rest import Client
+
+            logger.info("=" * 60)
+            logger.info("📞 HANGING UP CALL")
+            logger.info("=" * 60)
+            logger.info(f"📋 Reason: {reason}")
+            logger.info(f"🆔 Session ID: {self.session.session_id}")
+            logger.info(f"📞 Call SID: {self.session.call_info.call_sid}")
+            logger.info(f"📱 Call Source: {self.session.call_source}")
+
+            # Wait for the AI to finish speaking (response.done event)
+            logger.info("   ⏳ Waiting for AI response.done...")
+
+            if self.openai_connection:
+                # Wait for OpenAI to signal response is complete
+                completed = await self.openai_connection.wait_for_response_done(timeout=15.0)
+                if completed:
+                    logger.info("   ✅ AI response.done received")
+                else:
+                    logger.warning("   ⚠️ Timeout waiting for response.done")
+
+            # Buffer for Twilio to finish playing audio (server sends audio faster than realtime)
+            # The goodbye message is ~5-6 seconds, so we need adequate buffer
+            await asyncio.sleep(6.0)
+            logger.info("   ✅ Audio playback buffer complete")
+
+            # Only use Twilio API for Twilio calls (not WebRTC)
+            if self.session.call_source == "webrtc":
+                logger.info("   ℹ️  WebRTC call - stopping stream (browser will detect disconnect)")
+                self._running = False
+                return
+
+            config = get_config()
+            call_sid = self.session.call_info.call_sid
+
+            # Use Twilio API to end the call
+            client = Client(config.twilio_account_sid, config.twilio_auth_token)
+
+            # Update the call status to 'completed' to hang up
+            call = client.calls(call_sid).update(status='completed')
+
+            logger.info("   ✅ Call ended successfully via Twilio API")
+            logger.info(f"   📞 Final call status: {call.status}")
+            logger.info("=" * 60)
+
+            # The WebSocket will close automatically when Twilio ends the call,
+            # which will trigger _cleanup() and end_session()
+
+        except Exception as e:
+            logger.error("=" * 60)
+            logger.error("❌ HANGUP FAILED")
+            logger.error("=" * 60)
+            logger.error(f"   Error: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            # Even if Twilio API fails, try to stop the stream
+            self._running = False
+
     def _on_user_interrupt(self) -> None:
         """Callback when user starts speaking during AI response."""
         import time

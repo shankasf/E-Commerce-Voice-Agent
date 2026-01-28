@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: k3s-portal
+  labels:
+    app.kubernetes.io/name: k3s-portal
+    app.kubernetes.io/component: namespace

@@ -108,7 +108,8 @@ async function bootstrap() {
   await app.listen(port);
 
   // Register SPA catch-all AFTER app.listen to ensure all routes are set up
-  expressApp.use('*', (req: any, res: any, next: any) => {
+  // Using '{*path}' syntax for Express 5.x compatibility with path-to-regexp
+  expressApp.use('{*path}', (req: any, res: any, next: any) => {
     // Skip API routes and static assets
     if (req.originalUrl.startsWith('/api') ||
         req.originalUrl.includes('/assets/') ||

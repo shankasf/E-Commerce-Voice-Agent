@@ -1,0 +1,41 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: k3s-portal-ingress
+  namespace: k3s-portal
+  labels:
+    app.kubernetes.io/name: k3s-portal
+    app.kubernetes.io/component: ingress
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - admin.callsphere.tech
+      secretName: k3s-portal-tls
+  rules:
+    - host: admin.callsphere.tech
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: k3s-portal-backend
+                port:
+                  number: 3010
+          - path: /socket.io
+            pathType: Prefix
+            backend:
+              service:
+                name: k3s-portal-backend
+                port:
+                  number: 3010
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: k3s-portal-frontend
+                port:
+                  number: 80

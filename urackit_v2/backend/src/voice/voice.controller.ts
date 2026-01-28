@@ -38,7 +38,7 @@ export class VoiceController {
     @Body() body: WebRTCConnectDto,
     @Req() req: any,
   ): Promise<WebRTCConnectResponse> {
-    const aiServiceUrl = this.configService.get('AI_SERVICE_URL') || 'http://localhost:8000';
+    const aiServiceUrl = this.configService.get('AI_SERVICE_URL') || 'http://localhost:8081';
     
     try {
       // Unified Interface: Proxy SDP to AI service which forwards to OpenAI
@@ -98,7 +98,7 @@ export class VoiceController {
     @Body() body: { sessionId: string },
     @Req() req: any,
   ) {
-    const aiServiceUrl = this.configService.get('AI_SERVICE_URL') || 'http://localhost:8000';
+    const aiServiceUrl = this.configService.get('AI_SERVICE_URL') || 'http://localhost:8081';
     
     try {
       const response = await fetch(`${aiServiceUrl}/webrtc/disconnect`, {

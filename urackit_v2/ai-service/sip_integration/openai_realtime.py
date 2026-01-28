@@ -19,11 +19,20 @@ logger = logging.getLogger(__name__)
 
 class OpenAIRealtimeConnection(IRealtimeConnection):
     """WebSocket connection to OpenAI Realtime API."""
-    
-    def __init__(self, system_prompt: Optional[str] = None, tools: Optional[list[dict]] = None):
+
+    def __init__(
+        self,
+        system_prompt: Optional[str] = None,
+        tools: Optional[list[dict]] = None,
+        input_audio_format: Optional[str] = None,
+        output_audio_format: Optional[str] = None,
+    ):
         self.config = get_config()
         self.system_prompt = system_prompt or self.config.system_prompt
         self.tools = tools or []
+        # Allow overriding audio formats (for browser use pcm16 instead of g711_ulaw)
+        self.input_audio_format = input_audio_format or self.config.input_audio_format
+        self.output_audio_format = output_audio_format or self.config.output_audio_format
         
         self._ws: Optional[websockets.WebSocketClientProtocol] = None
         self._session_id: Optional[str] = None
@@ -51,6 +60,10 @@ class OpenAIRealtimeConnection(IRealtimeConnection):
         
         # Event to signal session is ready
         self._session_ready = asyncio.Event()
+
+        # Event to signal response is complete (for waiting on AI to finish speaking)
+        self._response_done = asyncio.Event()
+        self._response_done.set()  # Start as "done" (no response in progress)
     
     async def connect(self, session_id: str) -> bool:
         logger.info(f"Attempting to connect to OpenAI Realtime WebSocket for session {session_id}")
@@ -91,8 +104,8 @@ class OpenAIRealtimeConnection(IRealtimeConnection):
                 "modalities": ["text", "audio"],
                 "instructions": self.system_prompt,
                 "voice": self.config.voice,
-                "input_audio_format": self.config.input_audio_format,
-                "output_audio_format": self.config.output_audio_format,
+                "input_audio_format": self.input_audio_format,
+                "output_audio_format": self.output_audio_format,
                 "input_audio_transcription": {
                     "model": "whisper-1"
                 },
@@ -217,42 +230,53 @@ Remember: You are a background assistant. The human technician is leading the ca
 
         If caller_phone is provided, inject it as context so AI can look up the caller.
         """
+        logger.info(f"start_greeting called - connected: {self._is_connected}, greeting_sent: {self._greeting_sent}")
+
         if not self._is_connected or not self._ws:
             logger.warning("Cannot start greeting: not connected")
             return
 
         if self._greeting_sent:
+            logger.info("Greeting already sent, skipping")
             return
 
         # Wait for session to be configured before sending greeting
+        logger.info("Waiting for session to be ready...")
         try:
-            await asyncio.wait_for(self._session_ready.wait(), timeout=5.0)
+            await asyncio.wait_for(self._session_ready.wait(), timeout=3.0)
+            logger.info("Session is ready")
         except asyncio.TimeoutError:
             logger.warning("Timeout waiting for session.updated - sending greeting anyway")
 
         self._greeting_sent = True
 
-        # Force a single, exact greeting response.
-        # Using response-level instructions is more reliable than injecting a "SYSTEM:" user message.
-        greeting_instructions = (
-            "You are starting a live phone call. Your next response MUST be EXACTLY the following greeting, "
-            "word for word, with the same line breaks, and NOTHING ELSE. Do not add extra words. "
-            "Do not ask for the U-E code yet. After you finish speaking the greeting, STOP and wait silently.\n\n"
-            f"{UE_OPENING_GREETING_TEXT}"
-        )
-
-        response_event = {
-            "type": "response.create",
-            "response": {
-                "instructions": greeting_instructions,
-                "output_modalities": ["audio", "text"],
-                # Keep it tight so it doesn't continue into UE-code questions.
-                "max_output_tokens": 120,
-            },
+        # Step 1: Add a user message to prompt the greeting
+        # This creates a conversation item that tells the model to start
+        user_prompt_event = {
+            "type": "conversation.item.create",
+            "item": {
+                "type": "message",
+                "role": "user",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": "[SYSTEM: A caller just connected. Say your opening greeting now and wait for their response.]"
+                    }
+                ]
+            }
         }
 
+        logger.info("Adding conversation item to prompt greeting...")
+        await self._send_event(user_prompt_event)
+
+        # Step 2: Trigger the model to respond
+        response_event = {
+            "type": "response.create"
+        }
+
+        logger.info("Sending response.create to trigger greeting...")
         await self._send_event(response_event)
-        logger.info(f"Triggered initial greeting with caller phone: {caller_phone}")
+        logger.info(f"Greeting triggered successfully for caller: {caller_phone}")
     
     def set_audio_callback(self, callback: Callable[[AudioChunk], None]) -> None:
         """Set callback for receiving audio from AI."""
@@ -278,7 +302,23 @@ Remember: You are a background assistant. The human technician is leading the ca
     def is_responding(self) -> bool:
         """Check if AI is currently responding with audio."""
         return self._is_responding
-    
+
+    async def wait_for_response_done(self, timeout: float = 15.0) -> bool:
+        """Wait for the current response to complete.
+
+        Args:
+            timeout: Maximum seconds to wait
+
+        Returns:
+            True if response completed, False if timeout
+        """
+        try:
+            await asyncio.wait_for(self._response_done.wait(), timeout=timeout)
+            return True
+        except asyncio.TimeoutError:
+            logger.warning(f"Timeout waiting for response.done after {timeout}s")
+            return False
+
     async def cancel_response(self) -> None:
         """Cancel the current response being generated by OpenAI."""
         if not self._is_connected or not self._ws:
@@ -398,7 +438,9 @@ Remember: You are a background assistant. The human technician is leading the ca
             
             if self._function_callback:
                 result = await self._execute_function(name, arguments)
-                await self._send_function_result(call_id, result)
+                # Don't trigger new response for hang_up_call - the AI already said goodbye
+                trigger_response = name != "hang_up_call"
+                await self._send_function_result(call_id, result, trigger_response=trigger_response)
         
         elif event_type == "input_audio_buffer.speech_started":
             # User started speaking - ALWAYS call interrupt callback
@@ -410,10 +452,12 @@ Remember: You are a background assistant. The human technician is leading the ca
         
         elif event_type == "response.audio.delta":
             # Audio chunk from AI - notify that AI is speaking
-            if not self._is_responding and self._speaking_callback:
-                self._speaking_callback(True)
+            if not self._is_responding:
+                logger.info("AI started speaking (first audio chunk received)")
+                if self._speaking_callback:
+                    self._speaking_callback(True)
             self._is_responding = True
-            
+
             audio_b64 = event.get("delta", "")
             if audio_b64 and self._audio_callback:
                 audio_bytes = base64.b64decode(audio_b64)
@@ -426,20 +470,24 @@ Remember: You are a background assistant. The human technician is leading the ca
         
         elif event_type == "response.created":
             self._is_responding = True
+            self._response_done.clear()  # Response started, not done yet
             self._current_response_id = event.get("response", {}).get("id")
             if self._speaking_callback:
                 self._speaking_callback(True)
-        
+
         elif event_type == "response.done":
             self._is_responding = False
             self._current_response_id = None
+            self._response_done.set()  # Response complete
+            logger.info("OpenAI response.done received")
             if self._speaking_callback:
                 self._speaking_callback(False)
-        
+
         elif event_type == "response.cancelled":
             # Response was cancelled (e.g., by user interruption)
             self._is_responding = False
             self._current_response_id = None
+            self._response_done.set()  # Response complete (cancelled)
             if self._speaking_callback:
                 self._speaking_callback(False)
             logger.info("OpenAI response was cancelled")
@@ -469,8 +517,14 @@ Remember: You are a background assistant. The human technician is leading the ca
                 return f"Error: {str(e)}"
         return "Function not available"
     
-    async def _send_function_result(self, call_id: str, result: str) -> None:
-        """Send function result back to OpenAI."""
+    async def _send_function_result(self, call_id: str, result: str, trigger_response: bool = True) -> None:
+        """Send function result back to OpenAI.
+
+        Args:
+            call_id: The function call ID
+            result: The function result
+            trigger_response: Whether to trigger a new response (set False for hang_up_call)
+        """
         event = {
             "type": "conversation.item.create",
             "item": {
@@ -480,7 +534,8 @@ Remember: You are a background assistant. The human technician is leading the ca
             }
         }
         await self._send_event(event)
-        await self._send_event({"type": "response.create"})
+        if trigger_response:
+            await self._send_event({"type": "response.create"})
 
 
 def create_realtime_connection(
