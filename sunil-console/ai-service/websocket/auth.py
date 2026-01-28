@@ -166,8 +166,7 @@ async def mark_connection_active(connection_id: str) -> bool:
             data={
                 "used": True,
                 "is_active": True,
-                "last_heartbeat_at": datetime.utcnow().isoformat(),
-                "updated_at": datetime.utcnow().isoformat(),
+                "last_heartbeat": datetime.utcnow().isoformat(),
             },
             filters={"connection_id": f"eq.{connection_id}"},
         )
@@ -196,7 +195,6 @@ async def mark_connection_inactive(connection_id: str) -> bool:
             "device_connections",
             data={
                 "is_active": False,
-                "updated_at": datetime.utcnow().isoformat(),
             },
             filters={"connection_id": f"eq.{connection_id}"},
         )
@@ -221,7 +219,7 @@ async def update_heartbeat(connection_id: str) -> bool:
         db = get_db()
         db.update(
             "device_connections",
-            data={"last_heartbeat_at": datetime.utcnow().isoformat()},
+            data={"last_heartbeat": datetime.utcnow().isoformat()},
             filters={"connection_id": f"eq.{connection_id}"},
         )
         return True

@@ -13,7 +13,7 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 
-const AI_SERVICE_URL = process.env.BASE_URL_AI || 'https://localhost:8080';
+const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://localhost:8081';
 const AI_SERVICE_API_KEY = process.env.AI_SERVICE_API_KEY || '';
 const AI_SERVICE_CA_CERT = process.env.AI_SERVICE_CA_CERT;
 const NODE_ENV = process.env.NODE_ENV || 'development';

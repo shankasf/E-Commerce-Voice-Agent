@@ -22,6 +22,8 @@ from typing import Any, Dict, Optional
 from fastapi import WebSocket, WebSocketDisconnect
 
 from memory import get_memory
+from db.device_chat import get_device_chat_db
+from db.connection import get_db
 
 from .auth import (
     AuthParams,
@@ -81,12 +83,17 @@ class DeviceSession:
         # Load configuration
         self._config = get_ws_config()
 
+        # Database clients
+        self._chat_db = get_device_chat_db()
+        self._db = get_db()
+
         # Connection state
         self.connection_id: Optional[str] = None
         self.device_id: Optional[int] = None
         self.user_id: Optional[int] = None
         self.organization_id: Optional[int] = None
         self.chat_session_id: Optional[str] = None
+        self.ticket_id: Optional[int] = None  # Linked ticket (auto-linked or manual)
 
         # Status flags
         self.is_authenticated = False
@@ -207,6 +214,38 @@ class DeviceSession:
             # Mark active in DB
             await mark_connection_active(self.connection_id)
 
+            # Auto-link to most recent open ticket for this user
+            try:
+                tickets = self._db.select(
+                    "support_tickets",
+                    filters={
+                        "contact_id": f"eq.{self.user_id}",
+                        "status_id": f"in.(1,2,3,4)"  # Open, In Progress, Awaiting Customer, Escalated
+                    },
+                    order="created_at.desc",
+                    limit=1
+                )
+
+                if tickets and len(tickets) > 0:
+                    self.ticket_id = tickets[0]["ticket_id"]
+                    logger.info(f"[WS] Auto-linked to ticket {self.ticket_id}")
+
+            except Exception as e:
+                logger.warning(f"[WS] Failed to auto-link ticket: {e}")
+
+            # Create device session record in database
+            try:
+                await self._chat_db.create_device_session(
+                    chat_session_id=self.chat_session_id,
+                    ticket_id=self.ticket_id,
+                    device_id=self.device_id,
+                    user_id=self.user_id,
+                    organization_id=self.organization_id
+                )
+                logger.info(f"[WS] Created device session record")
+            except Exception as e:
+                logger.error(f"[WS] Failed to create device session: {e}")
+
             # Reset rate limiter on success
             await rate_limiter.reset(self.client_ip)
 
@@ -284,6 +323,34 @@ class DeviceSession:
         if not content:
             return
 
+        # Save to database
+        try:
+            await self._chat_db.save_chat_message(
+                chat_session_id=self.chat_session_id,
+                ticket_id=self.ticket_id,
+                device_id=self.device_id,
+                sender_type="user",
+                content=content
+            )
+        except Exception as e:
+            logger.error(f"[WS] Failed to save user message: {e}")
+
+        # Broadcast to technicians if ticket is linked
+        if self.ticket_id:
+            try:
+                conn_mgr = get_connection_manager()
+                await conn_mgr.broadcast_to_technicians(
+                    ticket_id=self.ticket_id,
+                    message_type="chat",
+                    data={
+                        "role": "user",
+                        "content": content,
+                        "timestamp": datetime.utcnow().isoformat()
+                    }
+                )
+            except Exception as e:
+                logger.error(f"[WS] Failed to broadcast user message to technicians: {e}")
+
         # Add to memory
         memory = get_memory(self.chat_session_id)
         memory.add_turn("user", content)
@@ -299,14 +366,48 @@ class DeviceSession:
     async def _on_powershell_result(self, data: Dict[str, Any]) -> None:
         """Handle PowerShell command result."""
         command_id = data.get("command_id")
+        status = data.get("status", "error")
+        output = data.get("output")
+        error = data.get("error")
+        execution_time_ms = data.get("execution_time_ms")
 
-        logger.info(f"[WS] Command result: id={command_id}, status={data.get('status')}")
+        logger.info(f"[WS] Command result: id={command_id}, status={status}")
+
+        # Update database
+        try:
+            await self._chat_db.update_command_status(
+                command_id=command_id,
+                status=status,
+                output=output,
+                error=error,
+                execution_time_ms=execution_time_ms
+            )
+        except Exception as e:
+            logger.error(f"[WS] Failed to update command status: {e}")
+
+        # Broadcast to technicians if ticket is linked
+        if self.ticket_id:
+            try:
+                conn_mgr = get_connection_manager()
+                await conn_mgr.broadcast_to_technicians(
+                    ticket_id=self.ticket_id,
+                    message_type="command_update",
+                    data={
+                        "command_id": command_id,
+                        "status": status,
+                        "output": output,
+                        "error": error,
+                        "execution_time_ms": execution_time_ms
+                    }
+                )
+            except Exception as e:
+                logger.error(f"[WS] Failed to broadcast command update to technicians: {e}")
 
         # Store result
         self._command_results[command_id] = {
-            "status": data.get("status", "error"),
-            "output": data.get("output"),
-            "error": data.get("error"),
+            "status": status,
+            "output": output,
+            "error": error,
             "reason": data.get("reason"),
         }
 
@@ -356,10 +457,57 @@ class DeviceSession:
     # Public API for AI Tools
     # ============================================
 
-    async def send_chat(self, content: str) -> None:
-        """Send assistant chat message to device."""
-        msg = ChatMessage.from_assistant(content)
+    async def send_chat(self, content: str, role: str = "assistant", metadata: Optional[Dict] = None) -> None:
+        """
+        Send chat message to device and save to database.
+
+        Args:
+            content: Message content
+            role: Sender role (assistant, human_agent, system)
+            metadata: Optional metadata (e.g., agent_name for human agents)
+        """
+        # Map role to database sender_type (database uses 'ai_agent', WebSocket uses 'assistant')
+        db_sender_type = "ai_agent" if role == "assistant" else role
+
+        # Save to database
+        try:
+            await self._chat_db.save_chat_message(
+                chat_session_id=self.chat_session_id,
+                ticket_id=self.ticket_id,
+                device_id=self.device_id,
+                sender_type=db_sender_type,
+                content=content,
+                metadata=metadata
+            )
+        except Exception as e:
+            logger.error(f"[WS] Failed to save {role} message: {e}")
+
+        # Send to device (keep using original role for backward compatibility)
+        msg = ChatMessage(
+            role=role,
+            content=content,
+            timestamp=datetime.utcnow().isoformat(),
+            metadata=metadata or {}
+        )
         await self._send_message(msg.model_dump())
+
+        # Broadcast to technicians if ticket is linked
+        # Only broadcast AI agent and system messages (human_agent messages are already sent by technician)
+        if self.ticket_id and role in ["assistant", "ai_agent", "system"]:
+            try:
+                conn_mgr = get_connection_manager()
+                await conn_mgr.broadcast_to_technicians(
+                    ticket_id=self.ticket_id,
+                    message_type="chat",
+                    data={
+                        "role": db_sender_type,
+                        "content": content,
+                        "timestamp": msg.timestamp.isoformat() if isinstance(msg.timestamp, datetime) else msg.timestamp,
+                        "metadata": metadata or {}
+                    }
+                )
+            except Exception as e:
+                logger.error(f"[WS] Failed to broadcast {role} message to technicians: {e}")
 
     async def send_message(self, data: Dict[str, Any]) -> None:
         """Send any message to device (public API for cleanup)."""
@@ -371,6 +519,8 @@ class DeviceSession:
         command: str,
         description: str,
         requires_consent: bool = True,
+        requester_type: str = "ai_agent",
+        requester_agent_id: Optional[int] = None,
     ) -> bool:
         """
         Request PowerShell command execution on device.
@@ -380,6 +530,8 @@ class DeviceSession:
             command: PowerShell command to execute
             description: Human-readable description for user
             requires_consent: Whether user must approve
+            requester_type: Who requested (ai_agent or human_agent)
+            requester_agent_id: Agent ID if requester is a human agent
 
         Returns:
             True if request was sent successfully
@@ -387,6 +539,40 @@ class DeviceSession:
         if not self.is_connected:
             logger.warning(f"[WS] Cannot send command - disconnected: {command_id}")
             return False
+
+        # Save to database
+        try:
+            await self._chat_db.save_command_execution(
+                chat_session_id=self.chat_session_id,
+                ticket_id=self.ticket_id,
+                device_id=self.device_id,
+                command_id=command_id,
+                command=command,
+                description=description,
+                requester_type=requester_type,
+                requester_agent_id=requester_agent_id
+            )
+        except Exception as e:
+            logger.error(f"[WS] Failed to save command execution: {e}")
+
+        # Broadcast to technicians if ticket is linked (notify them command was sent)
+        if self.ticket_id:
+            try:
+                conn_mgr = get_connection_manager()
+                await conn_mgr.broadcast_to_technicians(
+                    ticket_id=self.ticket_id,
+                    message_type="command_update",
+                    data={
+                        "command_id": command_id,
+                        "command": command,
+                        "description": description,
+                        "status": "pending",
+                        "requester_type": requester_type,
+                        "requires_consent": requires_consent
+                    }
+                )
+            except Exception as e:
+                logger.error(f"[WS] Failed to broadcast command initiation to technicians: {e}")
 
         # Create event for result waiting
         self._pending_commands[command_id] = asyncio.Event()
@@ -400,7 +586,7 @@ class DeviceSession:
         )
         await self._send_message(request.model_dump())
 
-        logger.info(f"[WS] Sent command: id={command_id}, consent={requires_consent}")
+        logger.info(f"[WS] Sent command: id={command_id}, consent={requires_consent}, requester={requester_type}")
         return True
 
     async def wait_for_command_result(
@@ -548,6 +734,14 @@ class DeviceSession:
         if self.connection_id:
             await mark_connection_inactive(self.connection_id)
             await get_connection_manager().unregister(self.connection_id)
+
+        # Close device session in database
+        if self.chat_session_id:
+            try:
+                await self._chat_db.close_device_session(self.chat_session_id)
+                logger.info(f"[WS] Closed device session in database")
+            except Exception as e:
+                logger.error(f"[WS] Failed to close device session: {e}")
 
         logger.info(f"[WS] Cleanup complete: {self.connection_id}")
 

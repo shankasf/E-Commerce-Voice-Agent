@@ -140,6 +140,13 @@ async def websocket_device(websocket: WebSocket):
     await handle_device_websocket(websocket, client_ip)
 
 
+@app.websocket("/ws/technician")
+async def websocket_technician(websocket: WebSocket):
+    """WebSocket endpoint for technicians joining device chat sessions."""
+    from websocket.technician_handler import handle_technician_websocket
+    await handle_technician_websocket(websocket)
+
+
 # ============================================
 # SIP/Voice Integration Routes
 # ============================================
@@ -549,11 +556,24 @@ if __name__ == "__main__":
         logger.info(f"Port: {port}")
         logger.info(f"OpenAI Model: {config.openai_model}")
 
+        # SSL configuration for HTTPS/WSS
+        ssl_keyfile = os.path.join(os.path.dirname(__file__), "key.pem")
+        ssl_certfile = os.path.join(os.path.dirname(__file__), "cert.pem")
+
         uvicorn_kwargs = {
             "host": config.host,
             "port": port,
             "reload": config.debug,
         }
+
+        # Enable SSL if certificates exist
+        if os.path.exists(ssl_keyfile) and os.path.exists(ssl_certfile):
+            uvicorn_kwargs["ssl_keyfile"] = ssl_keyfile
+            uvicorn_kwargs["ssl_certfile"] = ssl_certfile
+            logger.info("SSL enabled - Server will use HTTPS/WSS")
+        else:
+            logger.warning("SSL certificates not found - Running without HTTPS")
+            logger.warning(f"Expected: {ssl_keyfile} and {ssl_certfile}")
 
         uvicorn.run("main:app", **uvicorn_kwargs)
     except RuntimeError as e:
