@@ -1,16 +1,11 @@
 /**
- * IMPORTANT: This file now uses server-only Supabase client.
- * The service role key is NOT exposed to the client.
+ * Supabase types and utilities
+ * This file only contains TypeScript types - safe to import anywhere
  *
- * For client-side data fetching, use API routes instead of direct Supabase access.
- * The supabase client exported here will only work in:
- * - API routes
- * - Server Components
- * - Server Actions
+ * For actual Supabase clients:
+ * - Server-side (API routes): import { supabaseServer } from '@/lib/supabase-server'
+ * - Client-side (components): import { supabaseClient } from '@/lib/supabase-client'
  */
-import { supabaseServer as supabase } from './supabase-server';
-
-export { supabase };
 
 // Types matching ticket_management_schema.sql
 

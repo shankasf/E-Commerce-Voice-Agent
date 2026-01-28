@@ -16,7 +16,7 @@ from agents import function_tool
 logger = logging.getLogger(__name__)
 
 # Configuration from environment
-TICKET_CONSOLE_URL = os.getenv("TICKET_CONSOLE_URL", "http://localhost:3000")
+TICKET_CONSOLE_URL = os.getenv("NEXTJS_API_URL", "https://localhost:3001")
 AI_SERVICE_API_KEY = os.getenv("AI_SERVICE_API_KEY", "")
 
 
@@ -219,9 +219,11 @@ def generate_device_connection_code(
             code = data.get("code", "")
             logger.info(f"Connection code generated successfully")
 
-            # Get WebSocket URL from environment or use default (always use wss://)
+            # Get WebSocket URL from environment or use default
             ws_base_url = os.getenv("WS_BASE_URL", "localhost:8080")
-            websocket_url = f"wss://{ws_base_url}/ws/device"
+            # Use wss:// for secure connections
+            ws_protocol = "wss" if "://" not in ws_base_url else ""
+            websocket_url = f"{ws_protocol}://{ws_base_url}/ws/device" if ws_protocol else f"{ws_base_url}/ws/device"
 
             return GenerateCodeResult(
                 success=True,

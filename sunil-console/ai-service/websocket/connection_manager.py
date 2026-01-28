@@ -1,7 +1,7 @@
 """
 Device Connection Manager.
 
-Manages active WebSocket connections to Windows devices.
+Manages active WebSocket connections to Windows devices and technicians.
 Provides lookup by connection ID or chat session ID.
 """
 
@@ -9,10 +9,11 @@ import asyncio
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, Dict, Optional, Set
+from typing import TYPE_CHECKING, Dict, List, Optional, Set
 
 if TYPE_CHECKING:
     from .device_handler import DeviceSession
+    from .technician_handler import TechnicianSession
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,7 @@ class DeviceConnectionManager:
 
     def __init__(self):
         self._connections: Dict[str, "DeviceSession"] = {}
+        self._technician_connections: Dict[int, Dict[int, "TechnicianSession"]] = {}  # ticket_id -> agent_id -> session
         self._lock = asyncio.Lock()
         self._stats = ConnectionStats(active_connections=0)
 
@@ -139,6 +141,111 @@ class DeviceConnectionManager:
                 sent_count += 1
             except Exception as e:
                 logger.warning(f"Broadcast failed to {conn_id}: {e}")
+        return sent_count
+
+    # ============================================
+    # Technician Connection Management
+    # ============================================
+
+    async def register_technician(
+        self,
+        ticket_id: int,
+        agent_id: int,
+        session: "TechnicianSession"
+    ) -> None:
+        """
+        Register a technician connection.
+
+        Args:
+            ticket_id: Ticket the technician is joining
+            agent_id: Support agent identifier
+            session: The technician session handler
+        """
+        async with self._lock:
+            if ticket_id not in self._technician_connections:
+                self._technician_connections[ticket_id] = {}
+
+            self._technician_connections[ticket_id][agent_id] = session
+
+            logger.info(
+                f"Technician registered: ticket={ticket_id}, agent={agent_id}, "
+                f"total_on_ticket={len(self._technician_connections[ticket_id])}"
+            )
+
+    async def unregister_technician(self, ticket_id: int, agent_id: int) -> bool:
+        """
+        Unregister a technician connection.
+
+        Args:
+            ticket_id: Ticket the technician was on
+            agent_id: Support agent identifier
+
+        Returns:
+            True if technician was found and removed
+        """
+        async with self._lock:
+            if ticket_id not in self._technician_connections:
+                return False
+
+            if agent_id not in self._technician_connections[ticket_id]:
+                return False
+
+            del self._technician_connections[ticket_id][agent_id]
+            logger.info(f"Technician unregistered: ticket={ticket_id}, agent={agent_id}")
+
+            # Clean up empty ticket entries
+            if not self._technician_connections[ticket_id]:
+                del self._technician_connections[ticket_id]
+                logger.debug(f"Removed empty ticket entry: {ticket_id}")
+
+            return True
+
+    def get_technicians_for_ticket(self, ticket_id: int) -> List["TechnicianSession"]:
+        """
+        Get all technicians connected to a ticket.
+
+        Args:
+            ticket_id: Ticket identifier
+
+        Returns:
+            List of TechnicianSession objects
+        """
+        if ticket_id in self._technician_connections:
+            return list(self._technician_connections[ticket_id].values())
+        return []
+
+    async def broadcast_to_technicians(
+        self,
+        ticket_id: int,
+        message_type: str,
+        data: Dict[str, any]
+    ) -> int:
+        """
+        Broadcast message to all technicians on a ticket.
+
+        Args:
+            ticket_id: Ticket to broadcast to
+            message_type: Type of message (chat, command_update, etc.)
+            data: Message data
+
+        Returns:
+            Number of technicians message was sent to
+        """
+        technicians = self.get_technicians_for_ticket(ticket_id)
+
+        message = {"type": message_type, **data}
+        sent_count = 0
+
+        for tech_session in technicians:
+            try:
+                await tech_session._send_message(message)
+                sent_count += 1
+            except Exception as e:
+                logger.error(f"Error broadcasting to technician: {e}")
+
+        if sent_count > 0:
+            logger.debug(f"Broadcast to {sent_count} technician(s) on ticket {ticket_id}")
+
         return sent_count
 
 

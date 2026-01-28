@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabaseClient as supabase } from './supabase-client';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
 // Types for realtime events

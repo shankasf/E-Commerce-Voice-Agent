@@ -70,9 +70,10 @@ class ErrorMessage(WSMessage):
 class ChatMessage(WSMessage):
     """Single chat message."""
     type: str = "chat"
-    role: str  # 'user' or 'assistant'
+    role: str  # 'user', 'assistant', 'human_agent', 'system'
     content: str
     timestamp: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None  # Optional metadata (e.g., agent_name, agent_id)
 
     @classmethod
     def from_user(cls, content: str) -> "ChatMessage":
