@@ -8,9 +8,17 @@ import { SupportTicket, TicketMessage } from '@/lib/supabase';
 import { useTicketRealtime } from '@/lib/useRealtime';
 import { useMessageNotification } from '@/lib/useNotificationSound';
 import { ChatContainer, ChatInput } from '@/components/ChatUI';
-import { ArrowLeft, CheckCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, MessageCircle } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { priorityColors, statusColors } from '@/lib/constants/ticketColors';
+import { DeviceSession } from '@/types/deviceChat';
+import dynamic from 'next/dynamic';
+
+// Dynamically import DeviceChatPanel to avoid SSR issues with WebSocket
+const DeviceChatPanel = dynamic(() => import('@/components/DeviceChatPanel'), {
+  ssr: false,
+  loading: () => <div className="p-4">Loading device chat...</div>,
+});
 
 export default function AgentTicketDetail() {
   const { user, isLoading } = useAuth();
@@ -22,6 +30,9 @@ export default function AgentTicketDetail() {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [showDeviceChat, setShowDeviceChat] = useState(false);
+  const [hasActiveDeviceSession, setHasActiveDeviceSession] = useState(false);
+  const [deviceSession, setDeviceSession] = useState<DeviceSession | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prevMessageCountRef = useRef<number>(0);
 
@@ -67,6 +78,23 @@ export default function AgentTicketDetail() {
     }
   }, [loadTicket, loadMessages]);
 
+  // Check for active device session
+  const checkDeviceSession = useCallback(async () => {
+    try {
+      const response = await fetch('/api/device-session/check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticketId })
+      });
+
+      const data = await response.json();
+      setHasActiveDeviceSession(data.hasActiveSession);
+      setDeviceSession(data.session);
+    } catch (err) {
+      console.error('Error checking device session:', err);
+    }
+  }, [ticketId]);
+
   // Real-time WebSocket subscription for chat
   useTicketRealtime(ticketId, loadTicket, loadMessages);
 
@@ -81,6 +109,21 @@ export default function AgentTicketDetail() {
 
     return () => clearInterval(pollInterval);
   }, [user?.id, ticketId, loadMessages]);
+
+  // Check for active device session periodically
+  useEffect(() => {
+    if (!ticketId) return;
+
+    // Check immediately
+    checkDeviceSession();
+
+    // Then check every 10 seconds
+    const checkInterval = setInterval(() => {
+      checkDeviceSession();
+    }, 10000);
+
+    return () => clearInterval(checkInterval);
+  }, [ticketId, checkDeviceSession]);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -228,21 +271,52 @@ export default function AgentTicketDetail() {
               <p className="text-gray-700">{ticket.description}</p>
             </div>
           )}
+
+          {/* Join Device Chat Button */}
+          {hasActiveDeviceSession && !showDeviceChat && (
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <button
+                onClick={() => setShowDeviceChat(true)}
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+              >
+                <MessageCircle className="w-4 h-4" />
+                Join Device Chat
+              </button>
+              <p className="text-sm text-gray-500 mt-2">
+                This customer has an active device session. Click to join and view diagnostics.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-auto bg-gray-50">
-        <div className="max-w-5xl mx-auto px-4 py-6">
-          <h3 className="text-sm font-medium text-gray-500 mb-4">Conversation</h3>
-          <ChatContainer
-            messages={messages}
-            currentUserId={user.id}
-            userRole="agent"
-            messagesEndRef={messagesEndRef as React.RefObject<HTMLDivElement>}
-            emptyMessage="No messages yet. Start the conversation below."
-          />
+      {/* Main content area - flex for side-by-side layout */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Messages Panel */}
+        <div className={`flex-1 overflow-auto bg-gray-50 ${showDeviceChat ? 'border-r border-gray-200' : ''}`}>
+          <div className="max-w-5xl mx-auto px-4 py-6">
+            <h3 className="text-sm font-medium text-gray-500 mb-4">Conversation</h3>
+            <ChatContainer
+              messages={messages}
+              currentUserId={user.id}
+              userRole="agent"
+              messagesEndRef={messagesEndRef as React.RefObject<HTMLDivElement>}
+              emptyMessage="No messages yet. Start the conversation below."
+            />
+          </div>
         </div>
+
+        {/* Device Chat Panel */}
+        {showDeviceChat && deviceSession && (
+          <div className="w-1/2 flex flex-col bg-white">
+            <DeviceChatPanel
+              ticketId={ticketId}
+              agentId={user!.id}
+              chatSessionId={deviceSession.chat_session_id}
+              onClose={() => setShowDeviceChat(false)}
+            />
+          </div>
+        )}
       </div>
 
       {/* Message Input */}
