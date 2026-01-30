@@ -45,7 +45,7 @@ def get_database_url():
         sys.exit(1)
 
     # Construct connection string
-    db_url = f"postgresql://postgres:{password}@db.{project_ref}.supabase.co:5432/postgres"
+    db_url = f"postgresql://postgres.{project_ref}:{password}@aws-0-us-west-2.pooler.supabase.com:5432/postgres"
 
     return db_url
 

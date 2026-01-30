@@ -229,7 +229,15 @@ async function handleRequesterGetTicketMessages({ ticketId, contactId }: { ticke
   return successResponse(data || []);
 }
 
-async function handleRequesterCreateTicket({ contactId, organizationId, subject, description, priorityId = 2 }: any) {
+async function handleRequesterCreateTicket({ contactId, organizationId, subject, description, priorityId = 2, deviceId, locationId }: any) {
+  // Validate required fields
+  if (!deviceId) {
+    return errorResponse('Device is required', 400);
+  }
+  if (!locationId) {
+    return errorResponse('Location is required', 400);
+  }
+
   const { data, error } = await supabase
     .from('support_tickets')
     .insert({
@@ -240,6 +248,8 @@ async function handleRequesterCreateTicket({ contactId, organizationId, subject,
       status_id: 1,
       priority_id: priorityId,
       requires_human_agent: false,
+      device_id: deviceId,
+      location_id: locationId,
     })
     .select()
     .single();

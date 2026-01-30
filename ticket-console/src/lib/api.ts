@@ -40,13 +40,23 @@ export const requesterAPI = {
     return callDataAPI<TicketMessage[]>('requester.getTicketMessages', { ticketId, contactId });
   },
 
-  async createTicket(contactId: number, organizationId: number, subject: string, description: string, priorityId: number = 2): Promise<SupportTicket | null> {
+  async createTicket(
+    contactId: number,
+    organizationId: number,
+    subject: string,
+    description: string,
+    priorityId: number = 2,
+    deviceId: number,
+    locationId: number
+  ): Promise<SupportTicket | null> {
     const ticket = await callDataAPI<SupportTicket | null>('requester.createTicket', {
       contactId,
       organizationId,
       subject,
       description,
       priorityId,
+      deviceId,
+      locationId,
     });
 
     // Automatically assign AI bot to the new ticket (fire and forget)
@@ -87,6 +97,14 @@ export const requesterAPI = {
 
   async getMyProfile(contactId: number): Promise<Contact | null> {
     return callDataAPI<Contact | null>('requester.getMyProfile', { contactId });
+  },
+
+  async getMyDevices(contactId: number): Promise<any[]> {
+    return callDataAPI<any[]>('getContactDevices', { contactId });
+  },
+
+  async getMyLocations(organizationId: number): Promise<any[]> {
+    return callDataAPI<any[]>('getLocations', { organizationId });
   },
 };
 
