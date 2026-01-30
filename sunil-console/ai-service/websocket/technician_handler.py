@@ -18,6 +18,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 
 from db.device_chat import get_device_chat_db
 from db.connection import get_db
+from services.summary_generator import get_summary_generator
 
 from .config import get_ws_config
 from .connection_manager import get_connection_manager
@@ -247,7 +248,7 @@ class TechnicianSession:
     # ============================================
 
     async def _send_initial_state(self) -> None:
-        """Send chat history and execution history to technician."""
+        """Send chat history, execution history, and issue summary to technician."""
         try:
             # Get chat history
             chat_history = await self._chat_db.get_chat_history(
@@ -261,16 +262,27 @@ class TechnicianSession:
                 limit=50
             )
 
+            # Generate issue summary for technician
+            logger.info(f"[TECH-WS] Generating summary for ticket_id={self.ticket_id}, chat_session_id={self.chat_session_id}")
+            summary_generator = get_summary_generator()
+            issue_summary = await summary_generator.generate_summary(
+                chat_session_id=self.chat_session_id,
+                ticket_id=self.ticket_id,
+                use_ai_enhancement=True
+            )
+            logger.info(f"[TECH-WS] Summary issue_description: {issue_summary.issue_description[:100] if issue_summary.issue_description else 'None'}...")
+
             # Send to technician
             await self._send_message({
                 "type": "initial_state",
                 "chat_history": chat_history,
-                "execution_history": execution_history
+                "execution_history": execution_history,
+                "issue_summary": issue_summary.to_dict()
             })
 
             logger.info(
                 f"[TECH-WS] Sent initial state: {len(chat_history)} messages, "
-                f"{len(execution_history)} executions"
+                f"{len(execution_history)} executions, with issue summary"
             )
 
         except Exception as e:

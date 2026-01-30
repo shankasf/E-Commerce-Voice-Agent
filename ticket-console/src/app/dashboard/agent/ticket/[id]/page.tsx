@@ -290,34 +290,29 @@ export default function AgentTicketDetail() {
         </div>
       </div>
 
-      {/* Main content area - flex for side-by-side layout */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Messages Panel */}
-        <div className={`flex-1 overflow-auto bg-gray-50 ${showDeviceChat ? 'border-r border-gray-200' : ''}`}>
-          <div className="max-w-5xl mx-auto px-4 py-6">
-            <h3 className="text-sm font-medium text-gray-500 mb-4">Conversation</h3>
-            <ChatContainer
-              messages={messages}
-              currentUserId={user.id}
-              userRole="agent"
-              messagesEndRef={messagesEndRef as React.RefObject<HTMLDivElement>}
-              emptyMessage="No messages yet. Start the conversation below."
-            />
-          </div>
+      {/* Main content area */}
+      <div className="flex-1 overflow-auto bg-gray-50">
+        <div className="max-w-5xl mx-auto px-4 py-6">
+          <h3 className="text-sm font-medium text-gray-500 mb-4">Conversation</h3>
+          <ChatContainer
+            messages={messages}
+            currentUserId={user.id}
+            userRole="agent"
+            messagesEndRef={messagesEndRef as React.RefObject<HTMLDivElement>}
+            emptyMessage="No messages yet. Start the conversation below."
+          />
         </div>
-
-        {/* Device Chat Panel */}
-        {showDeviceChat && deviceSession && (
-          <div className="w-1/2 flex flex-col bg-white">
-            <DeviceChatPanel
-              ticketId={ticketId}
-              agentId={user!.id}
-              chatSessionId={deviceSession.chat_session_id}
-              onClose={() => setShowDeviceChat(false)}
-            />
-          </div>
-        )}
       </div>
+
+      {/* Device Chat Panel - Full Screen Overlay */}
+      {showDeviceChat && deviceSession && (
+        <DeviceChatPanel
+          ticketId={ticketId}
+          agentId={user!.id}
+          chatSessionId={deviceSession.chat_session_id}
+          onClose={() => setShowDeviceChat(false)}
+        />
+      )}
 
       {/* Message Input */}
       {!isClosed && (

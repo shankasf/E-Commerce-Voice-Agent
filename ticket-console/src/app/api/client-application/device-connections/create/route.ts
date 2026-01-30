@@ -179,7 +179,7 @@ export async function POST(request: NextRequest) {
 
     // Step 2: Parse request body
     const body: CreateDeviceConnectionRequest = await request.json();
-    const { user_id, organization_id, device_id, chat_session_id } = body;
+    const { user_id, organization_id, device_id, chat_session_id, ticket_id } = body;
 
     // Validate required fields (chat_session_id is now MANDATORY)
     if (!user_id || !organization_id || !device_id || !chat_session_id) {
@@ -265,6 +265,7 @@ export async function POST(request: NextRequest) {
         organization_id: organization_id,
         six_digit_code: hashedCode, // Store HASHED code
         chat_session_id: chat_session_id, // AI chat session reference (REQUIRED)
+        ticket_id: ticket_id || null, // Optional ticket ID for linking
         is_active: false,
         used: false, // One-time use flag
         created_at: new Date().toISOString(),

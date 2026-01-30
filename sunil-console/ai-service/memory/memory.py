@@ -73,7 +73,7 @@ class ConversationMemory:
     def get_summary(self) -> str:
         """Get a summary of the conversation context."""
         summary_parts = []
-        
+
         if self.context.get("caller_name"):
             summary_parts.append(f"Caller: {self.context['caller_name']}")
         if self.context.get("organization_name"):
@@ -88,8 +88,76 @@ class ConversationMemory:
             summary_parts.append(f"Device: {self.context['device_type']}")
         if self.context.get("ticket_number"):
             summary_parts.append(f"Ticket: {self.context['ticket_number']}")
-        
+
         return " | ".join(summary_parts) if summary_parts else "No context captured yet."
+
+    def get_troubleshooting_context(self) -> Dict[str, Any]:
+        """
+        Extract troubleshooting context from conversation turns.
+
+        Returns a dictionary containing:
+        - issue_description: The main issue reported by the user
+        - user_messages: List of user messages
+        - ai_responses: List of AI responses
+        - steps_taken: Extracted troubleshooting steps
+        - context: All stored context values
+        """
+        user_messages = []
+        ai_responses = []
+        steps_taken = []
+        step_number = 1
+
+        for i, turn in enumerate(self.turns):
+            if turn.role == "user":
+                user_messages.append({
+                    "content": turn.content,
+                    "timestamp": turn.timestamp.isoformat(),
+                })
+            elif turn.role == "assistant":
+                ai_responses.append({
+                    "content": turn.content,
+                    "timestamp": turn.timestamp.isoformat(),
+                })
+
+                # Extract step if it looks like a troubleshooting action
+                content_lower = turn.content.lower()
+                is_greeting = any(
+                    phrase in content_lower
+                    for phrase in ["hello", "hi there", "welcome", "how can i help"]
+                ) and len(turn.content) < 100
+
+                if not is_greeting:
+                    # Find user response to this step
+                    outcome = None
+                    for j in range(i + 1, min(i + 3, len(self.turns))):
+                        if self.turns[j].role == "user":
+                            outcome = self.turns[j].content[:150]
+                            break
+
+                    steps_taken.append({
+                        "step_number": step_number,
+                        "description": turn.content[:200] + ("..." if len(turn.content) > 200 else ""),
+                        "outcome": outcome,
+                        "timestamp": turn.timestamp.isoformat(),
+                    })
+                    step_number += 1
+
+        # Extract issue description from first user messages
+        issue_description = ""
+        if user_messages:
+            first_messages = user_messages[:3]
+            issue_description = " ".join([m["content"] for m in first_messages])[:300]
+
+        return {
+            "issue_description": issue_description,
+            "user_messages": user_messages,
+            "ai_responses": ai_responses,
+            "steps_taken": steps_taken[:10],  # Limit to 10 steps
+            "context": self.context.copy(),
+            "session_id": self.session_id,
+            "created_at": self.created_at.isoformat(),
+            "last_activity": self.last_activity.isoformat(),
+        }
     
     def clear(self) -> None:
         """Clear all conversation history."""

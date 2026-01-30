@@ -39,6 +39,7 @@ export interface CreateDeviceConnectionRequest {
   organization_id: number;
   device_id: number;
   chat_session_id: string; // AI chat session ID (REQUIRED - links device connection to chat)
+  ticket_id?: number; // Optional ticket ID if user has existing ticket
 }
 
 // Response with plain 6-digit code (for AI to show user)

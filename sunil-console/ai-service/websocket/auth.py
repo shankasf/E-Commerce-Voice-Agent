@@ -31,6 +31,7 @@ class AuthResult:
     user_id: Optional[int] = None
     organization_id: Optional[int] = None
     chat_session_id: Optional[str] = None
+    ticket_id: Optional[int] = None  # Linked ticket from connection code
     error_code: Optional[str] = None
     error_message: Optional[str] = None
 
@@ -85,7 +86,7 @@ async def validate_connection_code(params: AuthParams) -> AuthResult:
         # Lookup connection by hashed code
         result = db.select(
             "device_connections",
-            columns="connection_id, device_id, user_id, organization_id, chat_session_id, is_active, used, created_at",
+            columns="connection_id, device_id, user_id, organization_id, chat_session_id, ticket_id, is_active, used, created_at",
             filters={"six_digit_code": f"eq.{hashed_code}"},
             limit=1,
         )
@@ -132,7 +133,8 @@ async def validate_connection_code(params: AuthParams) -> AuthResult:
             return _fail("PARAM_MISMATCH", "Authentication parameters do not match")
 
         # Success
-        logger.info(f"Code validated: device={db_device_id}, user={db_user_id}")
+        db_ticket_id = connection.get("ticket_id")
+        logger.info(f"Code validated: device={db_device_id}, user={db_user_id}, ticket={db_ticket_id}")
         return AuthResult(
             success=True,
             connection_id=str(connection["connection_id"]),
@@ -140,6 +142,7 @@ async def validate_connection_code(params: AuthParams) -> AuthResult:
             user_id=db_user_id,
             organization_id=db_org_id,
             chat_session_id=connection["chat_session_id"],
+            ticket_id=db_ticket_id,
         )
 
     except Exception as e:

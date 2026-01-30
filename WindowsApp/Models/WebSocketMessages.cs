@@ -132,6 +132,9 @@ public class AssistantChatMessage : WebSocketMessage
 
     [JsonProperty("timestamp")]
     public DateTime Timestamp { get; set; }
+
+    [JsonProperty("metadata")]
+    public Dictionary<string, object>? Metadata { get; set; }
 }
 
 // PowerShell request - AI wants to execute a PowerShell command on device

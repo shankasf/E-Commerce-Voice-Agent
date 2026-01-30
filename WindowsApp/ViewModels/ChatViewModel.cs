@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
@@ -17,6 +18,7 @@ namespace WindowsApp.ViewModels
         public string Role { get; set; } = string.Empty;
         public string Content { get; set; } = string.Empty;
         public DateTime Timestamp { get; set; }
+        public string DisplayName { get; set; } = string.Empty;
     }
 
     // Represents an execution entry in the right pane
@@ -264,7 +266,9 @@ namespace WindowsApp.ViewModels
             {
                 foreach (var msg in e.Messages)
                 {
-                    AddMessage(msg.Role, msg.Content, msg.Timestamp);
+                    // Generate display name based on role
+                    string displayName = GetDisplayNameForRole(msg.Role, null);
+                    AddMessage(msg.Role, msg.Content, msg.Timestamp, displayName);
                 }
             });
         }
@@ -273,7 +277,9 @@ namespace WindowsApp.ViewModels
         {
             Application.Current.Dispatcher.Invoke(() =>
             {
-                AddMessage(e.Role, e.Content, e.Timestamp);
+                // Extract display name from metadata if available
+                string displayName = GetDisplayNameForRole(e.Role, e.Metadata);
+                AddMessage(e.Role, e.Content, e.Timestamp, displayName);
             });
         }
 
@@ -486,16 +492,46 @@ namespace WindowsApp.ViewModels
             });
         }
 
-        private void AddMessage(string role, string content, DateTime timestamp)
+        private void AddMessage(string role, string content, DateTime timestamp, string displayName = "")
         {
+            // If no display name provided, generate one based on role
+            if (string.IsNullOrEmpty(displayName))
+            {
+                displayName = GetDisplayNameForRole(role, null);
+            }
+
             ChatMessages.Add(new ChatMessageViewModel
             {
                 Role = role,
                 Content = content,
-                Timestamp = timestamp
+                Timestamp = timestamp,
+                DisplayName = displayName
             });
 
             ScrollToBottomRequested?.Invoke(this, EventArgs.Empty);
+        }
+
+        private string GetDisplayNameForRole(string role, Dictionary<string, object>? metadata)
+        {
+            switch (role)
+            {
+                case "user":
+                    return "You";
+                case "assistant":
+                case "ai_agent":
+                    return "🤖 AI Assistant";
+                case "human_agent":
+                    // Try to get agent name from metadata
+                    if (metadata != null && metadata.TryGetValue("agent_name", out var agentName))
+                    {
+                        return $"🔧 {agentName}";
+                    }
+                    return "🔧 Technician";
+                case "system":
+                    return "System";
+                default:
+                    return "Unknown";
+            }
         }
 
         // Add execution entry to right pane
