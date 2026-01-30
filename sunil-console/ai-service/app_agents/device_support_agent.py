@@ -158,8 +158,17 @@ REMOTE DIAGNOSTICS:
 
 BEFORE RUNNING COMMANDS:
 1. Call check_device_connection(session_id) to verify device is connected
-2. If not connected, use generate_device_connection_code to get pairing code
-3. Give user the 6-digit code and wait for them to connect
+2. If not connected:
+   a. ASK USER: "Do you have an existing ticket number for this issue?"
+   b. If YES: Get the ticket number from user (e.g., "What is your ticket number?")
+   c. If NO: That's fine, proceed without ticket_id
+3. Call generate_device_connection_code with:
+   - Required: user_id, organization_id, device_id, chat_session_id
+   - Optional: ticket_id (if user provided one)
+4. Give user the 6-digit code and wait for them to connect
+
+IMPORTANT: Getting the ticket_id links the device session to the correct ticket,
+so technicians can join and see the full context and summary of the issue.
 
 DIAGNOSTIC COMMANDS (use execute_powershell):
 

@@ -214,24 +214,30 @@ class DeviceSession:
             # Mark active in DB
             await mark_connection_active(self.connection_id)
 
-            # Auto-link to most recent open ticket for this user
-            try:
-                tickets = self._db.select(
-                    "support_tickets",
-                    filters={
-                        "contact_id": f"eq.{self.user_id}",
-                        "status_id": f"in.(1,2,3,4)"  # Open, In Progress, Awaiting Customer, Escalated
-                    },
-                    order="created_at.desc",
-                    limit=1
-                )
+            # Use ticket_id from connection code if provided, otherwise auto-link
+            if result.ticket_id:
+                # Ticket was explicitly linked when generating connection code
+                self.ticket_id = result.ticket_id
+                logger.info(f"[WS] Using ticket from connection code: {self.ticket_id}")
+            else:
+                # Auto-link to most recent open ticket for this user
+                try:
+                    tickets = self._db.select(
+                        "support_tickets",
+                        filters={
+                            "contact_id": f"eq.{self.user_id}",
+                            "status_id": f"in.(1,2,3,4)"  # Open, In Progress, Awaiting Customer, Escalated
+                        },
+                        order="created_at.desc",
+                        limit=1
+                    )
 
-                if tickets and len(tickets) > 0:
-                    self.ticket_id = tickets[0]["ticket_id"]
-                    logger.info(f"[WS] Auto-linked to ticket {self.ticket_id}")
+                    if tickets and len(tickets) > 0:
+                        self.ticket_id = tickets[0]["ticket_id"]
+                        logger.info(f"[WS] Auto-linked to ticket {self.ticket_id}")
 
-            except Exception as e:
-                logger.warning(f"[WS] Failed to auto-link ticket: {e}")
+                except Exception as e:
+                    logger.warning(f"[WS] Failed to auto-link ticket: {e}")
 
             # Create device session record in database
             try:
@@ -641,7 +647,7 @@ class DeviceSession:
         await self._send_message(msg.model_dump())
 
     async def _send_chat_history(self) -> None:
-        """Send chat history to device."""
+        """Send chat history to device and save to database for technician visibility."""
         try:
             memory = get_memory(self.chat_session_id)
             messages = [
@@ -654,6 +660,26 @@ class DeviceSession:
             ]
             await self._send_message(ChatHistory(messages=messages).model_dump())
             logger.info(f"[WS] Sent {len(messages)} history messages")
+
+            # Save pre-connection conversation to database for technician visibility
+            # This ensures the summary generator can see the full conversation
+            for turn in memory.turns:
+                try:
+                    # Map memory role to database sender_type
+                    sender_type = "ai_agent" if turn.role == "assistant" else turn.role
+                    await self._chat_db.save_chat_message(
+                        chat_session_id=self.chat_session_id,
+                        ticket_id=self.ticket_id,
+                        device_id=self.device_id,
+                        sender_type=sender_type,
+                        content=turn.content,
+                        metadata={"source": "pre_connection_voice"}
+                    )
+                except Exception as e:
+                    logger.warning(f"[WS] Failed to save pre-connection message: {e}")
+
+            logger.info(f"[WS] Saved {len(memory.turns)} pre-connection messages to database")
+
         except Exception as e:
             logger.error(f"[WS] Failed to send history: {e}")
 

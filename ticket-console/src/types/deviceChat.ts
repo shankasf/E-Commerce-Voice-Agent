@@ -64,10 +64,43 @@ export interface WebSocketAuthSuccessMessage {
   is_primary_assignee: boolean;
 }
 
+// Issue Summary Types
+export interface TroubleshootingStep {
+  step_number: number;
+  description: string;
+  action_type: 'question' | 'command' | 'analysis' | 'suggestion' | 'greeting';
+  outcome?: string | null;
+  timestamp?: string | null;
+}
+
+export interface CommandExecutionSummary {
+  command: string;
+  description: string;
+  status: string;
+  output_preview?: string | null;
+  error?: string | null;
+}
+
+export interface IssueSummary {
+  ticket_id: number | null;
+  issue_description: string;
+  customer_name: string;
+  organization_name: string;
+  device_info: string;
+  troubleshooting_steps: TroubleshootingStep[];
+  commands_executed: CommandExecutionSummary[];
+  current_status: string;
+  ai_diagnosis?: string | null;
+  ticket_subject?: string | null;
+  ticket_priority?: string | null;
+  generated_at: string;
+}
+
 export interface WebSocketInitialStateMessage {
   type: 'initial_state';
   chat_history: DeviceChatMessage[];
   execution_history: CommandExecution[];
+  issue_summary?: IssueSummary;
 }
 
 export interface WebSocketChatMessage {

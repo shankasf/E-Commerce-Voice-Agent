@@ -70,6 +70,7 @@ def generate_device_connection_code(
     organization_id: int,
     device_id: int,
     chat_session_id: str,
+    ticket_id: Optional[int] = None,
 ) -> str:
     """
     Generate a 6-digit pairing code for establishing a secure connection
@@ -78,11 +79,19 @@ def generate_device_connection_code(
     CRITICAL: The device_id parameter MUST be a value from the get_user_devices result.
     Do NOT guess or assume device IDs. Always call get_user_devices first.
 
+    IMPORTANT: Before calling this, ASK the user if they already have a ticket for this issue.
+    If yes, ask for the ticket number and pass it as ticket_id. This links the device session
+    to the existing ticket so technicians can join and see the correct context.
+
+    If ticket_id is not provided, the system will automatically link to the most recent
+    open ticket for this user.
+
     Args:
         user_id: The contact/user ID requesting the connection
         organization_id: The organization ID the user belongs to
         device_id: The device ID from get_user_devices result (MUST match exactly)
         chat_session_id: The AI chat session ID (links device connection to chat)
+        ticket_id: Optional - existing ticket ID if user has one for this issue
 
     Returns:
         JSON with success status, connection code, and details.
@@ -95,8 +104,35 @@ def generate_device_connection_code(
     print(f"[DEBUG]   organization_id = {organization_id} (type: {type(organization_id).__name__})")
     print(f"[DEBUG]   device_id = {device_id} (type: {type(device_id).__name__})")
     print(f"[DEBUG]   chat_session_id = {chat_session_id}")
+    print(f"[DEBUG]   ticket_id = {ticket_id}")
     print(f"{'='*60}\n")
-    logger.info(f"[DEBUG] generate_device_connection_code called with device_id={device_id}")
+    logger.info(f"[DEBUG] generate_device_connection_code called with device_id={device_id}, ticket_id={ticket_id}")
+
+    # AUTO-LINK TO TICKET: If no ticket_id provided, find the most recent open ticket for this user
+    # This ensures the device session is linked to the correct ticket for technician visibility
+    if not ticket_id:
+        from db.connection import get_db
+        db = get_db()
+        try:
+            tickets = db.select(
+                "support_tickets",
+                filters={
+                    "contact_id": f"eq.{user_id}",
+                    "status_id": f"in.(1,2,3,4)"  # Open, In Progress, Awaiting Customer, Escalated
+                },
+                order="created_at.desc",
+                limit=1
+            )
+            if tickets and len(tickets) > 0:
+                ticket_id = tickets[0].get("ticket_id")
+                logger.info(f"[AUTO-LINK] Found most recent open ticket for user {user_id}: ticket_id={ticket_id}")
+                print(f"[DEBUG] AUTO-LINKED to ticket_id={ticket_id}")
+            else:
+                logger.warning(f"[AUTO-LINK] No open tickets found for user {user_id}")
+                print(f"[DEBUG] No open tickets found for user {user_id}")
+        except Exception as e:
+            logger.error(f"[AUTO-LINK] Error finding recent ticket: {e}")
+            print(f"[DEBUG] Error finding recent ticket: {e}")
 
     if not user_id or not organization_id or not chat_session_id:
         return GenerateCodeResult(
@@ -208,7 +244,11 @@ def generate_device_connection_code(
             "chat_session_id": chat_session_id,
         }
 
-        logger.info(f"Generating connection code for user {user_id}, device {device_id}")
+        # Add ticket_id if provided
+        if ticket_id:
+            payload["ticket_id"] = ticket_id
+
+        logger.info(f"Generating connection code for user {user_id}, device {device_id}, ticket={ticket_id}")
 
         response = requests.post(url, json=payload, headers=headers, timeout=30)
         response.raise_for_status()
