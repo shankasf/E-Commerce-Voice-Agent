@@ -27,9 +27,12 @@ export default function RequesterDashboard() {
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNewTicket, setShowNewTicket] = useState(false);
-  const [newTicket, setNewTicket] = useState({ subject: '', description: '', priority: 2 });
+  const [newTicket, setNewTicket] = useState({ subject: '', description: '', priority: 2, deviceId: 0, locationId: 0 });
   const [mounted, setMounted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [devices, setDevices] = useState<any[]>([]);
+  const [locations, setLocations] = useState<any[]>([]);
+  const [loadingDropdowns, setLoadingDropdowns] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
   // Memoized load function for real-time updates
@@ -49,6 +52,25 @@ export default function RequesterDashboard() {
       setLoading(false);
     }
   }, []);
+
+  // Load devices and locations for ticket creation
+  const loadDropdownData = useCallback(async () => {
+    if (!user?.id || !user?.organization_id) return;
+
+    setLoadingDropdowns(true);
+    try {
+      const [devicesData, locationsData] = await Promise.all([
+        requesterAPI.getMyDevices(user.id),
+        requesterAPI.getMyLocations(user.organization_id)
+      ]);
+      setDevices(devicesData || []);
+      setLocations(locationsData || []);
+    } catch (err) {
+      console.error('Error loading dropdown data:', err);
+    } finally {
+      setLoadingDropdowns(false);
+    }
+  }, [user?.id, user?.organization_id]);
 
   // Real-time subscription using WebSocket
   useRequesterTicketsRealtime(user?.id, () => {
@@ -89,9 +111,22 @@ export default function RequesterDashboard() {
     }
   }, [user, isLoading, mounted, loadTickets]);
 
+  const handleOpenNewTicket = () => {
+    setShowNewTicket(true);
+    loadDropdownData();
+  };
+
   const handleCreateTicket = async () => {
     if (!newTicket.subject.trim()) {
       setError('Subject is required');
+      return;
+    }
+    if (!newTicket.deviceId) {
+      setError('Please select a device');
+      return;
+    }
+    if (!newTicket.locationId) {
+      setError('Please select a location');
       return;
     }
     if (!user?.id) {
@@ -106,17 +141,19 @@ export default function RequesterDashboard() {
     // Close modal immediately (optimistic UI)
     const ticketData = { ...newTicket };
     setShowNewTicket(false);
-    setNewTicket({ subject: '', description: '', priority: 2 });
+    setNewTicket({ subject: '', description: '', priority: 2, deviceId: 0, locationId: 0 });
     setError(null);
 
     try {
-      console.log('Creating ticket:', { contactId: user.id, orgId: user.organization_id, subject: ticketData.subject });
+      console.log('Creating ticket:', { contactId: user.id, orgId: user.organization_id, subject: ticketData.subject, deviceId: ticketData.deviceId, locationId: ticketData.locationId });
       const result = await requesterAPI.createTicket(
         user.id,
         user.organization_id,
         ticketData.subject,
         ticketData.description,
-        ticketData.priority
+        ticketData.priority,
+        ticketData.deviceId,
+        ticketData.locationId
       );
       console.log('Ticket created:', result);
       // Refresh tickets list in background
@@ -170,7 +207,7 @@ export default function RequesterDashboard() {
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
             <button
-              onClick={() => setShowNewTicket(true)}
+              onClick={handleOpenNewTicket}
               className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
             >
               <Plus className="w-4 h-4" />
@@ -258,7 +295,7 @@ export default function RequesterDashboard() {
               <Ticket className="w-12 h-12 text-gray-300 mx-auto mb-3" />
               <p className="text-gray-500">No tickets yet</p>
               <button
-                onClick={() => setShowNewTicket(true)}
+                onClick={handleOpenNewTicket}
                 className="mt-3 text-blue-600 hover:text-blue-700 font-medium"
               >
                 Create your first ticket
@@ -334,17 +371,75 @@ export default function RequesterDashboard() {
                   <option value={4}>Critical</option>
                 </select>
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Device <span className="text-red-500">*</span>
+                </label>
+                {loadingDropdowns ? (
+                  <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500">
+                    Loading devices...
+                  </div>
+                ) : devices.length === 0 ? (
+                  <div className="w-full px-3 py-2 border border-yellow-300 rounded-lg bg-yellow-50 text-yellow-700 text-sm">
+                    No devices assigned to your account. Please contact admin.
+                  </div>
+                ) : (
+                  <select
+                    value={newTicket.deviceId}
+                    onChange={(e) => setNewTicket({ ...newTicket, deviceId: parseInt(e.target.value) })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value={0}>Select a device</option>
+                    {devices.map((cd) => (
+                      <option key={cd.device?.device_id} value={cd.device?.device_id}>
+                        {cd.device?.asset_name} {cd.device?.host_name ? `(${cd.device.host_name})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Location <span className="text-red-500">*</span>
+                </label>
+                {loadingDropdowns ? (
+                  <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500">
+                    Loading locations...
+                  </div>
+                ) : locations.length === 0 ? (
+                  <div className="w-full px-3 py-2 border border-yellow-300 rounded-lg bg-yellow-50 text-yellow-700 text-sm">
+                    No locations found for your organization. Please contact admin.
+                  </div>
+                ) : (
+                  <select
+                    value={newTicket.locationId}
+                    onChange={(e) => setNewTicket({ ...newTicket, locationId: parseInt(e.target.value) })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value={0}>Select a location</option>
+                    {locations.map((loc) => (
+                      <option key={loc.location_id} value={loc.location_id}>
+                        {loc.name} ({loc.location_type})
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
             </div>
             <div className="flex justify-end gap-3 mt-6">
               <button
-                onClick={() => setShowNewTicket(false)}
+                onClick={() => {
+                  setShowNewTicket(false);
+                  setNewTicket({ subject: '', description: '', priority: 2, deviceId: 0, locationId: 0 });
+                }}
                 className="px-4 py-2 text-gray-600 hover:text-gray-900"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreateTicket}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                disabled={loadingDropdowns || devices.length === 0 || locations.length === 0}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
                 Create Ticket
               </button>
