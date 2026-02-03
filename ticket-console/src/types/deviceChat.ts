@@ -146,6 +146,7 @@ export interface WebSocketHeartbeatAckMessage {
   type: 'heartbeat_ack';
 }
 
+// Incoming messages (server -> client)
 export type WebSocketMessage =
   | WebSocketAuthSuccessMessage
   | WebSocketInitialStateMessage
@@ -154,3 +155,32 @@ export type WebSocketMessage =
   | WebSocketCommandResultMessage
   | WebSocketErrorMessage
   | WebSocketHeartbeatAckMessage;
+
+// Outgoing messages (client -> server)
+export interface WebSocketTechnicianChatMessage {
+  type: 'chat';
+  content: string;
+  ask_ai?: boolean; // If true, AI will also respond to help the technician
+}
+
+export interface WebSocketExecuteCommandMessage {
+  type: 'execute_command';
+  command: string;
+  description?: string;
+}
+
+export interface WebSocketAIInstructionMessage {
+  type: 'ai_instruction';
+  instruction: string;
+}
+
+export interface WebSocketHeartbeatMessage {
+  type: 'heartbeat';
+}
+
+export type WebSocketOutgoingMessage =
+  | WebSocketAuthMessage
+  | WebSocketTechnicianChatMessage
+  | WebSocketExecuteCommandMessage
+  | WebSocketAIInstructionMessage
+  | WebSocketHeartbeatMessage;

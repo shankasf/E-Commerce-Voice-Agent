@@ -218,7 +218,8 @@ class DeviceConnectionManager:
         self,
         ticket_id: int,
         message_type: str,
-        data: Dict[str, any]
+        data: Dict[str, any],
+        exclude_agent_id: Optional[int] = None
     ) -> int:
         """
         Broadcast message to all technicians on a ticket.
@@ -227,6 +228,7 @@ class DeviceConnectionManager:
             ticket_id: Ticket to broadcast to
             message_type: Type of message (chat, command_update, etc.)
             data: Message data
+            exclude_agent_id: Optional agent ID to exclude (e.g., don't send back to sender)
 
         Returns:
             Number of technicians message was sent to
@@ -237,6 +239,10 @@ class DeviceConnectionManager:
         sent_count = 0
 
         for tech_session in technicians:
+            # Skip excluded agent
+            if exclude_agent_id and tech_session.agent_id == exclude_agent_id:
+                continue
+
             try:
                 await tech_session._send_message(message)
                 sent_count += 1

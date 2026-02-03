@@ -3,16 +3,15 @@ Technician WebSocket Handler for URackIT AI Service.
 
 Handles WebSocket connections from technicians joining device chat sessions.
 Provides full visibility into chat history and command execution history.
-
-NOTE: This is VIEW-ONLY mode. Technician sending messages and executing
-commands will be added in a future branch.
+Enables technicians to send messages, execute commands, and collaborate with AI.
 """
 
 import asyncio
 import json
 import logging
+import uuid
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import WebSocket, WebSocketDisconnect
 
@@ -23,6 +22,20 @@ from services.summary_generator import get_summary_generator
 from .config import get_ws_config
 from .connection_manager import get_connection_manager
 from .models import ChatMessage, ErrorMessage
+from memory import get_memory
+
+# Safe diagnostic commands that don't require user consent (read-only)
+SAFE_COMMAND_PREFIXES: List[str] = [
+    # PowerShell Get commands (read-only)
+    "get-", "test-", "measure-", "select-", "where-", "format-", "sort-",
+    "convertto-", "out-string", "write-output",
+    # Network diagnostics
+    "ipconfig", "ping", "nslookup", "tracert", "netstat", "arp",
+    # System info (read-only)
+    "hostname", "whoami", "systeminfo", "tasklist", "wmic",
+    # Disk info
+    "dir", "ls", "type", "cat",
+]
 
 logger = logging.getLogger(__name__)
 
@@ -31,8 +44,11 @@ class TechnicianSession:
     """
     Manages a single technician WebSocket connection for joining device chats.
 
-    VIEW-ONLY MODE: Technician can see chat history and receive real-time updates,
-    but cannot send messages or execute commands (to be added in future branch).
+    Enables technicians to:
+    - View full chat history and command execution history
+    - Send messages to users (all technicians)
+    - Execute commands on devices (primary assignee only)
+    - Collaborate with AI agent via instructions (primary assignee only)
 
     Lifecycle:
     1. Accept WebSocket connection
@@ -41,13 +57,16 @@ class TechnicianSession:
     4. Send initial state (chat history + execution history)
     5. Register with connection manager
     6. Notify device that technician joined (displays technician name)
-    7. Enter message loop (heartbeat only in view-only mode)
+    7. Enter message loop (handle chat, commands, AI instructions)
     8. Cleanup on disconnect
 
     Features:
     - Full chat history on join
-    - Full command execution history (view only)
+    - Full command execution history
     - Real-time message broadcasting from device/AI
+    - Send messages to device chat
+    - Execute PowerShell commands (primary only)
+    - Guide AI with instructions (primary only)
     - Technician name displayed when joining
     - Automatic session tracking in database
     """
@@ -345,17 +364,18 @@ class TechnicianSession:
         """Route message to appropriate handler."""
         msg_type = data.get("type")
 
-        # View-only mode: only heartbeat is handled
-        # Chat and command execution will be added in a future branch
         handlers = {
             "heartbeat": self._on_heartbeat,
+            "chat": self._on_chat,
+            "execute_command": self._on_execute_command,
+            "ai_instruction": self._on_ai_instruction,
         }
 
         handler = handlers.get(msg_type)
         if handler:
             await handler(data)
         else:
-            logger.debug(f"[TECH-WS] Message type not handled in view-only mode: {msg_type}")
+            logger.debug(f"[TECH-WS] Unknown message type: {msg_type}")
 
     # ============================================
     # Message Handlers
@@ -366,11 +386,264 @@ class TechnicianSession:
         self.last_heartbeat = datetime.utcnow()
         await self._send_message({"type": "heartbeat_ack"})
 
-    # NOTE: _on_chat method removed for view-only mode
-    # Technician sending messages will be added in a future branch
+    async def _on_chat(self, data: Dict[str, Any]) -> None:
+        """
+        Handle chat message from technician.
 
-    # NOTE: _on_execute_command and _check_command_requires_consent methods removed for view-only mode
-    # Technician command execution will be added in a future branch
+        All technicians (primary and secondary) can send chat messages.
+        Messages are saved to database, sent to device, and broadcast to other technicians.
+        If ask_ai=True (primary only), the message also triggers AI processing.
+        """
+        content = data.get("content", "").strip()
+        if not content:
+            await self._send_error("Message content is required")
+            return
+
+        # Check if AI assistance is requested (primary assignee only)
+        ask_ai = data.get("ask_ai", False) and self.is_primary_assignee
+
+        # Get agent name for metadata
+        agent_name = self._get_agent_name()
+        metadata = {
+            "agent_name": agent_name,
+            "agent_id": self.agent_id,
+            "ask_ai": ask_ai
+        }
+
+        # Save to database
+        try:
+            await self._chat_db.save_chat_message(
+                chat_session_id=self.chat_session_id,
+                ticket_id=self.ticket_id,
+                device_id=self.device_id,
+                sender_type="human_agent",
+                sender_agent_id=self.agent_id,
+                content=content,
+                metadata=metadata
+            )
+        except Exception as e:
+            logger.error(f"[TECH-WS] Failed to save chat message: {e}")
+
+        # Get connection manager and device session
+        conn_mgr = get_connection_manager()
+        device_session = conn_mgr.get_by_chat_session(self.chat_session_id)
+
+        # Send to device
+        if device_session and device_session.is_connected:
+            await device_session.send_chat(
+                content=content,
+                role="human_agent",
+                metadata=metadata
+            )
+        else:
+            logger.warning(f"[TECH-WS] Device not connected for chat_session={self.chat_session_id}")
+
+        # Broadcast to all technicians on same ticket (including sender so they see their message)
+        await conn_mgr.broadcast_to_technicians(
+            ticket_id=self.ticket_id,
+            message_type="chat",
+            data={
+                "role": "human_agent",
+                "content": content,
+                "timestamp": datetime.utcnow().isoformat(),
+                "metadata": metadata
+            }
+        )
+
+        logger.info(f"[TECH-WS] Chat message sent: agent={self.agent_id}, ask_ai={ask_ai}, content={content[:50]}...")
+
+        # If AI assistance requested, add to memory and trigger AI processing
+        if ask_ai and device_session and device_session.is_connected:
+            # Format as technician request for AI - make it clear this is a SUPPORT TECHNICIAN
+            # with authority to execute commands, not the customer
+            ai_prompt = (
+                f"[SUPPORT TECHNICIAN REQUEST from {agent_name}]: {content}\n\n"
+                f"NOTE: This message is from a SUPPORT TECHNICIAN (not the customer). "
+                f"The technician has authority to execute diagnostic commands without asking for permission. "
+                f"Respond professionally to the technician with technical details and execute any requested diagnostics immediately."
+            )
+
+            # Add to memory so AI has context
+            memory = get_memory(self.chat_session_id)
+            memory.add_turn("user", ai_prompt)
+
+            # Trigger AI response
+            try:
+                await device_session._process_ai_response(ai_prompt)
+                logger.info(f"[TECH-WS] AI processing triggered for technician question")
+            except Exception as e:
+                logger.error(f"[TECH-WS] Failed to process AI response: {e}")
+
+    async def _on_execute_command(self, data: Dict[str, Any]) -> None:
+        """
+        Handle command execution request from technician.
+
+        Only primary assignee can execute commands.
+        Safe commands (read-only diagnostics) run without user consent.
+        Unsafe commands require user approval via consent dialog.
+        """
+        # Only primary assignee can execute commands
+        if not self.is_primary_assignee:
+            await self._send_error("Only primary assignee can execute commands")
+            return
+
+        command = data.get("command", "").strip()
+        description = data.get("description", "").strip()
+
+        if not command:
+            await self._send_error("Command is required")
+            return
+
+        # Generate unique command ID
+        command_id = str(uuid.uuid4())
+
+        # Determine if command requires user consent
+        requires_consent = self._check_command_requires_consent(command)
+
+        # Get device session
+        conn_mgr = get_connection_manager()
+        device_session = conn_mgr.get_by_chat_session(self.chat_session_id)
+
+        if not device_session or not device_session.is_connected:
+            await self._send_error("Device is not connected")
+            return
+
+        # Get agent name for description
+        agent_name = self._get_agent_name()
+        full_description = description or f"Command requested by {agent_name}"
+
+        # Send command to device
+        sent = await device_session.send_powershell_command(
+            command_id=command_id,
+            command=command,
+            description=full_description,
+            requires_consent=requires_consent,
+            requester_type="human_agent",
+            requester_agent_id=self.agent_id
+        )
+
+        if not sent:
+            await self._send_error("Failed to send command to device")
+            return
+
+        logger.info(
+            f"[TECH-WS] Command sent: agent={self.agent_id}, command_id={command_id}, "
+            f"consent_required={requires_consent}, command={command[:50]}..."
+        )
+
+    async def _on_ai_instruction(self, data: Dict[str, Any]) -> None:
+        """
+        Handle AI instruction from technician.
+
+        Primary assignee can guide the AI agent to perform specific actions
+        like running diagnostics or analyzing issues. The instruction is
+        saved to database, broadcast to technicians, added to memory,
+        and then triggers AI processing.
+        """
+        # Only primary assignee can instruct AI
+        if not self.is_primary_assignee:
+            await self._send_error("Only primary assignee can guide AI")
+            return
+
+        instruction = data.get("instruction", "").strip()
+        if not instruction:
+            await self._send_error("Instruction is required")
+            return
+
+        # Get agent name
+        agent_name = self._get_agent_name()
+
+        # Format instruction as a technician directive - make it clear this is from a SUPPORT TECHNICIAN
+        formatted_instruction = (
+            f"[SUPPORT TECHNICIAN INSTRUCTION from {agent_name}]: {instruction}\n\n"
+            f"NOTE: Execute this instruction immediately. The technician has full authority to run diagnostics and commands. "
+            f"Do not ask for permission - proceed with the requested action."
+        )
+
+        # Get device session
+        conn_mgr = get_connection_manager()
+        device_session = conn_mgr.get_by_chat_session(self.chat_session_id)
+
+        if not device_session or not device_session.is_connected:
+            await self._send_error("Device is not connected")
+            return
+
+        # Save instruction to database (for audit trail)
+        metadata = {
+            "agent_name": agent_name,
+            "agent_id": self.agent_id,
+            "type": "ai_instruction"
+        }
+        try:
+            await self._chat_db.save_chat_message(
+                chat_session_id=self.chat_session_id,
+                ticket_id=self.ticket_id,
+                device_id=self.device_id,
+                sender_type="human_agent",
+                sender_agent_id=self.agent_id,
+                content=formatted_instruction,
+                metadata=metadata
+            )
+        except Exception as e:
+            logger.error(f"[TECH-WS] Failed to save AI instruction: {e}")
+
+        # Broadcast to all technicians (including sender) so they see the instruction
+        await conn_mgr.broadcast_to_technicians(
+            ticket_id=self.ticket_id,
+            message_type="chat",
+            data={
+                "role": "human_agent",
+                "content": formatted_instruction,
+                "timestamp": datetime.utcnow().isoformat(),
+                "metadata": metadata
+            }
+        )
+
+        # Add to memory so AI has full context
+        memory = get_memory(self.chat_session_id)
+        memory.add_turn("user", formatted_instruction)
+
+        # Process through AI
+        try:
+            await device_session._process_ai_response(formatted_instruction)
+            logger.info(f"[TECH-WS] AI instruction sent: agent={self.agent_id}, instruction={instruction[:50]}...")
+        except Exception as e:
+            logger.error(f"[TECH-WS] Failed to process AI instruction: {e}")
+            await self._send_error("Failed to send instruction to AI")
+
+    def _check_command_requires_consent(self, command: str) -> bool:
+        """
+        Determine if a command requires user consent.
+
+        Safe commands (read-only diagnostics) don't require consent.
+        Unsafe commands (modifications, restarts, deletions) require user approval.
+
+        Args:
+            command: The PowerShell command to check
+
+        Returns:
+            True if user consent is required, False for safe commands
+        """
+        command_lower = command.strip().lower()
+
+        # Check if command starts with any safe prefix
+        for prefix in SAFE_COMMAND_PREFIXES:
+            if command_lower.startswith(prefix):
+                return False
+
+        # Default: require consent for safety
+        return True
+
+    def _get_agent_name(self) -> str:
+        """Get the agent's full name from database."""
+        try:
+            agent = self._db.select(
+                "support_agents",
+                filters={"support_agent_id": f"eq.{self.agent_id}"}
+            )
+            return agent[0]["full_name"] if agent else "Technician"
+        except Exception:
+            return "Technician"
 
     # ============================================
     # Public API (called by ConnectionManager)

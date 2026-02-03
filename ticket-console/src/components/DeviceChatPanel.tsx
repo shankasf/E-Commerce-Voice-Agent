@@ -24,6 +24,11 @@ import {
   FileText,
   Building2,
   Monitor,
+  Send,
+  Play,
+  Cpu,
+  Network,
+  HardDrive,
 } from 'lucide-react';
 
 interface DeviceChatPanelProps {
@@ -45,6 +50,14 @@ export default function DeviceChatPanel({
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSummary, setShowSummary] = useState(false);
+  const [isPrimaryAssignee, setIsPrimaryAssignee] = useState(false);
+
+  // Input state
+  const [messageInput, setMessageInput] = useState('');
+  const [commandInput, setCommandInput] = useState('');
+  const [commandDescription, setCommandDescription] = useState('');
+  const [showAIPanel, setShowAIPanel] = useState(false);
+  const [askAI, setAskAI] = useState(false); // Toggle for AI involvement in chat
 
   const wsRef = useRef<WebSocket | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -120,7 +133,8 @@ export default function DeviceChatPanel({
       case 'auth_success':
         setIsConnected(true);
         setError(null);
-        console.log('[DeviceChat] Authenticated successfully (view-only mode)');
+        setIsPrimaryAssignee(data.is_primary_assignee || false);
+        console.log(`[DeviceChat] Authenticated successfully (primary=${data.is_primary_assignee})`);
 
         if (heartbeatIntervalRef.current) {
           clearInterval(heartbeatIntervalRef.current);
@@ -230,6 +244,62 @@ export default function DeviceChatPanel({
     }
   };
 
+  // Send chat message
+  const sendChatMessage = useCallback(() => {
+    if (!messageInput.trim() || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    // Only primary assignee can ask AI for help
+    const includeAI = askAI && isPrimaryAssignee;
+
+    wsRef.current.send(JSON.stringify({
+      type: 'chat',
+      content: messageInput.trim(),
+      ask_ai: includeAI
+    }));
+
+    setMessageInput('');
+  }, [messageInput, askAI, isPrimaryAssignee]);
+
+  // Execute command (primary assignee only)
+  const executeCommand = useCallback(() => {
+    if (!commandInput.trim() || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    if (!isPrimaryAssignee) {
+      setError('Only primary assignee can execute commands');
+      return;
+    }
+
+    wsRef.current.send(JSON.stringify({
+      type: 'execute_command',
+      command: commandInput.trim(),
+      description: commandDescription.trim() || undefined
+    }));
+
+    setCommandInput('');
+    setCommandDescription('');
+  }, [commandInput, commandDescription, isPrimaryAssignee]);
+
+  // Send AI instruction (primary assignee only)
+  const sendAIInstruction = useCallback((instruction: string) => {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    if (!isPrimaryAssignee) {
+      setError('Only primary assignee can guide AI');
+      return;
+    }
+
+    wsRef.current.send(JSON.stringify({
+      type: 'ai_instruction',
+      instruction: instruction
+    }));
+  }, [isPrimaryAssignee]);
+
   // Initialize WebSocket connection
   useEffect(() => {
     connectWebSocket();
@@ -314,9 +384,18 @@ export default function DeviceChatPanel({
             {isConnected ? 'Connected' : 'Disconnected'}
           </span>
           {isConnected && (
-            <span className="flex items-center gap-1 text-xs text-[#858585]">
-              <Eye className="w-3 h-3" />
-              View Only
+            <span className={`flex items-center gap-1 text-xs ${isPrimaryAssignee ? 'text-[#4ec9b0]' : 'text-[#858585]'}`}>
+              {isPrimaryAssignee ? (
+                <>
+                  <Wrench className="w-3 h-3" />
+                  Primary Assignee
+                </>
+              ) : (
+                <>
+                  <Eye className="w-3 h-3" />
+                  View + Chat
+                </>
+              )}
             </span>
           )}
           {/* Issue Summary Button */}
@@ -492,10 +571,56 @@ export default function DeviceChatPanel({
             <div ref={chatEndRef} />
           </div>
 
-          {/* View-Only Notice */}
-          <div className="flex items-center justify-center gap-2 px-4 py-3 bg-[#252526] border-t border-[#3c3c3c] text-xs text-[#858585]">
-            <Eye className="w-4 h-4" />
-            View-only mode — Sending messages will be available in a future update
+          {/* Chat Input */}
+          <div className="px-4 py-3 bg-[#252526] border-t border-[#3c3c3c]">
+            {/* Ask AI Toggle (Primary Assignee Only) */}
+            {isPrimaryAssignee && (
+              <div className="flex items-center gap-2 mb-2">
+                <button
+                  onClick={() => setAskAI(!askAI)}
+                  className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors ${
+                    askAI
+                      ? 'bg-[#4ec9b0] text-[#1e1e1e]'
+                      : 'bg-[#3c3c3c] text-[#858585] hover:bg-[#4d4d4d]'
+                  }`}
+                >
+                  <Bot className="w-3 h-3" />
+                  {askAI ? 'AI will respond' : 'Ask AI'}
+                </button>
+                {askAI && (
+                  <span className="text-xs text-[#4ec9b0]">
+                    AI will analyze and respond to help resolve the issue
+                  </span>
+                )}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={messageInput}
+                onChange={(e) => setMessageInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendChatMessage()}
+                placeholder={askAI ? "Ask AI for help with the issue..." : "Type a message to the customer..."}
+                className={`flex-1 px-3 py-2 rounded text-sm placeholder-[#858585] focus:outline-none focus:ring-1 ${
+                  askAI
+                    ? 'bg-[#1a2a1a] text-[#cccccc] focus:ring-[#4ec9b0] border border-[#2d4d2d]'
+                    : 'bg-[#3c3c3c] text-[#cccccc] focus:ring-[#0e639c]'
+                }`}
+                disabled={!isConnected}
+              />
+              <button
+                onClick={sendChatMessage}
+                disabled={!isConnected || !messageInput.trim()}
+                className={`px-4 py-2 rounded text-sm transition-colors flex items-center gap-2 ${
+                  askAI
+                    ? 'bg-[#4ec9b0] hover:bg-[#5fd9c0] disabled:bg-[#2d2d2d] disabled:text-[#4d4d4d] text-[#1e1e1e]'
+                    : 'bg-[#0e639c] hover:bg-[#1177bb] disabled:bg-[#3c3c3c] disabled:text-[#858585] text-white'
+                }`}
+              >
+                {askAI ? <Bot className="w-4 h-4" /> : <Send className="w-4 h-4" />}
+                {askAI ? 'Ask AI' : 'Send'}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -575,9 +700,93 @@ export default function DeviceChatPanel({
             <div ref={terminalEndRef} />
           </div>
 
-          {/* View-Only Notice */}
-          <div className="flex items-center justify-center gap-2 px-4 py-3 bg-[#1a1a1a] border-t border-[#2d2d2d] text-xs text-[#4d4d4d]">
-            View-only mode — Command execution will be available in a future update
+          {/* AI Collaboration Panel (Primary Assignee Only) */}
+          {isPrimaryAssignee && (
+            <div className="px-4 py-2 bg-[#1a2a1a] border-t border-[#2d4d2d]">
+              <button
+                onClick={() => setShowAIPanel(!showAIPanel)}
+                className="flex items-center gap-2 text-xs text-[#4ec9b0] hover:text-[#5fd9c0] transition-colors w-full"
+              >
+                <Bot className="w-3.5 h-3.5" />
+                <span className="font-semibold">AI Collaboration</span>
+                {showAIPanel ? <ChevronDown className="w-3.5 h-3.5 ml-auto" /> : <ChevronUp className="w-3.5 h-3.5 ml-auto" />}
+              </button>
+              {showAIPanel && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    onClick={() => sendAIInstruction('Run comprehensive network diagnostics and report any connectivity issues')}
+                    disabled={!isConnected}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2d2d2d] hover:bg-[#3d3d3d] disabled:opacity-50
+                               text-[#cccccc] rounded text-xs transition-colors"
+                  >
+                    <Network className="w-3 h-3" />
+                    Network Diagnostics
+                  </button>
+                  <button
+                    onClick={() => sendAIInstruction('Check system performance including CPU, memory, and disk usage')}
+                    disabled={!isConnected}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2d2d2d] hover:bg-[#3d3d3d] disabled:opacity-50
+                               text-[#cccccc] rounded text-xs transition-colors"
+                  >
+                    <Cpu className="w-3 h-3" />
+                    System Performance
+                  </button>
+                  <button
+                    onClick={() => sendAIInstruction('Check disk health and storage usage across all drives')}
+                    disabled={!isConnected}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2d2d2d] hover:bg-[#3d3d3d] disabled:opacity-50
+                               text-[#cccccc] rounded text-xs transition-colors"
+                  >
+                    <HardDrive className="w-3 h-3" />
+                    Disk Health
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Command Input (Primary Assignee) or View-Only Notice */}
+          <div className="px-4 py-3 bg-[#1a1a1a] border-t border-[#2d2d2d]">
+            {isPrimaryAssignee ? (
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={commandInput}
+                    onChange={(e) => setCommandInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && executeCommand()}
+                    placeholder="Enter PowerShell command..."
+                    className="flex-1 px-3 py-2 bg-[#2d2d2d] text-[#dcdcaa] rounded text-sm
+                               font-mono placeholder-[#4d4d4d] focus:outline-none focus:ring-1 focus:ring-[#4ec9b0]"
+                    disabled={!isConnected}
+                  />
+                  <button
+                    onClick={executeCommand}
+                    disabled={!isConnected || !commandInput.trim()}
+                    className="px-4 py-2 bg-[#4ec9b0] hover:bg-[#5fd9c0] disabled:bg-[#2d2d2d]
+                               disabled:text-[#4d4d4d] text-[#1e1e1e] rounded text-sm font-semibold
+                               transition-colors flex items-center gap-2"
+                  >
+                    <Play className="w-4 h-4" />
+                    Execute
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={commandDescription}
+                  onChange={(e) => setCommandDescription(e.target.value)}
+                  placeholder="Description (optional) — shown to user for consent"
+                  className="w-full px-3 py-1.5 bg-[#2d2d2d] text-[#858585] rounded text-xs
+                             placeholder-[#4d4d4d] focus:outline-none"
+                  disabled={!isConnected}
+                />
+              </div>
+            ) : (
+              <div className="flex items-center justify-center gap-2 text-xs text-[#4d4d4d]">
+                <Eye className="w-4 h-4" />
+                Command execution requires primary assignee role
+              </div>
+            )}
           </div>
         </div>
       </div>
