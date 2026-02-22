@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: quiz
+  namespace: quiz
+  labels:
+    app: quiz
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: quiz
+  template:
+    metadata:
+      labels:
+        app: quiz
+    spec:
+      containers:
+        - name: quiz
+          image: quiz:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 80
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: openai-secret
+                  key: OPENAI_API_KEY
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "200m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          volumeMounts:
+            - name: app-source
+              mountPath: /app
+      volumes:
+        - name: app-source
+          hostPath:
+            path: /home/ubuntu/apps/quiz
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: quiz
+  namespace: quiz
+spec:
+  type: NodePort
+  selector:
+    app: quiz
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 30185
+      name: http

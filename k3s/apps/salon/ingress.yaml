@@ -1,0 +1,121 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: salon-ingress
+  namespace: salon
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  ingressClassName: traefik
+  rules:
+  - host: salon.callsphere.tech
+    http:
+      paths:
+      # AI service voice routes (must be before /api)
+      - backend:
+          service:
+            name: salon-ai
+            port:
+              number: 8086
+        path: /api/voice
+        pathType: Prefix
+      - backend:
+          service:
+            name: salon-ai
+            port:
+              number: 8086
+        path: /api/agent
+        pathType: Prefix
+      - backend:
+          service:
+            name: salon-ai
+            port:
+              number: 8086
+        path: /api/chat
+        pathType: Prefix
+      # Backend API routes
+      - backend:
+          service:
+            name: salon-backend
+            port:
+              number: 3001
+        path: /auth
+        pathType: Prefix
+      - backend:
+          service:
+            name: salon-backend
+            port:
+              number: 3001
+        path: /users
+        pathType: Prefix
+      - backend:
+          service:
+            name: salon-backend
+            port:
+              number: 3001
+        path: /services
+        pathType: Prefix
+      - backend:
+          service:
+            name: salon-backend
+            port:
+              number: 3001
+        path: /stylists
+        pathType: Prefix
+      - backend:
+          service:
+            name: salon-backend
+            port:
+              number: 3001
+        path: /appointments
+        pathType: Prefix
+      - backend:
+          service:
+            name: salon-backend
+            port:
+              number: 3001
+        path: /customers
+        pathType: Prefix
+      - backend:
+          service:
+            name: salon-backend
+            port:
+              number: 3001
+        path: /calls
+        pathType: Prefix
+      - backend:
+          service:
+            name: salon-backend
+            port:
+              number: 3001
+        path: /api
+        pathType: Prefix
+      # AI service routes
+      - backend:
+          service:
+            name: salon-ai
+            port:
+              number: 8086
+        path: /ai
+        pathType: Prefix
+      - backend:
+          service:
+            name: salon-ai
+            port:
+              number: 8086
+        path: /ws
+        pathType: Prefix
+      # Frontend (catch-all)
+      - backend:
+          service:
+            name: salon-frontend
+            port:
+              number: 5173
+        path: /
+        pathType: Prefix
+  tls:
+  - hosts:
+    - salon.callsphere.tech
+    secretName: salon-tls

@@ -1,0 +1,275 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: healthcare-postgres
+  namespace: healthcare-voice
+  labels:
+    app: healthcare-postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: healthcare-postgres
+  template:
+    metadata:
+      labels:
+        app: healthcare-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: "healthcare"
+            - name: POSTGRES_PASSWORD
+              value: "healthcare123"
+            - name: POSTGRES_DB
+              value: "healthcare"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: healthcare-postgres-pvc
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: healthcare-backend
+  namespace: healthcare-voice
+  labels:
+    app: healthcare-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: healthcare-backend
+  template:
+    metadata:
+      labels:
+        app: healthcare-backend
+    spec:
+      containers:
+        - name: backend
+          image: node:20-slim
+          imagePullPolicy: IfNotPresent
+          workingDir: /app
+          command: ["sh", "-c", "apt-get update && apt-get install -y openssl python3 make g++ && rm -rf node_modules && npm install && npx prisma generate && npm run start:dev"]
+          ports:
+            - containerPort: 3005
+          env:
+            - name: NODE_ENV
+              value: "development"
+            - name: DATABASE_URL
+              value: "postgresql://postgres:postgres@72.62.162.83:5432/healthcare_voice"
+            - name: DEFAULT_PRACTICE_ID
+              value: "00000000-0000-0000-0000-000000000001"
+            - name: JWT_SECRET
+              value: "healthcare-jwt-secret-2026"
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: openai-secret
+                  key: OPENAI_API_KEY
+            - name: OPENAI_MODEL
+              value: "gpt-4o-realtime-preview-2024-12-17"
+            - name: OPENAI_VOICE
+              value: "alloy"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "200m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          volumeMounts:
+            - name: backend-source
+              mountPath: /app
+      volumes:
+        - name: backend-source
+          hostPath:
+            path: /home/ubuntu/apps/healthcare_voice/backend
+            type: Directory
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: healthcare-frontend
+  namespace: healthcare-voice
+  labels:
+    app: healthcare-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: healthcare-frontend
+  template:
+    metadata:
+      labels:
+        app: healthcare-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: node:20-alpine
+          imagePullPolicy: IfNotPresent
+          workingDir: /app
+          command: ["sh", "-c", "npm install && npm run dev -- --host 0.0.0.0"]
+          ports:
+            - containerPort: 5176
+          env:
+            - name: NODE_ENV
+              value: "development"
+            - name: VITE_API_URL
+              value: "/api"
+            - name: VITE_AI_SERVICE_URL
+              value: "/ai"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          volumeMounts:
+            - name: frontend-source
+              mountPath: /app
+      volumes:
+        - name: frontend-source
+          hostPath:
+            path: /home/ubuntu/apps/healthcare_voice/frontend
+            type: Directory
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: healthcare-ai
+  namespace: healthcare-voice
+  labels:
+    app: healthcare-ai
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: healthcare-ai
+  template:
+    metadata:
+      labels:
+        app: healthcare-ai
+    spec:
+      containers:
+        - name: ai
+          image: python:3.11-slim
+          imagePullPolicy: IfNotPresent
+          workingDir: /app
+          command: ["sh", "-c", "pip install -r requirements.txt && python main.py"]
+          ports:
+            - containerPort: 8084
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: BACKEND_URL
+              value: "http://healthcare-backend:3005"
+            - name: DATABASE_URL
+              value: "postgresql://postgres:postgres@72.62.162.83:5432/healthcare_voice"
+            - name: DEFAULT_PRACTICE_ID
+              value: "00000000-0000-0000-0000-000000000001"
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: openai-secret
+                  key: OPENAI_API_KEY
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "200m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          volumeMounts:
+            - name: ai-source
+              mountPath: /app
+      volumes:
+        - name: ai-source
+          hostPath:
+            path: /home/ubuntu/apps/healthcare_voice/ai-service
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: healthcare-postgres
+  namespace: healthcare-voice
+spec:
+  type: ClusterIP
+  selector:
+    app: healthcare-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: healthcare-backend
+  namespace: healthcare-voice
+spec:
+  type: NodePort
+  selector:
+    app: healthcare-backend
+  ports:
+    - port: 3005
+      targetPort: 3005
+      nodePort: 30005
+      name: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: healthcare-frontend
+  namespace: healthcare-voice
+spec:
+  type: NodePort
+  selector:
+    app: healthcare-frontend
+  ports:
+    - port: 80
+      targetPort: 5176
+      nodePort: 30006
+      name: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: healthcare-ai
+  namespace: healthcare-voice
+spec:
+  type: NodePort
+  selector:
+    app: healthcare-ai
+  ports:
+    - port: 8084
+      targetPort: 8084
+      nodePort: 30084
+      name: http
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: healthcare-postgres-pvc
+  namespace: healthcare-voice
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi

@@ -1,0 +1,232 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: salon-backend
+  namespace: salon
+  labels:
+    app: salon-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: salon-backend
+  template:
+    metadata:
+      labels:
+        app: salon-backend
+    spec:
+      containers:
+        - name: backend
+          image: node:20-slim
+          imagePullPolicy: IfNotPresent
+          workingDir: /app
+          command: ["sh", "-c", "apt-get update && apt-get install -y openssl && npm install && npx prisma generate && npx prisma migrate deploy && npm run start:dev"]
+          ports:
+            - containerPort: 3001
+          env:
+            - name: NODE_ENV
+              value: "development"
+            - name: PORT
+              value: "3001"
+            - name: DATABASE_URL
+              value: "postgresql://glambook:glambook2024@salon-postgres:5432/glambook"
+            - name: JWT_SECRET
+              value: "glambook-jwt-secret-2026"
+            - name: JWT_EXPIRATION
+              value: "7d"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "200m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          volumeMounts:
+            - name: backend-source
+              mountPath: /app
+      volumes:
+        - name: backend-source
+          hostPath:
+            path: /home/ubuntu/apps/salon/backend
+            type: Directory
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: salon-frontend
+  namespace: salon
+  labels:
+    app: salon-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: salon-frontend
+  template:
+    metadata:
+      labels:
+        app: salon-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: node:20-alpine
+          imagePullPolicy: IfNotPresent
+          workingDir: /app
+          command: ["sh", "-c", "npm install && npm run dev -- --host 0.0.0.0"]
+          ports:
+            - containerPort: 5173
+          env:
+            - name: NODE_ENV
+              value: "development"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          volumeMounts:
+            - name: frontend-source
+              mountPath: /app
+      volumes:
+        - name: frontend-source
+          hostPath:
+            path: /home/ubuntu/apps/salon/frontend
+            type: Directory
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: salon-ai
+  namespace: salon
+  labels:
+    app: salon-ai
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: salon-ai
+  template:
+    metadata:
+      labels:
+        app: salon-ai
+    spec:
+      containers:
+        - name: ai
+          image: python:3.11-slim
+          imagePullPolicy: IfNotPresent
+          workingDir: /app
+          command: ["sh", "-c", "pip install -r requirements.txt && python main.py"]
+          ports:
+            - containerPort: 8086
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: HOST
+              value: "0.0.0.0"
+            - name: PORT
+              value: "8086"
+            - name: DATABASE_URL
+              value: "postgresql://glambook:glambook2024@salon-postgres:5432/glambook"
+            - name: BACKEND_URL
+              value: "http://salon-backend:3001"
+            - name: SALON_NAME
+              value: "GlamBook Salon"
+            - name: ELEVENLABS_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: salon-ai-env
+                  key: ELEVENLABS_API_KEY
+            - name: ELEVENLABS_VOICE_ID
+              value: "21m00Tcm4TlvDq8ikWAM"
+            - name: ELEVENLABS_MODEL_ID
+              value: "eleven_turbo_v2"
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: salon-ai-env
+                  key: OPENAI_API_KEY
+            - name: TWILIO_ACCOUNT_SID
+              valueFrom:
+                secretKeyRef:
+                  name: salon-ai-env
+                  key: TWILIO_ACCOUNT_SID
+            - name: TWILIO_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: salon-ai-env
+                  key: TWILIO_AUTH_TOKEN
+            - name: TWILIO_API_KEY_SID
+              valueFrom:
+                secretKeyRef:
+                  name: salon-ai-env
+                  key: TWILIO_API_KEY_SID
+            - name: TWILIO_API_KEY_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: salon-ai-env
+                  key: TWILIO_API_KEY_SECRET
+            - name: TWILIO_TWIML_APP_SID
+              valueFrom:
+                secretKeyRef:
+                  name: salon-ai-env
+                  key: TWILIO_TWIML_APP_SID
+            - name: WEBHOOK_BASE_URL
+              value: "https://salon.callsphere.tech"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "200m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          volumeMounts:
+            - name: ai-source
+              mountPath: /app
+      volumes:
+        - name: ai-source
+          hostPath:
+            path: /home/ubuntu/apps/salon/ai-service
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: salon-backend
+  namespace: salon
+spec:
+  type: ClusterIP
+  selector:
+    app: salon-backend
+  ports:
+    - port: 3001
+      targetPort: 3001
+      name: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: salon-frontend
+  namespace: salon
+spec:
+  type: ClusterIP
+  selector:
+    app: salon-frontend
+  ports:
+    - port: 5173
+      targetPort: 5173
+      name: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: salon-ai
+  namespace: salon
+spec:
+  type: ClusterIP
+  selector:
+    app: salon-ai
+  ports:
+    - port: 8086
+      targetPort: 8086
+      name: http

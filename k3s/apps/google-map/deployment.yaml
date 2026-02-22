@@ -1,0 +1,91 @@
+# Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: google-map
+---
+# Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: google-map
+  namespace: google-map
+  labels:
+    app: google-map
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: google-map
+  template:
+    metadata:
+      labels:
+        app: google-map
+    spec:
+      containers:
+        - name: api
+          image: google-map:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: PORT
+              value: "3000"
+            - name: BASE_PATH
+              value: "/"
+            - name: GOOGLE_MAPS_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: google-map-secrets
+                  key: GOOGLE_MAPS_API_KEY
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: google-map-secrets
+                  key: OPENAI_API_KEY
+            - name: SUPABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: google-map-secrets
+                  key: SUPABASE_URL
+            - name: SUPABASE_SERVICE_ROLE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: google-map-secrets
+                  key: SUPABASE_SERVICE_ROLE_KEY
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+---
+# Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: google-map
+  namespace: google-map
+spec:
+  type: ClusterIP
+  selector:
+    app: google-map
+  ports:
+    - port: 3000
+      targetPort: 3000
+      name: http

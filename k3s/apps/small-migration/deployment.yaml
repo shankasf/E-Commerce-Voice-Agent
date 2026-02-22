@@ -1,0 +1,84 @@
+# Small Migration - Data Migration Chatbot
+# Streamlit app for DBT/SQL migration assistant
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: small-migration
+  labels:
+    app.kubernetes.io/name: small-migration
+    app.kubernetes.io/part-of: callsphere-apps
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: small-migration-env
+  namespace: small-migration
+type: Opaque
+stringData:
+  OPENAI_API_KEY: "${OPENAI_API_KEY}"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: small-migration
+  namespace: small-migration
+  labels:
+    app: small-migration
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: small-migration
+  template:
+    metadata:
+      labels:
+        app: small-migration
+    spec:
+      containers:
+        - name: streamlit
+          image: python:3.12-slim
+          imagePullPolicy: IfNotPresent
+          workingDir: /app
+          command: ["sh", "-c", "pip install -r requirements.txt && streamlit run app.py --server.port=8501 --server.address=0.0.0.0 --server.headless=true"]
+          ports:
+            - containerPort: 8501
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: small-migration-env
+                  key: OPENAI_API_KEY
+            - name: OPENAI_MODEL
+              value: "gpt-4o"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          volumeMounts:
+            - name: app-source
+              mountPath: /app
+      volumes:
+        - name: app-source
+          hostPath:
+            path: /home/ubuntu/apps/small_migration
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: small-migration
+  namespace: small-migration
+spec:
+  type: ClusterIP
+  selector:
+    app: small-migration
+  ports:
+    - port: 8501
+      targetPort: 8501
+      name: http

@@ -1,0 +1,276 @@
+# Redis
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: email-marketing-redis
+  namespace: email-marketing
+  labels:
+    app: email-marketing-redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: email-marketing-redis
+  template:
+    metadata:
+      labels:
+        app: email-marketing-redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          ports:
+            - containerPort: 6379
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+---
+# AI Service (Python FastAPI)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: email-marketing-ai
+  namespace: email-marketing
+  labels:
+    app: email-marketing-ai
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: email-marketing-ai
+  template:
+    metadata:
+      labels:
+        app: email-marketing-ai
+    spec:
+      containers:
+        - name: ai
+          image: python:3.11-slim
+          imagePullPolicy: IfNotPresent
+          workingDir: /app
+          command: ["sh", "-c", "pip install -r requirements.txt && python main.py"]
+          ports:
+            - containerPort: 8001
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: AI_SERVICE_HOST
+              value: "0.0.0.0"
+            - name: AI_SERVICE_PORT
+              value: "8001"
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: openai-secret
+                  key: OPENAI_API_KEY
+            - name: SENDER_NAME
+              value: "CallSphere"
+            - name: SENDER_EMAIL
+              value: "sagar@callsphere.tech"
+            - name: BUSINESS_ADDRESS
+              value: "27 Orchard Pl, New York, NY 12601"
+            - name: CALENDLY_URL
+              value: "https://calendly.com/sagar-callsphere/new-meeting"
+            - name: REDIS_URL
+              value: "redis://email-marketing-redis:6379"
+            - name: DATABASE_URL
+              value: "postgresql://postgres:postgres@72.62.162.83:5432/email_marketing"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "200m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          volumeMounts:
+            - name: ai-source
+              mountPath: /app
+            - name: env-dir
+              mountPath: /config
+      volumes:
+        - name: ai-source
+          hostPath:
+            path: /home/ubuntu/apps/email_marketing/ai-service
+            type: Directory
+        - name: env-dir
+          hostPath:
+            path: /home/ubuntu/apps/email_marketing
+            type: Directory
+---
+# Frontend (Next.js)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: email-marketing-frontend
+  namespace: email-marketing
+  labels:
+    app: email-marketing-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: email-marketing-frontend
+  template:
+    metadata:
+      labels:
+        app: email-marketing-frontend
+    spec:
+      initContainers:
+        - name: run-migrations
+          image: node:20-bookworm
+          imagePullPolicy: IfNotPresent
+          workingDir: /app
+          command: ["sh", "-c", "npm install --include=dev --ignore-scripts && npx prisma generate && npx prisma migrate deploy"]
+          env:
+            - name: DATABASE_URL
+              value: "postgresql://postgres:postgres@72.62.162.83:5432/email_marketing?connection_limit=5&pool_timeout=10"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "200m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          volumeMounts:
+            - name: frontend-source
+              mountPath: /app
+      containers:
+        - name: frontend
+          image: node:20-bookworm
+          imagePullPolicy: IfNotPresent
+          workingDir: /app
+          command: ["sh", "-c", "npm install --include=dev --ignore-scripts && npx prisma generate && npm run build && npm run start"]
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: NODE_OPTIONS
+              value: "--max-old-space-size=2048"
+            - name: NEXT_TELEMETRY_DISABLED
+              value: "1"
+            - name: DATABASE_URL
+              value: "postgresql://postgres:postgres@72.62.162.83:5432/email_marketing?connection_limit=20&pool_timeout=10"
+            - name: REDIS_URL
+              value: "redis://email-marketing-redis:6379"
+            - name: AI_SERVICE_URL
+              value: "http://email-marketing-ai:8001"
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: openai-secret
+                  key: OPENAI_API_KEY
+            - name: SMTP_HOST
+              value: "email-smtp.us-east-1.amazonaws.com"
+            - name: SMTP_PORT
+              value: "587"
+            - name: SMTP_USER
+              valueFrom:
+                secretKeyRef:
+                  name: smtp-secret
+                  key: SMTP_USER
+            - name: SMTP_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: smtp-secret
+                  key: SMTP_PASS
+            - name: SMTP_FROM
+              value: "sagar@callsphere.tech"
+            - name: CALENDLY_URL
+              value: "https://calendly.com/sagar-callsphere/new-meeting"
+            - name: BUSINESS_ADDRESS
+              value: "27 Orchard Pl, New York, NY 12601"
+            - name: SENDER_NAME
+              value: "CallSphere"
+            - name: JWT_SECRET
+              value: "callsphere-jwt-secret-2024-secure-key-change-in-production"
+            - name: ADMIN_PASSWORD_HASH
+              value: "$2a$12$XETpaAcZGPUaPK5UbghdYegVDG4Dd7BNDbVxEMw14ok4zuTpXnUre"
+            - name: SES_CONFIGURATION_SET
+              value: "my-first-configuration-set"
+            - name: FIREHOSE_ACCESS_KEY
+              value: "tKHa0rZe7IxA09mbBLBHhmVCqg8sULwiru/UqbAOYS4="
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "3Gi"
+              cpu: "2000m"
+          volumeMounts:
+            - name: frontend-source
+              mountPath: /app
+      volumes:
+        - name: frontend-source
+          hostPath:
+            path: /home/ubuntu/apps/email_marketing/frontend
+            type: Directory
+---
+# Worker (Background Jobs)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: email-marketing-worker
+  namespace: email-marketing
+  labels:
+    app: email-marketing-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: email-marketing-worker
+  template:
+    metadata:
+      labels:
+        app: email-marketing-worker
+    spec:
+      containers:
+        - name: worker
+          image: node:20-bookworm
+          imagePullPolicy: IfNotPresent
+          workingDir: /app
+          command: ["sh", "-c", "npm install && npx tsx src/lib/worker.ts"]
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: DATABASE_URL
+              value: "postgresql://postgres:postgres@72.62.162.83:5432/email_marketing?connection_limit=20&pool_timeout=10"
+            - name: REDIS_URL
+              value: "redis://email-marketing-redis:6379"
+            - name: SMTP_HOST
+              value: "email-smtp.us-east-1.amazonaws.com"
+            - name: SMTP_PORT
+              value: "587"
+            - name: SMTP_USER
+              valueFrom:
+                secretKeyRef:
+                  name: smtp-secret
+                  key: SMTP_USER
+            - name: SMTP_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: smtp-secret
+                  key: SMTP_PASS
+            - name: SMTP_FROM
+              value: "sagar@callsphere.tech"
+            - name: SES_CONFIGURATION_SET
+              value: "my-first-configuration-set"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          volumeMounts:
+            - name: frontend-source
+              mountPath: /app
+      volumes:
+        - name: frontend-source
+          hostPath:
+            path: /home/ubuntu/apps/email_marketing/frontend
+            type: Directory
