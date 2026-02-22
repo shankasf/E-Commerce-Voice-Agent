@@ -8,6 +8,9 @@ import { logAudit } from '../services/audit.service.js';
 import { isSafeIdentifier } from '../utils/validators.js';
 import type { AuthenticatedRequest, ApiResponse, ServerStats, ConnectionInfo, LockInfo, SlowQueryInfo, ReplicationInfo, DatabaseSizeInfo } from '../types/index.js';
 
+// PostgreSQL 18.1 Performance Monitoring Routes
+// Reference: https://www.postgresql.org/docs/current/monitoring-stats.html
+
 const router = Router();
 const adminPool = createAdminPool(config.pg);
 
@@ -62,18 +65,22 @@ router.get(
     );
 
     // Slow queries (if pg_stat_statements is available)
+    // PostgreSQL 18.1 adds parallel_workers_to_launch, parallel_workers_launched, wal_buffers_full columns
     let slowQueries: SlowQueryInfo[] = [];
     try {
       const slowResult = await adminPool.query<SlowQueryInfo>(
         `SELECT query, calls::int, total_exec_time as total_time,
-                mean_exec_time as mean_time, rows::int
+                mean_exec_time as mean_time, rows::int,
+                shared_blks_hit::int, shared_blks_read::int,
+                COALESCE(parallel_workers_to_launch, 0)::int as parallel_workers_requested,
+                COALESCE(parallel_workers_launched, 0)::int as parallel_workers_launched
          FROM pg_stat_statements
          ORDER BY mean_exec_time DESC
          LIMIT 20;`
       );
       slowQueries = slowResult.rows;
     } catch (e) {
-      // pg_stat_statements not available
+      // pg_stat_statements not available or missing columns on older versions
     }
 
     // Replication status
@@ -88,13 +95,14 @@ router.get(
       // Not available
     }
 
+    // Safe extraction with null checks to prevent runtime errors
     const stats: ServerStats = {
-      version: versionResult.rows[0].version,
-      uptime: uptimeResult.rows[0].uptime?.toString() || 'N/A',
-      activeConnections: parseInt(connectionsResult.rows[0].active, 10),
-      maxConnections: parseInt(maxConnResult.rows[0].max_connections, 10),
-      totalSize: parseInt(totalSizeResult.rows[0].total, 10) || 0,
-      databaseCount: parseInt(dbCountResult.rows[0].count, 10)
+      version: versionResult.rows[0]?.version || 'Unknown',
+      uptime: uptimeResult.rows[0]?.uptime?.toString() || 'N/A',
+      activeConnections: Number(connectionsResult.rows[0]?.active) || 0,
+      maxConnections: Number(maxConnResult.rows[0]?.max_connections) || 100,
+      totalSize: Number(totalSizeResult.rows[0]?.total) || 0,
+      databaseCount: Number(dbCountResult.rows[0]?.count) || 0
     };
 
     const response: ApiResponse = {

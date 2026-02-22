@@ -8,6 +8,14 @@ import { logAudit } from '../services/audit.service.js';
 import { isSafeIdentifier, quoteIdent } from '../utils/validators.js';
 import type { AuthenticatedRequest, ApiResponse, ColumnInfo, IndexInfo, ConstraintInfo } from '../types/index.js';
 
+// PostgreSQL 18.1 Table Management Routes
+// Reference: https://www.postgresql.org/docs/current/ddl.html
+// PostgreSQL 18.1 features:
+// - Virtual generated columns are now the default (use STORED for stored columns)
+// - NOT NULL constraints can now be named
+// - Foreign key constraints can be NOT ENFORCED
+// - Temporal constraints with WITHOUT OVERLAPS
+
 const router = Router();
 
 // GET /api/databases/:dbName/tables/:schema/:table - Get table details

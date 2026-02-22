@@ -100,12 +100,14 @@ router.post(
 );
 
 // POST /api/databases/:dbName/query/explain - Execute EXPLAIN on query
+// PostgreSQL 18.1: EXPLAIN ANALYZE now automatically includes BUFFERS
+// Reference: https://www.postgresql.org/docs/current/sql-explain.html
 router.post(
   '/:dbName/query/explain',
   requireAuth,
   asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const { dbName } = req.params;
-    const { sql, analyze = false, format = 'text' } = req.body;
+    const { sql, analyze = false, buffers = false, format = 'text', verbose = false, costs = true, timing = true } = req.body;
 
     if (!isSafeIdentifier(dbName)) {
       throw new ValidationError('Invalid database name');
@@ -121,7 +123,14 @@ router.post(
 
     const dbPool = getPoolForDb(config.pg, dbName);
     const options = [];
+
+    // PostgreSQL 18.1: ANALYZE automatically includes BUFFERS
+    // But we can still explicitly control it if needed
     if (analyze) options.push('ANALYZE');
+    if (buffers && !analyze) options.push('BUFFERS'); // Only add if not using ANALYZE (PG 18.1 auto-includes it)
+    if (verbose) options.push('VERBOSE');
+    if (!costs) options.push('COSTS false');
+    if (!timing && analyze) options.push('TIMING false');
     if (format === 'json') options.push('FORMAT JSON');
 
     const explainSql = `EXPLAIN ${options.length > 0 ? `(${options.join(', ')})` : ''} ${sql}`;
@@ -131,7 +140,9 @@ router.post(
       success: true,
       data: {
         plan: result.rows,
-        format
+        format,
+        // PostgreSQL 18.1 note: ANALYZE includes BUFFERS automatically
+        buffersIncluded: analyze || buffers
       }
     };
     res.json(response);

@@ -3,11 +3,13 @@
 ## Project Overview
 PostgreSQL Database Administration Dashboard - A full-featured web application for managing PostgreSQL databases, tables, queries, and data operations.
 
+**PostgreSQL Version**: 18.1 (https://www.postgresql.org/docs/current/)
+
 ## Technology Stack
 - **Frontend**: React with TypeScript, Tailwind CSS
 - **Backend**: Node.js with Express/Fastify
-- **Database**: PostgreSQL
-- **Authentication**: JWT-based auth
+- **Database**: PostgreSQL 18.1
+- **Authentication**: JWT-based auth (SCRAM-SHA-256 for PostgreSQL roles)
 
 ## Commands
 
@@ -79,9 +81,19 @@ PORT=3000
 - Use parameterized queries to prevent SQL injection
 - All database operations should be wrapped in transactions where appropriate
 
+## PostgreSQL 18.1 Features Used
+- **uuidv7()**: Temporally sortable UUIDs (used for all primary keys in migrations)
+- **SCRAM-SHA-256**: Default password authentication (md5 is deprecated)
+- **EXPLAIN ANALYZE**: Automatically includes BUFFERS
+- **pg_dump/pg_restore**: New --statistics and --sequence-data options
+- **Data Checksums**: Enabled by default
+- **Virtual Generated Columns**: Now the default for generated columns
+- **Temporal Constraints**: WITHOUT OVERLAPS support for ranges
+
 ## Security Considerations
 - Never expose database credentials in client-side code
 - Validate all user inputs
 - Use parameterized queries for all database operations
 - Implement rate limiting on API endpoints
 - Log all database operations for audit purposes
+- Use SCRAM-SHA-256 authentication (PostgreSQL 18.1+ deprecates md5)

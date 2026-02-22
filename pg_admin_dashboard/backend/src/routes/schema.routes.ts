@@ -17,6 +17,13 @@ import type {
   ForeignKeyInfo
 } from '../types/index.js';
 
+// PostgreSQL 18.1 Schema Introspection Routes
+// Reference: https://www.postgresql.org/docs/current/catalogs.html
+// PostgreSQL 18.1 catalog changes:
+// - pg_constraint.conenforced: New column for constraint enforcement flag
+// - pg_class.relallfrozen: New column to track frozen status
+// - Virtual generated columns now default (use STORED for stored columns)
+
 const router = Router();
 
 // GET /api/schema/:dbName/tables - Get all tables with columns (using pg_class, pg_attribute)
@@ -32,7 +39,7 @@ router.get(
 
     const dbPool = getPoolForDb(config.pg, dbName);
 
-    // Using PostgreSQL system catalogs per https://www.postgresql.org/docs/current/catalogs.html
+    // Using PostgreSQL 18.1 system catalogs per https://www.postgresql.org/docs/current/catalogs.html
     const result = await dbPool.query<SchemaObject>(
       `SELECT
           n.nspname AS schema_name,

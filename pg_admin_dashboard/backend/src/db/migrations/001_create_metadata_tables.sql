@@ -1,12 +1,14 @@
 -- Migration: Create metadata tables for PG Admin Dashboard
--- Based on PostgreSQL docs: https://www.postgresql.org/docs/current/
+-- Based on PostgreSQL 18.1 docs: https://www.postgresql.org/docs/current/
+-- PostgreSQL 18.1 Release Notes: https://www.postgresql.org/docs/current/release-18.html
 
 -- Create schema for admin metadata
 CREATE SCHEMA IF NOT EXISTS _pgadmin;
 
 -- Dashboard Users (replaces file-based sessions)
+-- Using uuidv7() for temporally sortable UUIDs (PostgreSQL 18+ feature)
 CREATE TABLE IF NOT EXISTS _pgadmin.users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
     username VARCHAR(255) UNIQUE NOT NULL,
     email VARCHAR(255),
     password_hash VARCHAR(255) NOT NULL,
@@ -19,7 +21,7 @@ CREATE TABLE IF NOT EXISTS _pgadmin.users (
 
 -- API Keys for programmatic access
 CREATE TABLE IF NOT EXISTS _pgadmin.api_keys (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
     user_id UUID NOT NULL REFERENCES _pgadmin.users(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     description TEXT,
@@ -36,7 +38,7 @@ CREATE TABLE IF NOT EXISTS _pgadmin.api_keys (
 
 -- Saved SQL queries
 CREATE TABLE IF NOT EXISTS _pgadmin.saved_queries (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
     user_id UUID NOT NULL REFERENCES _pgadmin.users(id) ON DELETE CASCADE,
     database_name VARCHAR(255) NOT NULL,
     name VARCHAR(255) NOT NULL,
@@ -53,7 +55,7 @@ CREATE TABLE IF NOT EXISTS _pgadmin.saved_queries (
 
 -- Query execution history
 CREATE TABLE IF NOT EXISTS _pgadmin.query_history (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
     user_id UUID REFERENCES _pgadmin.users(id) ON DELETE SET NULL,
     database_name VARCHAR(255) NOT NULL,
     sql TEXT NOT NULL,
@@ -69,7 +71,7 @@ CREATE TABLE IF NOT EXISTS _pgadmin.query_history (
 
 -- Realtime subscriptions tracking
 CREATE TABLE IF NOT EXISTS _pgadmin.realtime_subscriptions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
     database_name VARCHAR(255) NOT NULL,
     schema_name VARCHAR(255) NOT NULL,
     table_name VARCHAR(255) NOT NULL,
@@ -81,7 +83,7 @@ CREATE TABLE IF NOT EXISTS _pgadmin.realtime_subscriptions (
 
 -- Audit log (replaces file-based audit)
 CREATE TABLE IF NOT EXISTS _pgadmin.audit_log (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
     user_id UUID REFERENCES _pgadmin.users(id) ON DELETE SET NULL,
     api_key_id UUID REFERENCES _pgadmin.api_keys(id) ON DELETE SET NULL,
     action VARCHAR(100) NOT NULL,
@@ -96,7 +98,7 @@ CREATE TABLE IF NOT EXISTS _pgadmin.audit_log (
 
 -- Table display preferences
 CREATE TABLE IF NOT EXISTS _pgadmin.table_preferences (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
     user_id UUID NOT NULL REFERENCES _pgadmin.users(id) ON DELETE CASCADE,
     database_name VARCHAR(255) NOT NULL,
     schema_name VARCHAR(255) NOT NULL,
@@ -120,7 +122,7 @@ CREATE INDEX IF NOT EXISTS idx_audit_log_action ON _pgadmin.audit_log(action, cr
 CREATE INDEX IF NOT EXISTS idx_audit_log_resource ON _pgadmin.audit_log(resource_type, resource_id);
 
 -- Realtime notification function
--- Per PostgreSQL docs: https://www.postgresql.org/docs/current/sql-createfunction.html
+-- Per PostgreSQL 18.1 docs: https://www.postgresql.org/docs/current/sql-createfunction.html
 CREATE OR REPLACE FUNCTION _pgadmin.notify_changes()
 RETURNS TRIGGER AS $$
 DECLARE

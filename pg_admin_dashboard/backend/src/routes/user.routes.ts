@@ -8,6 +8,11 @@ import { isSafeIdentifier, quoteIdent } from '../utils/validators.js';
 import { adminPool } from './database.routes.js';
 import type { AuthenticatedRequest, ApiResponse } from '../types/index.js';
 
+// PostgreSQL 18.1 User/Role Management
+// Note: md5 password authentication is deprecated in PostgreSQL 18.1
+// SCRAM-SHA-256 is the recommended authentication method
+// Reference: https://www.postgresql.org/docs/current/auth-password.html
+
 const router = Router();
 
 interface RoleInfo {
@@ -45,11 +50,13 @@ router.get(
 );
 
 // POST /api/users - Create new role
+// PostgreSQL 18.1: Uses SCRAM-SHA-256 for password hashing by default
+// md5 password authentication is deprecated and will emit warnings
 router.post(
   '/',
   requireAuth,
   asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-    const { username, password, canCreateDb, canCreateRole, isSuperuser } = req.body;
+    const { username, password, canCreateDb, canCreateRole, isSuperuser, connectionLimit } = req.body;
 
     if (!isSafeIdentifier(username)) {
       throw new ValidationError('Username must use letters, numbers, underscore, or hyphen');
@@ -63,8 +70,13 @@ router.post(
     if (canCreateDb) flags.push('CREATEDB');
     if (canCreateRole) flags.push('CREATEROLE');
     if (isSuperuser && config.allowSuperuserGrant) flags.push('SUPERUSER');
+    // PostgreSQL 18.1: Connection limit per role
+    if (connectionLimit && Number.isInteger(connectionLimit) && connectionLimit > 0) {
+      flags.push(`CONNECTION LIMIT ${connectionLimit}`);
+    }
 
     const flagClause = flags.join(' ');
+    // Password will use SCRAM-SHA-256 by default in PostgreSQL 18.1
     await adminPool.query(
       `CREATE ROLE ${quoteIdent(username)} WITH ${flagClause} PASSWORD $1;`,
       [password]
@@ -77,14 +89,17 @@ router.post(
       metadata: {
         createdb: Boolean(canCreateDb),
         createrole: Boolean(canCreateRole),
-        superuser: Boolean(isSuperuser && config.allowSuperuserGrant)
+        superuser: Boolean(isSuperuser && config.allowSuperuserGrant),
+        connectionLimit: connectionLimit || null,
+        // Note: PostgreSQL 18.1 uses SCRAM-SHA-256 by default
+        authMethod: 'scram-sha-256'
       },
       ipAddress: req.ip
     });
 
     const response: ApiResponse = {
       success: true,
-      data: { username }
+      data: { username, authMethod: 'scram-sha-256' }
     };
     res.status(201).json(response);
   })

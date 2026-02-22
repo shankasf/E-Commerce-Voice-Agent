@@ -223,13 +223,26 @@ export function SqlEditor() {
 
           {/* Error */}
           {executeMutation.isError && (
-            <div className="p-4 bg-danger/10 text-danger">
-              {(executeMutation.error as Error)?.message || 'Query failed'}
+            <div className="flex-1 flex items-center justify-center p-6">
+              <div className="flex items-start gap-3 max-w-2xl w-full bg-danger/10 border border-danger/20 rounded-lg p-4">
+                <svg className="w-5 h-5 text-danger flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-danger">Query Error</p>
+                  <p className="text-sm text-danger/80 mt-1 font-mono break-all">
+                    {(() => {
+                      const err = executeMutation.error as { response?: { data?: { error?: { message?: string } } }; message?: string };
+                      return err?.response?.data?.error?.message || err?.message || 'Query failed';
+                    })()}
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 
           {/* Results Table */}
-          {result?.rows.length ? (
+          {!executeMutation.isError && result?.rows.length ? (
             <div className="flex-1 overflow-auto">
               <table className="w-full">
                 <thead className="sticky top-0">
@@ -262,15 +275,15 @@ export function SqlEditor() {
                 </tbody>
               </table>
             </div>
-          ) : result ? (
+          ) : !executeMutation.isError && result ? (
             <div className="flex-1 flex items-center justify-center text-text-muted">
               Query executed successfully. No rows returned.
             </div>
-          ) : (
+          ) : !executeMutation.isError ? (
             <div className="flex-1 flex items-center justify-center text-text-muted">
               Run a query to see results
             </div>
-          )}
+          ) : null}
         </div>
       </div>
 

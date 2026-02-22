@@ -8,6 +8,10 @@ import { logAudit } from '../services/audit.service.js';
 import { isSafeIdentifier, quoteIdent } from '../utils/validators.js';
 import type { AuthenticatedRequest, ApiResponse, DatabaseInfo, TableInfo } from '../types/index.js';
 
+// PostgreSQL 18.1 Database Management Routes
+// Reference: https://www.postgresql.org/docs/current/managing-databases.html
+// Note: Data checksums are now enabled by default in PostgreSQL 18.1
+
 const router = Router();
 const adminPool = createAdminPool(config.pg);
 

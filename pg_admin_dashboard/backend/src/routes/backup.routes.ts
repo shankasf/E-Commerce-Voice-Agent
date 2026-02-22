@@ -1,9 +1,11 @@
 import { Router } from 'express';
 import type { Response } from 'express';
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import { spawn } from 'child_process';
 import fs from 'fs/promises';
+import { createWriteStream } from 'fs';
 import path from 'path';
+import { createGzip } from 'zlib';
+import { pipeline } from 'stream/promises';
 import { config } from '../config/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { asyncHandler, ValidationError, NotFoundError } from '../middleware/errorHandler.js';
@@ -12,7 +14,63 @@ import { isSafeIdentifier } from '../utils/validators.js';
 import type { AuthenticatedRequest, ApiResponse, BackupInfo } from '../types/index.js';
 
 const router = Router();
-const execAsync = promisify(exec);
+
+// Execute command with arguments array (safe from shell injection)
+function execCommand(cmd: string, args: string[], env: NodeJS.ProcessEnv): Promise<{ stdout: string; stderr: string }> {
+  return new Promise((resolve, reject) => {
+    const proc = spawn(cmd, args, { env, stdio: ['pipe', 'pipe', 'pipe'] });
+    let stdout = '';
+    let stderr = '';
+
+    proc.stdout.on('data', (data) => { stdout += data.toString(); });
+    proc.stderr.on('data', (data) => { stderr += data.toString(); });
+
+    proc.on('close', (code) => {
+      if (code === 0) {
+        resolve({ stdout, stderr });
+      } else {
+        reject(new Error(stderr || `Command failed with exit code ${code}`));
+      }
+    });
+
+    proc.on('error', reject);
+  });
+}
+
+// Execute pg_dump with output to file (handles large outputs)
+function execPgDump(args: string[], outputPath: string, env: NodeJS.ProcessEnv, compress: boolean): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const proc = spawn('pg_dump', args, { env, stdio: ['pipe', 'pipe', 'pipe'] });
+    let stderr = '';
+
+    proc.stderr.on('data', (data) => { stderr += data.toString(); });
+
+    const writeStream = createWriteStream(outputPath);
+
+    if (compress) {
+      const gzip = createGzip();
+      pipeline(proc.stdout, gzip, writeStream)
+        .then(() => {
+          proc.on('close', (code) => {
+            if (code === 0) resolve();
+            else reject(new Error(stderr || `pg_dump failed with exit code ${code}`));
+          });
+        })
+        .catch(reject);
+    } else {
+      pipeline(proc.stdout, writeStream)
+        .then(() => {
+          proc.on('close', (code) => {
+            if (code === 0) resolve();
+            else reject(new Error(stderr || `pg_dump failed with exit code ${code}`));
+          });
+        })
+        .catch(reject);
+    }
+
+    proc.on('error', reject);
+  });
+}
 
 // Build environment with PostgreSQL password for shell commands
 function getPgEnv(): NodeJS.ProcessEnv {
@@ -117,12 +175,27 @@ router.get(
 );
 
 // POST /api/databases/:dbName/backup - Create backup
+// PostgreSQL 18.1 pg_dump enhancements:
+// - --statistics: Dump optimizer statistics
+// - --sequence-data: Include sequence data
+// - --no-statistics: Skip statistics
+// Reference: https://www.postgresql.org/docs/current/app-pgdump.html
+// SECURITY: Uses spawn with argument array to prevent shell injection
 router.post(
   '/:dbName/backup',
   requireAuth,
   asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const { dbName } = req.params;
-    const { format = 'plain', schemaOnly = false, dataOnly = false, compress = false } = req.body;
+    const {
+      format = 'plain',
+      schemaOnly = false,
+      dataOnly = false,
+      compress = false,
+      // PostgreSQL 18.1 new options
+      includeStatistics = false,
+      includeSequenceData = true, // Default true for backward compatibility
+      noPolicies = false
+    } = req.body;
 
     if (!isSafeIdentifier(dbName)) {
       throw new ValidationError('Invalid database name');
@@ -136,31 +209,35 @@ router.post(
     const filename = `${dbName}_${timestamp}.${ext}`;
     const filepath = path.join(config.backupDir, filename);
 
-    let cmd = `pg_dump -h ${config.pg.host} -p ${config.pg.port} -U ${config.pg.user}`;
+    // Build arguments array (safe from shell injection)
+    const args: string[] = [
+      '-h', config.pg.host,
+      '-p', String(config.pg.port),
+      '-U', config.pg.user
+    ];
 
-    if (format === 'custom') cmd += ' -Fc';
-    else if (format === 'tar') cmd += ' -Ft';
-    else cmd += ' -Fp';
+    if (format === 'custom') args.push('-Fc');
+    else if (format === 'tar') args.push('-Ft');
+    else args.push('-Fp');
 
-    if (schemaOnly) cmd += ' --schema-only';
-    if (dataOnly) cmd += ' --data-only';
+    if (schemaOnly) args.push('--schema-only');
+    if (dataOnly) args.push('--data-only');
 
-    cmd += ` ${dbName}`;
+    // PostgreSQL 18.1 new options
+    if (includeStatistics) args.push('--statistics');
+    if (includeSequenceData && !schemaOnly) args.push('--sequence-data');
+    if (noPolicies) args.push('--no-policies');
 
-    if (compress && format === 'plain') {
-      cmd += ` | gzip > "${filepath}"`;
-    } else {
-      cmd += ` > "${filepath}"`;
-    }
+    args.push(dbName);
 
     try {
-      await execAsync(cmd, { shell: '/bin/bash', env: getPgEnv() });
+      await execPgDump(args, filepath, getPgEnv(), compress && format === 'plain');
 
       await logAudit({
         actor: req.user?.username || 'unknown',
         action: 'create_backup',
         target: dbName,
-        metadata: { filename, format, schemaOnly, dataOnly, compress },
+        metadata: { filename, format, schemaOnly, dataOnly, compress, includeStatistics, includeSequenceData, noPolicies },
         ipAddress: req.ip
       });
 
@@ -179,6 +256,8 @@ router.post(
       };
       res.status(201).json(response);
     } catch (err) {
+      // Clean up partial file on failure
+      try { await fs.unlink(filepath); } catch { /* ignore */ }
       throw new ValidationError(`Backup failed: ${(err as Error).message}`);
     }
   })
@@ -241,12 +320,26 @@ router.delete(
 );
 
 // POST /api/databases/:dbName/restore - Restore from backup
+// PostgreSQL 18.1 pg_restore enhancements:
+// - --statistics-only: Restore only optimizer statistics
+// - --no-statistics: Skip restoring statistics
+// - --no-policies: Skip row-level security policies
+// Reference: https://www.postgresql.org/docs/current/app-pgrestore.html
+// SECURITY: Uses spawn with argument array to prevent shell injection
 router.post(
   '/:dbName/restore',
   requireAuth,
   asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
     const { dbName } = req.params;
-    const { filename, clean = false } = req.body;
+    const {
+      filename,
+      clean = false,
+      // PostgreSQL 18.1 new options
+      statisticsOnly = false,
+      noStatistics = false,
+      noPolicies = false,
+      jobs = 1 // Parallel jobs for pg_restore
+    } = req.body;
 
     if (!isSafeIdentifier(dbName)) {
       throw new ValidationError('Invalid database name');
@@ -264,35 +357,46 @@ router.post(
       throw new NotFoundError('Backup file not found');
     }
 
-    let cmd: string;
-    const connParams = `-h ${config.pg.host} -p ${config.pg.port} -U ${config.pg.user}`;
-
-    if (filename.endsWith('.dump')) {
-      // Custom format - use pg_restore
-      cmd = `pg_restore ${connParams} -d ${dbName}`;
-      if (clean) cmd += ' --clean';
-      cmd += ` "${filepath}"`;
-    } else if (filename.endsWith('.tar')) {
-      // Tar format - use pg_restore
-      cmd = `pg_restore ${connParams} -d ${dbName}`;
-      if (clean) cmd += ' --clean';
-      cmd += ` "${filepath}"`;
-    } else if (filename.endsWith('.gz')) {
-      // Gzipped SQL - decompress and pipe to psql
-      cmd = `gunzip -c "${filepath}" | psql ${connParams} -d ${dbName}`;
-    } else {
-      // Plain SQL - use psql
-      cmd = `psql ${connParams} -d ${dbName} < "${filepath}"`;
-    }
+    const env = getPgEnv();
 
     try {
-      await execAsync(cmd, { shell: '/bin/bash', env: getPgEnv() });
+      if (filename.endsWith('.dump') || filename.endsWith('.tar')) {
+        // Custom/tar format - use pg_restore with argument array
+        const args: string[] = [
+          '-h', config.pg.host,
+          '-p', String(config.pg.port),
+          '-U', config.pg.user,
+          '-d', dbName
+        ];
+        if (clean) args.push('--clean');
+        // PostgreSQL 18.1 new options
+        if (statisticsOnly) args.push('--statistics-only');
+        if (noStatistics) args.push('--no-statistics');
+        if (noPolicies) args.push('--no-policies');
+        if (jobs > 1) args.push(`--jobs=${Math.min(jobs, 8)}`);
+        args.push(filepath);
+
+        await execCommand('pg_restore', args, env);
+      } else if (filename.endsWith('.gz')) {
+        // Gzipped SQL - use gunzip and pipe to psql
+        await execRestoreGzip(filepath, dbName, env);
+      } else {
+        // Plain SQL - use psql with -f flag
+        const args: string[] = [
+          '-h', config.pg.host,
+          '-p', String(config.pg.port),
+          '-U', config.pg.user,
+          '-d', dbName,
+          '-f', filepath
+        ];
+        await execCommand('psql', args, env);
+      }
 
       await logAudit({
         actor: req.user?.username || 'unknown',
         action: 'restore_backup',
         target: dbName,
-        metadata: { filename, clean },
+        metadata: { filename, clean, statisticsOnly, noStatistics, noPolicies, jobs },
         ipAddress: req.ip
       });
 
@@ -306,5 +410,33 @@ router.post(
     }
   })
 );
+
+// Execute gzip restore (gunzip | psql) safely
+function execRestoreGzip(filepath: string, dbName: string, env: NodeJS.ProcessEnv): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const gunzip = spawn('gunzip', ['-c', filepath], { env, stdio: ['pipe', 'pipe', 'pipe'] });
+    const psql = spawn('psql', [
+      '-h', config.pg.host,
+      '-p', String(config.pg.port),
+      '-U', config.pg.user,
+      '-d', dbName
+    ], { env, stdio: ['pipe', 'pipe', 'pipe'] });
+
+    let stderr = '';
+    gunzip.stderr.on('data', (data) => { stderr += data.toString(); });
+    psql.stderr.on('data', (data) => { stderr += data.toString(); });
+
+    // Pipe gunzip output to psql input
+    gunzip.stdout.pipe(psql.stdin);
+
+    psql.on('close', (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(stderr || `Restore failed with exit code ${code}`));
+    });
+
+    gunzip.on('error', reject);
+    psql.on('error', reject);
+  });
+}
 
 export default router;

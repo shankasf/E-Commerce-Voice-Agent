@@ -60,6 +60,14 @@ export const config: Config = {
     user: process.env.PGUSER || 'postgres',
     password: process.env.PGPASSWORD || '',
     database: process.env.PGDATABASE || 'postgres',
-    ssl: process.env.PGSSLMODE === 'require' ? { rejectUnauthorized: false } : false
+    // SECURITY: SSL configuration
+    // - 'require': Require SSL with certificate verification (secure)
+    // - 'require-insecure': Require SSL without verification (use only for self-signed certs in dev)
+    // - unset: No SSL
+    ssl: process.env.PGSSLMODE === 'require'
+      ? { rejectUnauthorized: process.env.PGSSLVERIFY !== 'false' } // Default to verifying certs
+      : process.env.PGSSLMODE === 'require-insecure'
+        ? { rejectUnauthorized: false }
+        : false
   }
 };

@@ -5,31 +5,71 @@ import { schemaApi, tableApi } from '../services/api';
 import type { SchemaOverview } from '../types';
 import clsx from 'clsx';
 
-// Column types commonly used in PostgreSQL
+// Column types commonly used in PostgreSQL 18.1
+// Reference: https://www.postgresql.org/docs/current/datatype.html
 const COLUMN_TYPES = [
+  // Character types
   'TEXT',
   'VARCHAR(255)',
+  'CHAR(1)',
+  // Numeric types
   'INTEGER',
   'BIGINT',
+  'SMALLINT',
   'SERIAL',
   'BIGSERIAL',
-  'BOOLEAN',
-  'TIMESTAMPTZ',
-  'TIMESTAMP',
-  'DATE',
-  'TIME',
-  'UUID',
-  'JSONB',
-  'JSON',
+  'SMALLSERIAL',
   'NUMERIC',
   'DECIMAL',
   'REAL',
   'DOUBLE PRECISION',
+  // Boolean
+  'BOOLEAN',
+  // Date/Time types
+  'TIMESTAMPTZ',
+  'TIMESTAMP',
+  'DATE',
+  'TIME',
+  'TIMETZ',
+  'INTERVAL',
+  // UUID (PostgreSQL 18+ supports uuidv7() for temporally sortable UUIDs)
+  'UUID',
+  // JSON types
+  'JSONB',
+  'JSON',
+  // Binary
   'BYTEA',
+  // Network types
   'INET',
   'CIDR',
   'MACADDR',
+  'MACADDR8',
+  // Geometric types
+  'POINT',
+  'LINE',
+  'BOX',
+  'PATH',
+  'POLYGON',
+  'CIRCLE',
+  // Range types (PostgreSQL 18+ enhanced temporal constraints)
+  'INT4RANGE',
+  'INT8RANGE',
+  'NUMRANGE',
+  'TSRANGE',
+  'TSTZRANGE',
+  'DATERANGE',
+  // Array type
   'ARRAY',
+  // Full-text search
+  'TSVECTOR',
+  'TSQUERY',
+  // XML
+  'XML',
+  // Money
+  'MONEY',
+  // Bit string
+  'BIT(1)',
+  'BIT VARYING(255)',
 ];
 
 interface ColumnDefinition {
