@@ -87,5 +87,4 @@ export {
   addInternalNote,
   searchKnowledgeBase,
   buildTicketContext,
-  supabase,
 } from './database';

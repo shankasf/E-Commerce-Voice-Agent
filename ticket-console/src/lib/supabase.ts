@@ -1,33 +1,3 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseServiceKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || '';
-
-// Create supabase client with service role key to bypass RLS
-let supabase: SupabaseClient;
-
-if (supabaseUrl && supabaseServiceKey) {
-  supabase = createClient(supabaseUrl, supabaseServiceKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    },
-    db: {
-      schema: 'public'
-    },
-    global: {
-      headers: {
-        Authorization: `Bearer ${supabaseServiceKey}`
-      }
-    }
-  });
-} else {
-  // Fallback for SSR - create a dummy client that will be replaced on client
-  supabase = createClient('https://placeholder.supabase.co', 'placeholder-key');
-}
-
-export { supabase };
-
 // Types matching ticket_management_schema.sql
 
 export type LocationType = 'Headquarters' | 'Data Center' | 'Support' | 'Remote' | 'Other';

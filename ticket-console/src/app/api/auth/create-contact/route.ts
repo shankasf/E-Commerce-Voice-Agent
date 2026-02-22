@@ -1,13 +1,5 @@
-// API Route to create a contact for a requester
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseServiceKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: { autoRefreshToken: false, persistSession: false },
-  global: { headers: { Authorization: `Bearer ${supabaseServiceKey}` } }
-});
+import { queryOne } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,14 +13,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if contact already exists with this email
-    const { data: existingContact } = await supabase
-      .from('contacts')
-      .select('contact_id, full_name, email, organization_id')
-      .eq('email', email.toLowerCase().trim())
-      .single();
+    const existingContact = await queryOne(
+      `SELECT contact_id, full_name, email, organization_id FROM contacts WHERE email = $1`,
+      [email.toLowerCase().trim()]
+    );
 
     if (existingContact) {
-      // Return existing contact
       return NextResponse.json({
         success: true,
         contact: {
@@ -42,18 +32,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Create new contact
-    const { data: newContact, error } = await supabase
-      .from('contacts')
-      .insert({
-        full_name: fullName.trim(),
-        email: email.toLowerCase().trim(),
-        organization_id: organizationId,
-      })
-      .select('contact_id, full_name, email, organization_id')
-      .single();
+    const newContact = await queryOne(
+      `INSERT INTO contacts (full_name, email, organization_id)
+      VALUES ($1, $2, $3)
+      RETURNING contact_id, full_name, email, organization_id`,
+      [fullName.trim(), email.toLowerCase().trim(), organizationId]
+    );
 
-    if (error) {
-      console.error('Error creating contact:', error);
+    if (!newContact) {
       return NextResponse.json(
         { success: false, error: 'Failed to create contact profile' },
         { status: 500 }

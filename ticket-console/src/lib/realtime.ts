@@ -1,7 +1,6 @@
-import { supabase } from './supabase';
-import { RealtimeChannel } from '@supabase/supabase-js';
+// Polling-based realtime replacement
+// Replaces Supabase WebSocket subscriptions with periodic HTTP polling
 
-// Types for realtime events
 export type RealtimeEvent = 'INSERT' | 'UPDATE' | 'DELETE' | '*';
 
 interface SubscriptionConfig {
@@ -13,98 +12,62 @@ interface SubscriptionConfig {
 
 // Connection state management
 let isConnected = false;
-const channels: Map<string, RealtimeChannel> = new Map();
+const intervals: Map<string, NodeJS.Timeout> = new Map();
 
-// Check and log realtime connection status
+const POLL_INTERVAL_MS = 5000; // 5 seconds
+
 export function getRealtimeStatus(): boolean {
   return isConnected;
 }
 
-// Create a unique channel name
-function createChannelName(table: string, filter?: string): string {
-  const suffix = Math.random().toString(36).substring(7);
-  return filter ? `${table}-${filter}-${suffix}` : `${table}-${suffix}`;
-}
-
-// Subscribe to a table with WebSocket connection (following Supabase docs pattern)
+// Subscribe to a table via polling
 export function subscribeToTable(config: SubscriptionConfig): () => void {
-  const { table, event = '*', filter, onData } = config;
-  const channelName = createChannelName(table, filter);
+  const { table, onData } = config;
+  const channelName = `${table}-${Math.random().toString(36).substring(7)}`;
 
-  console.log(`[Realtime] Subscribing to ${table}${filter ? ` with filter ${filter}` : ''}`);
+  console.log(`[Realtime] Polling ${table} every ${POLL_INTERVAL_MS}ms`);
+  isConnected = true;
 
-  // Create channel following exact Supabase documentation pattern
-  // Using type assertion because TypeScript types may not match runtime behavior
-  const channel = supabase
-    .channel(channelName)
-    .on(
-      'postgres_changes' as const,
-      {
-        event: event,
-        schema: 'public',
-        table: table,
-        ...(filter ? { filter } : {}),
-      } as any,
-      (payload: any) => {
-        console.log(`[Realtime] Event received on ${table}:`, payload.eventType, payload);
-        onData(payload);
-      }
-    )
-    .subscribe((status) => {
-      console.log(`[Realtime] Channel ${channelName} status:`, status);
-      if (status === 'SUBSCRIBED') {
-        isConnected = true;
-        console.log(`[Realtime] ✓ Successfully subscribed to ${channelName}`);
-      } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-        isConnected = false;
-        console.error(`[Realtime] ✗ Channel ${channelName} closed or error`);
-      } else if (status === 'TIMED_OUT') {
-        console.error(`[Realtime] ✗ Channel ${channelName} timed out`);
-      }
-    });
+  // Set up polling interval
+  const interval = setInterval(async () => {
+    try {
+      // Trigger a data refresh callback
+      onData({ eventType: 'POLL', table });
+    } catch (error) {
+      console.error(`[Realtime] Polling error for ${table}:`, error);
+    }
+  }, POLL_INTERVAL_MS);
 
-  channels.set(channelName, channel);
+  intervals.set(channelName, interval);
 
-  // Return cleanup function
   return () => {
-    console.log(`[Realtime] Unsubscribing from ${channelName}`);
-    supabase.removeChannel(channel);
-    channels.delete(channelName);
+    console.log(`[Realtime] Stopping poll for ${channelName}`);
+    clearInterval(interval);
+    intervals.delete(channelName);
+    if (intervals.size === 0) isConnected = false;
   };
 }
 
 // Subscribe to multiple tables
 export function subscribeToMultiple(configs: SubscriptionConfig[]): () => void {
   const cleanups = configs.map(config => subscribeToTable(config));
-  
-  return () => {
-    cleanups.forEach(cleanup => cleanup());
-  };
+  return () => cleanups.forEach(cleanup => cleanup());
 }
 
-// Broadcast a message to a channel (for custom events)
-export function broadcastMessage(channelName: string, event: string, payload: any): void {
-  const channel = channels.get(channelName);
-  if (channel) {
-    channel.send({
-      type: 'broadcast',
-      event,
-      payload,
-    });
-  }
+// Broadcast not supported in polling mode
+export function broadcastMessage(_channelName: string, _event: string, _payload: any): void {
+  // No-op in polling mode
 }
 
-// Get all active channels
 export function getActiveChannels(): string[] {
-  return Array.from(channels.keys());
+  return Array.from(intervals.keys());
 }
 
-// Cleanup all channels
 export function cleanupAllChannels(): void {
-  channels.forEach((channel, name) => {
-    console.log(`[Realtime] Cleaning up channel ${name}`);
-    supabase.removeChannel(channel);
+  intervals.forEach((interval, name) => {
+    console.log(`[Realtime] Cleaning up poll ${name}`);
+    clearInterval(interval);
   });
-  channels.clear();
+  intervals.clear();
   isConnected = false;
 }

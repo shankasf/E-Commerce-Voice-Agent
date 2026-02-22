@@ -1,16 +1,9 @@
 // Multi-Agent Orchestration System
 // Enables agents to collaborate, consult each other, and hand off tickets
 
-import { createClient } from '@supabase/supabase-js';
+import { queryOne, queryMany, query } from '@/lib/db';
 import { createResponse, DEFAULT_MODEL } from './openai-client';
 import { AGENT_DEFINITIONS, getAgentName, AgentType, MultiAgentAnalysis, HandoffResult } from './index';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseServiceKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: { autoRefreshToken: false, persistSession: false },
-  global: { headers: { Authorization: `Bearer ${supabaseServiceKey}` } }
-});
 
 // Consult another specialist agent for advice
 export async function consultAgent(agentType: string, question: string, context: string): Promise<string> {
@@ -61,7 +54,7 @@ Respond with JSON:
 
   try {
     const analysis = JSON.parse(output_text || '{}');
-    
+
     // If multi-domain issue, gather recommendations from each specialist
     const recommendations: string[] = [];
     if (analysis.isMultiDomain && analysis.consultAgents?.length > 0) {
@@ -83,12 +76,12 @@ Respond with JSON:
 // Get or create AI bot for a category
 export async function getOrCreateAIBot(category: string): Promise<number> {
   // Check if bot exists
-  const { data: existingBot } = await supabase
-    .from('support_agents')
-    .select('support_agent_id')
-    .eq('agent_type', 'Bot')
-    .ilike('specialization', `%${category}%`)
-    .single();
+  const existingBot = await queryOne(
+    `SELECT support_agent_id FROM support_agents
+    WHERE agent_type = 'Bot' AND specialization ILIKE $1
+    LIMIT 1`,
+    [`%${category}%`]
+  );
 
   if (existingBot) {
     return existingBot.support_agent_id;
@@ -96,53 +89,45 @@ export async function getOrCreateAIBot(category: string): Promise<number> {
 
   // Create new bot
   const agentDef = AGENT_DEFINITIONS[category as AgentType] || AGENT_DEFINITIONS.general;
-  const { data: newBot, error } = await supabase
-    .from('support_agents')
-    .insert({
-      full_name: agentDef.name,
-      email: `${category}-bot@urackit.ai`,
-      agent_type: 'Bot',
-      specialization: agentDef.description,
-      is_available: true,
-    })
-    .select()
-    .single();
+  const newBot = await queryOne(
+    `INSERT INTO support_agents (full_name, email, agent_type, specialization, is_available)
+    VALUES ($1, $2, 'Bot', $3, true)
+    RETURNING *`,
+    [agentDef.name, `${category}-bot@urackit.ai`, agentDef.description]
+  );
 
-  if (error) throw error;
+  if (!newBot) throw new Error('Failed to create AI bot');
   return newBot.support_agent_id;
 }
 
 // Agent handoff - transfer ticket to a different specialist
 export async function handoffToAgent(
-  ticketId: number, 
-  fromAgentId: number, 
-  toAgentType: string, 
+  ticketId: number,
+  fromAgentId: number,
+  toAgentType: string,
   reason: string
 ): Promise<HandoffResult> {
   // Get or create the target specialist bot
   const newAgentId = await getOrCreateAIBot(toAgentType);
 
   // Remove old assignment
-  await supabase
-    .from('ticket_assignments')
-    .delete()
-    .eq('ticket_id', ticketId)
-    .eq('support_agent_id', fromAgentId);
+  await query(
+    `DELETE FROM ticket_assignments WHERE ticket_id = $1 AND support_agent_id = $2`,
+    [ticketId, fromAgentId]
+  );
 
   // Add new assignment
-  await supabase.from('ticket_assignments').insert({
-    ticket_id: ticketId,
-    support_agent_id: newAgentId,
-    is_primary: true,
-  });
+  await query(
+    `INSERT INTO ticket_assignments (ticket_id, support_agent_id, is_primary) VALUES ($1, $2, true)`,
+    [ticketId, newAgentId]
+  );
 
   // Add internal note about handoff
-  await supabase.from('ticket_messages').insert({
-    ticket_id: ticketId,
-    sender_agent_id: fromAgentId,
-    content: `🔄 [Internal] Ticket handed off to ${getAgentName(toAgentType)}. Reason: ${reason}`,
-    message_type: 'internal_note',
-  });
+  await query(
+    `INSERT INTO ticket_messages (ticket_id, sender_agent_id, content, message_type)
+    VALUES ($1, $2, $3, 'internal_note')`,
+    [ticketId, fromAgentId, `🔄 [Internal] Ticket handed off to ${getAgentName(toAgentType)}. Reason: ${reason}`]
+  );
 
   return { success: true, newAgentId };
 }
@@ -155,12 +140,12 @@ export function needsMultiAgentSupport(subject: string, description: string): bo
   };
 
   const text = `${subject} ${description}`.toLowerCase();
-  
+
   for (const group of Object.values(keywords)) {
     for (const keyword of group) {
       if (text.includes(keyword)) return true;
     }
   }
-  
+
   return false;
 }
