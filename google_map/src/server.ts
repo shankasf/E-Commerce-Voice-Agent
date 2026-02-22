@@ -11,8 +11,9 @@ validateConfig();
 
 const app: Express = express();
 
-// Base path for reverse proxy
-const BASE_PATH = process.env.BASE_PATH || '/google_map';
+// Base path for reverse proxy - normalize to avoid double slashes
+const RAW_BASE_PATH = process.env.BASE_PATH || '/google_map';
+const BASE_PATH = RAW_BASE_PATH === '/' ? '' : RAW_BASE_PATH;
 
 // Middleware
 app.use(cors());
@@ -20,7 +21,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Serve static files (frontend) under base path
-app.use(BASE_PATH, express.static(path.join(__dirname, '../public')));
+app.use(BASE_PATH || '/', express.static(path.join(__dirname, '../public')));
 
 // API routes under base path
 app.use(`${BASE_PATH}/api`, apiRoutes);
@@ -28,10 +29,10 @@ app.use(`${BASE_PATH}/api`, apiRoutes);
 // Voice WebRTC routes
 app.use(`${BASE_PATH}/api/voice/webrtc`, voiceRoutes);
 
-// Health check endpoint
-app.get(`${BASE_PATH}/health`, (_req: Request, res: Response) => {
-  res.json({ 
-    status: 'ok', 
+// Health check endpoint (root level for k8s probes)
+app.get('/health', (_req: Request, res: Response) => {
+  res.json({
+    status: 'ok',
     timestamp: new Date().toISOString(),
     env: config.nodeEnv,
     version: '2.0.0',
@@ -39,15 +40,30 @@ app.get(`${BASE_PATH}/health`, (_req: Request, res: Response) => {
   });
 });
 
+// Health check endpoint (under base path)
+if (BASE_PATH !== '/' && BASE_PATH !== '') {
+  app.get(`${BASE_PATH}/health`, (_req: Request, res: Response) => {
+    res.json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      env: config.nodeEnv,
+      version: '2.0.0',
+      features: ['chat-agent', 'mcp-tools', 'export']
+    });
+  });
+}
+
 // Root redirect to chat UI
 app.get('/', (_req: Request, res: Response) => {
   res.redirect(`${BASE_PATH}/chat.html`);
 });
 
-// Base path redirect to chat UI
-app.get(BASE_PATH, (_req: Request, res: Response) => {
-  res.redirect(`${BASE_PATH}/chat.html`);
-});
+// Base path redirect to chat UI (only if BASE_PATH is set)
+if (BASE_PATH) {
+  app.get(BASE_PATH, (_req: Request, res: Response) => {
+    res.redirect(`${BASE_PATH}/chat.html`);
+  });
+}
 
 // Serve chat UI for /chat route
 app.get(`${BASE_PATH}/chat`, (_req: Request, res: Response) => {
@@ -57,11 +73,6 @@ app.get(`${BASE_PATH}/chat`, (_req: Request, res: Response) => {
 // Legacy: Serve the old places search frontend
 app.get(`${BASE_PATH}/places`, (_req: Request, res: Response) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
-});
-
-// Serve the frontend for all other routes under base path
-app.get(`${BASE_PATH}/*`, (_req: Request, res: Response) => {
-  res.sendFile(path.join(__dirname, '../public/chat.html'));
 });
 
 // Start server with dynamic port allocation
