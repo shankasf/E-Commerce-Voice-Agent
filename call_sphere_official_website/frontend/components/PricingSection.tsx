@@ -74,7 +74,7 @@ export function PricingSection() {
       <SectionHeading
         eyebrow="Pricing"
         title="Voice & Chat plans that scale"
-        description="Switch to annual billing and save 15%. Every plan includes voice agents, chat agents, PCI-compliant payments, and real-time analytics."
+        description="Switch to annual billing and save 15%. Every plan includes voice agents, chat agents, secure payments via Stripe, and real-time analytics."
         align="center"
       />
       <div className="mt-6 flex justify-center">

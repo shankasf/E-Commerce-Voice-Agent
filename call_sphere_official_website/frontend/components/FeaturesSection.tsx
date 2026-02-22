@@ -14,8 +14,8 @@ import { SectionHeading } from "@/components/SectionHeading";
 
 const features = [
   {
-    title: "SOC2 & Privacy First",
-    description: "No PII stored in platform or sent to base LLMs. Enterprise security standards.",
+    title: "Security First",
+    description: "Role-based access, audit logging, and encryption in transit. Security documentation available on request.",
     icon: Shield,
   },
   {
@@ -24,8 +24,8 @@ const features = [
     icon: Zap,
   },
   {
-    title: "Hallucination Free",
-    description: "Every response anchored in your approved knowledge base and systems of record.",
+    title: "Grounded Responses",
+    description: "Responses anchored in your approved knowledge base. Human-in-the-loop options available.",
     icon: Brain,
   },
   {

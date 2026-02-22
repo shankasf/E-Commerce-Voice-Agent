@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
-import { connectToDatabase } from '@/lib/mongodb';
-import { VoiceSession, ConversationTurn } from '@/lib/models';
+import prisma from '@/lib/prisma';
+import { SessionStatus, Prisma } from '@prisma/client';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'callsphere-admin-secret-change-in-production';
 
@@ -21,6 +21,36 @@ function verifyToken(request: NextRequest): { valid: boolean; error?: string } {
   }
 }
 
+// Clean up stale active sessions (active for more than 30 minutes)
+async function cleanupStaleSessions() {
+  const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+
+  const staleSessions = await prisma.voiceSession.findMany({
+    where: {
+      status: 'active',
+      startedAt: { lt: thirtyMinutesAgo },
+    },
+    select: { sessionId: true, startedAt: true },
+  });
+
+  if (staleSessions.length > 0) {
+    for (const session of staleSessions) {
+      const durationSeconds = Math.floor(
+        (Date.now() - session.startedAt.getTime()) / 1000
+      );
+      await prisma.voiceSession.update({
+        where: { sessionId: session.sessionId },
+        data: {
+          status: 'abandoned',
+          endedAt: new Date(),
+          durationSeconds,
+        },
+      });
+    }
+    console.log(`Cleaned up ${staleSessions.length} stale active sessions`);
+  }
+}
+
 // GET /api/admin/analytics - Get analytics data
 export async function GET(request: NextRequest) {
   const auth = verifyToken(request);
@@ -29,14 +59,15 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    await connectToDatabase();
+    // Clean up stale sessions before fetching analytics
+    await cleanupStaleSessions();
 
     const { searchParams } = new URL(request.url);
     const view = searchParams.get('view') || 'overview';
     const sessionId = searchParams.get('sessionId');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
-    const status = searchParams.get('status');
+    const status = searchParams.get('status') as SessionStatus | null;
     const qualifiedOnly = searchParams.get('qualifiedOnly') === 'true';
     const followUpOnly = searchParams.get('followUpOnly') === 'true';
     const page = parseInt(searchParams.get('page') || '1');
@@ -44,26 +75,28 @@ export async function GET(request: NextRequest) {
 
     // Single session detail view
     if (view === 'session' && sessionId) {
-      const session = await VoiceSession.findOne({ sessionId }).lean();
+      const session = await prisma.voiceSession.findUnique({
+        where: { sessionId },
+      });
       if (!session) {
         return NextResponse.json({ error: 'Session not found' }, { status: 404 });
       }
 
-      const turns = await ConversationTurn.find({ sessionId })
-        .sort({ turnIndex: 1 })
-        .lean();
+      const turns = await prisma.conversationTurn.findMany({
+        where: { sessionId },
+        orderBy: { turnIndex: 'asc' },
+      });
 
       return NextResponse.json({ session, turns });
     }
 
     // Build filter
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const filter: Record<string, any> = {};
-    
+    const filter: Prisma.VoiceSessionWhereInput = {};
+
     if (startDate || endDate) {
       filter.startedAt = {};
-      if (startDate) filter.startedAt.$gte = new Date(startDate);
-      if (endDate) filter.startedAt.$lte = new Date(endDate);
+      if (startDate) filter.startedAt.gte = new Date(startDate);
+      if (endDate) filter.startedAt.lte = new Date(endDate);
     }
 
     if (status) {
@@ -86,44 +119,82 @@ export async function GET(request: NextRequest) {
         errorSessions,
         qualifiedLeads,
         followUpRequired,
-        avgDuration,
-        sentimentBreakdown,
-        topIntents,
-        topTopics,
+        avgDurationResult,
+        sentimentCounts,
         recentSessions,
       ] = await Promise.all([
-        VoiceSession.countDocuments(filter),
-        VoiceSession.countDocuments({ ...filter, status: 'completed' }),
-        VoiceSession.countDocuments({ ...filter, status: 'error' }),
-        VoiceSession.countDocuments({ ...filter, qualifiedLead: true }),
-        VoiceSession.countDocuments({ ...filter, followUpRequired: true }),
-        VoiceSession.aggregate([
-          { $match: { ...filter, durationSeconds: { $exists: true, $ne: null } } },
-          { $group: { _id: null, avgDuration: { $avg: '$durationSeconds' } } },
-        ]),
-        VoiceSession.aggregate([
-          { $match: { ...filter, sentiment: { $exists: true } } },
-          { $group: { _id: '$sentiment', count: { $sum: 1 } } },
-        ]),
-        VoiceSession.aggregate([
-          { $match: { ...filter, intent: { $exists: true, $ne: null } } },
-          { $group: { _id: '$intent', count: { $sum: 1 } } },
-          { $sort: { count: -1 } },
-          { $limit: 10 },
-        ]),
-        VoiceSession.aggregate([
-          { $match: { ...filter, topics: { $exists: true, $ne: [] } } },
-          { $unwind: '$topics' },
-          { $group: { _id: '$topics', count: { $sum: 1 } } },
-          { $sort: { count: -1 } },
-          { $limit: 10 },
-        ]),
-        VoiceSession.find(filter)
-          .sort({ startedAt: -1 })
-          .limit(5)
-          .select('sessionId startedAt status intent sentiment leadScore userName userEmail qualifiedLead')
-          .lean(),
+        prisma.voiceSession.count({ where: filter }),
+        prisma.voiceSession.count({ where: { ...filter, status: 'completed' } }),
+        prisma.voiceSession.count({ where: { ...filter, status: 'error' } }),
+        prisma.voiceSession.count({ where: { ...filter, qualifiedLead: true } }),
+        prisma.voiceSession.count({ where: { ...filter, followUpRequired: true } }),
+        prisma.voiceSession.aggregate({
+          where: { ...filter, durationSeconds: { not: null } },
+          _avg: { durationSeconds: true },
+        }),
+        prisma.voiceSession.groupBy({
+          by: ['sentiment'],
+          where: { ...filter, sentiment: { not: null } },
+          _count: { sentiment: true },
+        }),
+        prisma.voiceSession.findMany({
+          where: filter,
+          orderBy: { startedAt: 'desc' },
+          take: 5,
+          select: {
+            sessionId: true,
+            startedAt: true,
+            status: true,
+            intent: true,
+            sentiment: true,
+            leadScore: true,
+            userName: true,
+            userEmail: true,
+            qualifiedLead: true,
+          },
+        }),
       ]);
+
+      // Get top intents using raw query for groupBy with count
+      const topIntentsRaw = await prisma.voiceSession.groupBy({
+        by: ['intent'],
+        where: { ...filter, intent: { not: null } },
+        _count: { intent: true },
+        orderBy: { _count: { intent: 'desc' } },
+        take: 10,
+      });
+
+      const topIntents = topIntentsRaw.map((i) => ({
+        _id: i.intent,
+        count: i._count.intent,
+      }));
+
+      // Get top topics - need to handle array field
+      const sessionsWithTopics = await prisma.voiceSession.findMany({
+        where: { ...filter, topics: { isEmpty: false } },
+        select: { topics: true },
+      });
+
+      // Count topics manually
+      const topicCounts: Record<string, number> = {};
+      sessionsWithTopics.forEach((s) => {
+        s.topics.forEach((topic) => {
+          topicCounts[topic] = (topicCounts[topic] || 0) + 1;
+        });
+      });
+
+      const topTopics = Object.entries(topicCounts)
+        .map(([topic, count]) => ({ _id: topic, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10);
+
+      // Format sentiment breakdown
+      const sentimentBreakdown: Record<string, number> = {};
+      sentimentCounts.forEach((s) => {
+        if (s.sentiment) {
+          sentimentBreakdown[s.sentiment] = s._count.sentiment;
+        }
+      });
 
       return NextResponse.json({
         overview: {
@@ -132,10 +203,8 @@ export async function GET(request: NextRequest) {
           errorSessions,
           qualifiedLeads,
           followUpRequired,
-          avgDuration: avgDuration[0]?.avgDuration || 0,
-          sentimentBreakdown: Object.fromEntries(
-            sentimentBreakdown.map((s) => [s._id, s.count])
-          ),
+          avgDuration: avgDurationResult._avg.durationSeconds || 0,
+          sentimentBreakdown,
         },
         topIntents,
         topTopics,
@@ -148,12 +217,13 @@ export async function GET(request: NextRequest) {
       const skip = (page - 1) * limit;
 
       const [sessions, total] = await Promise.all([
-        VoiceSession.find(filter)
-          .sort({ startedAt: -1 })
-          .skip(skip)
-          .limit(limit)
-          .lean(),
-        VoiceSession.countDocuments(filter),
+        prisma.voiceSession.findMany({
+          where: filter,
+          orderBy: { startedAt: 'desc' },
+          skip,
+          take: limit,
+        }),
+        prisma.voiceSession.count({ where: filter }),
       ]);
 
       return NextResponse.json({

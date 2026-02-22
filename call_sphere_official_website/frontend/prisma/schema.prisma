@@ -1,0 +1,179 @@
+// Prisma schema for CallSphere - PostgreSQL database
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Voice Session - one per browser session/conversation
+model VoiceSession {
+  id              String    @id @default(cuid())
+  sessionId       String    @unique
+  startedAt       DateTime  @default(now())
+  endedAt         DateTime?
+  durationSeconds Int?
+  status          SessionStatus @default(active)
+
+  // User/Marketing Info
+  userAgent   String?
+  ipAddress   String?
+  referrer    String?
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  utmTerm     String?
+  utmContent  String?
+  landingPage String?
+
+  // PII - Captured from conversation
+  userName     String?
+  userEmail    String?
+  userPhone    String?
+  userCompany  String?
+  userRole     String?
+  userLocation String?
+
+  // Analytics - LLM enriched
+  intent           String?
+  sentiment        Sentiment?
+  leadScore        Int?
+  topics           String[]
+  summary          String?
+  actionItems      String[]
+  followUpRequired Boolean   @default(false)
+  qualifiedLead    Boolean   @default(false)
+  rawTranscript    String?
+
+  // Metadata
+  turnCount    Int      @default(0)
+  errorMessage String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  turns ConversationTurn[]
+
+  @@index([status])
+  @@index([startedAt(sort: Desc)])
+  @@index([status, startedAt(sort: Desc)])
+  @@index([qualifiedLead, startedAt(sort: Desc)])
+  @@index([utmSource])
+  @@index([utmCampaign])
+  @@index([userEmail])
+  @@index([userCompany])
+  @@index([intent])
+  @@index([followUpRequired])
+  @@map("voice_sessions")
+}
+
+// Conversation Turn - individual user/assistant messages
+model ConversationTurn {
+  id        String   @id @default(cuid())
+  sessionId String
+  turnIndex Int
+  role      TurnRole
+  content   String
+  timestamp DateTime @default(now())
+
+  // Audio metadata
+  audioDurationMs Int?
+
+  // Extracted PII from this turn
+  extractedName    String?
+  extractedEmail   String?
+  extractedPhone   String?
+  extractedCompany String?
+
+  createdAt DateTime @default(now())
+
+  // Relations
+  session VoiceSession @relation(fields: [sessionId], references: [sessionId], onDelete: Cascade)
+
+  @@unique([sessionId, turnIndex])
+  @@index([sessionId])
+  @@map("conversation_turns")
+}
+
+// Admin User model for authentication
+model AdminUser {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         AdminRole @default(viewer)
+  lastLogin    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  blogPosts BlogPost[]
+
+  @@map("admin_users")
+}
+
+// Blog Post model
+model BlogPost {
+  id          String         @id @default(cuid())
+  slug        String         @unique
+  title       String
+  description String
+  content     String
+  coverImage  String?
+  status      BlogPostStatus @default(draft)
+  category    String
+  readTime    String
+  tags        String[]
+  authorId    String
+  publishedAt DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  author AdminUser @relation(fields: [authorId], references: [id])
+
+  @@index([status, publishedAt(sort: Desc)])
+  @@index([slug])
+  @@map("blog_posts")
+}
+
+// Newsletter Subscriber
+model NewsletterSubscriber {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  subscribedAt DateTime @default(now())
+  active       Boolean  @default(true)
+
+  @@index([active])
+  @@map("newsletter_subscribers")
+}
+
+// Enums
+enum SessionStatus {
+  active
+  completed
+  error
+  abandoned
+}
+
+enum Sentiment {
+  positive
+  neutral
+  negative
+}
+
+enum TurnRole {
+  user
+  assistant
+}
+
+enum AdminRole {
+  admin
+  viewer
+}
+
+enum BlogPostStatus {
+  draft
+  published
+}

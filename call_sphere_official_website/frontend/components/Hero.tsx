@@ -5,13 +5,14 @@ import { ArrowRight, Phone, MessageSquare, Lock, Shield, CheckCircle2, Database 
 import { cn } from "@/lib/utils";
 
 import { Button } from "@/components/Button";
+import { HeroBackground } from "@/components/HeroBackground";
 
 // Live Chat Demo Component - Property Rental Deal
 function LiveChatDemo() {
   const [messageIndex, setMessageIndex] = React.useState(0);
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const messages = [
-    { from: "system", text: "🔐 Secure connection established • End-to-end encrypted" },
+    { from: "system", text: "🔐 Secure connection established • TLS encrypted" },
     { from: "user", text: "Hi, I'm interested in the 2BR apartment on Oak Street" },
     { from: "agent", text: "Hello! I'd be happy to help. Let me verify your identity first. What's your registered email?" },
     { from: "user", text: "john.smith@email.com" },
@@ -78,7 +79,7 @@ function LiveVoiceDemo() {
     { speaker: "AI Agent", text: "✓ Verified. I found order #ORD-78432. I'm scheduling a pickup for tomorrow between 9 AM - 12 PM." },
     { speaker: "Customer", text: "Will I get a full refund?" },
     { speaker: "AI Agent", text: "Yes, your full refund of $89.99 has been processed. You'll receive confirmation via email within 24 hours." },
-    { speaker: "System", text: "📋 Transaction logged • PCI-DSS compliant • Data encrypted", isSystem: true },
+    { speaker: "System", text: "📋 Transaction logged • Secure payment via Stripe • Data encrypted", isSystem: true },
   ];
 
   React.useEffect(() => {
@@ -159,8 +160,11 @@ export function Hero() {
       aria-labelledby="hero-title"
       className="section-shell relative isolate overflow-hidden pb-20 pt-12 lg:pt-16"
     >
-      {/* Subtle gradient background like Bujo */}
-      <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(120,119,198,0.12),transparent)]" />
+      {/* Animated node network background */}
+      <HeroBackground />
+
+      {/* Subtle gradient overlay */}
+      <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(120,119,198,0.08),transparent)]" />
 
       {/* Center-aligned hero text like Bujo */}
       <div className="mx-auto max-w-4xl text-center">
@@ -168,7 +172,7 @@ export function Hero() {
           id="hero-title"
           className="text-4xl font-bold leading-[1.1] tracking-tight text-slate-900 sm:text-5xl lg:text-6xl"
         >
-          AI for Enterprise Customer Communications
+          AI Voice &amp; Chat Agents for Enterprise Customer Communications
         </h1>
         <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-slate-600 sm:text-xl">
           Deploy conversational AI that reduces contact center costs, cuts response times,
@@ -207,15 +211,15 @@ export function Hero() {
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs text-slate-600">
               <Lock className="h-3 w-3" />
-              End-to-End Encrypted
+              TLS Encrypted
             </div>
             <div className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs text-slate-600">
               <Shield className="h-3 w-3" />
-              SOC2 Compliant
+              Enterprise Security
             </div>
             <div className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs text-slate-600">
               <CheckCircle2 className="h-3 w-3" />
-              Identity Verified
+              Role-Based Access
             </div>
           </div>
         </div>
@@ -249,11 +253,11 @@ export function Hero() {
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs text-slate-600">
               <Database className="h-3 w-3" />
-              PCI-DSS Compliant
+              Payments via Stripe
             </div>
             <div className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs text-slate-600">
               <Shield className="h-3 w-3" />
-              HIPAA Ready
+              BAA Available
             </div>
             <div className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs text-slate-600">
               <Lock className="h-3 w-3" />
@@ -273,16 +277,33 @@ export function Hero() {
         </Button>
       </div>
 
-      {/* Trusted by section like Bujo */}
+      {/* Industries served */}
       <div className="mx-auto mt-20 max-w-4xl text-center">
         <p className="text-sm font-medium uppercase tracking-wider text-slate-400">
-          Trusted by industry leaders
+          Trusted across industries
         </p>
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-x-12 gap-y-6 opacity-60 grayscale">
-          <div className="text-2xl font-bold text-slate-400">PropertyCo</div>
-          <div className="text-2xl font-bold text-slate-400">HealthFirst</div>
-          <div className="text-2xl font-bold text-slate-400">TechServ</div>
-          <div className="text-2xl font-bold text-slate-400">LogiPro</div>
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+          {[
+            "Healthcare",
+            "Real Estate",
+            "HVAC",
+            "Legal",
+            "Dental",
+            "Insurance",
+            "Restaurants",
+            "Salons",
+            "IT Support",
+            "Automotive",
+            "Logistics",
+            "Financial Services",
+          ].map((industry) => (
+            <span
+              key={industry}
+              className="rounded-full border border-slate-200 bg-slate-50 px-4 py-1.5 text-sm font-medium text-slate-500"
+            >
+              {industry}
+            </span>
+          ))}
         </div>
       </div>
     </section>

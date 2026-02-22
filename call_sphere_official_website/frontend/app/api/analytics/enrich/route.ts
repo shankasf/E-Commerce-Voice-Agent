@@ -1,7 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
-import { VoiceSession, ConversationTurn } from '@/lib/models';
+import prisma from '@/lib/prisma';
 import OpenAI from 'openai';
+import { Sentiment } from '@prisma/client';
+
+const ALLOWED_ORIGINS = [
+  'https://callsphere.tech',
+  'https://www.callsphere.tech',
+  'http://localhost:3000',
+];
+
+function isAllowedOrigin(request: NextRequest): boolean {
+  const origin = request.headers.get('origin');
+  const referer = request.headers.get('referer');
+  if (origin && ALLOWED_ORIGINS.includes(origin)) return true;
+  if (referer && ALLOWED_ORIGINS.some((o) => referer.startsWith(o))) return true;
+  return false;
+}
 
 // Lazy-load OpenAI client to avoid build-time errors
 let openaiClient: OpenAI | null = null;
@@ -16,9 +30,10 @@ function getOpenAIClient(): OpenAI {
 
 // Enrich a session with LLM analysis
 export async function POST(request: NextRequest) {
+  if (!isAllowedOrigin(request)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
   try {
-    await connectToDatabase();
-
     const body = await request.json();
     const { sessionId } = body;
 
@@ -30,7 +45,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch the session and all turns
-    const session = await VoiceSession.findOne({ sessionId });
+    const session = await prisma.voiceSession.findUnique({
+      where: { sessionId },
+    });
     if (!session) {
       return NextResponse.json(
         { error: 'Session not found' },
@@ -38,9 +55,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const turns = await ConversationTurn.find({ sessionId })
-      .sort({ turnIndex: 1 })
-      .lean();
+    const turns = await prisma.conversationTurn.findMany({
+      where: { sessionId },
+      orderBy: { turnIndex: 'asc' },
+    });
 
     if (turns.length === 0) {
       return NextResponse.json(
@@ -101,7 +119,7 @@ Lead Score Guidelines:
       ],
       temperature: 0.1,
       max_tokens: 600,
-      response_format: { type: "json_object" },
+      response_format: { type: 'json_object' },
     });
 
     const result = response.choices[0]?.message?.content;
@@ -114,15 +132,30 @@ Lead Score Guidelines:
 
     try {
       const analysis = JSON.parse(result);
-      
+
       // Validate sentiment value
       const validSentiments = ['positive', 'neutral', 'negative'];
-      const sentiment = validSentiments.includes(analysis.sentiment?.toLowerCase()) 
-        ? analysis.sentiment.toLowerCase() 
+      const sentimentValue = validSentiments.includes(analysis.sentiment?.toLowerCase())
+        ? analysis.sentiment.toLowerCase()
         : 'neutral';
-      
-      // Update the session with analysis and raw transcript
-      const updateData: Record<string, unknown> = {
+
+      // Map to Prisma enum
+      const sentiment: Sentiment = sentimentValue as Sentiment;
+
+      // Build update data
+      const updateData: {
+        intent: string;
+        sentiment: Sentiment;
+        leadScore: number;
+        topics: string[];
+        summary: string;
+        actionItems: string[];
+        followUpRequired: boolean;
+        qualifiedLead: boolean;
+        rawTranscript: string;
+        userRole?: string;
+        userLocation?: string;
+      } = {
         intent: analysis.intent || 'unknown',
         sentiment: sentiment,
         leadScore: typeof analysis.leadScore === 'number' ? analysis.leadScore : 5,
@@ -142,11 +175,10 @@ Lead Score Guidelines:
         updateData.userLocation = analysis.userLocation;
       }
 
-      const updatedSession = await VoiceSession.findOneAndUpdate(
-        { sessionId },
-        { $set: updateData },
-        { new: true }
-      );
+      const updatedSession = await prisma.voiceSession.update({
+        where: { sessionId },
+        data: updateData,
+      });
 
       return NextResponse.json({
         success: true,

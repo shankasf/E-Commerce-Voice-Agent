@@ -24,11 +24,28 @@ import {
 import { Nav } from "@/components/Nav";
 import { Button } from "@/components/Button";
 import { VoiceAgentLauncher } from "@/components/VoiceAgentLauncher";
+import { BreadcrumbJsonLd } from "@/components/StructuredData";
 
 export const metadata: Metadata = {
-    title: "About CallSphere - AI Voice & Chat Agents for Enterprise Automation",
+    title: "About CallSphere | AI Voice & Chat Agent Company",
     description:
-        "Learn about CallSphere LLC, the enterprise automation platform specializing in AI-powered agentic voice and chat agents that transform customer interactions into completed transactions.",
+        "CallSphere LLC builds AI voice and chat agents for enterprise customer communications. Based in New York. 92% order closure rate. Plans from $149/mo.",
+    alternates: {
+        canonical: "https://callsphere.tech/about",
+    },
+    openGraph: {
+        title: "About CallSphere | AI Voice & Chat Agent Company",
+        description:
+            "CallSphere LLC builds AI voice and chat agents for enterprise customer communications. 92% order closure rate.",
+        url: "https://callsphere.tech/about",
+        type: "website",
+    },
+    twitter: {
+        card: "summary_large_image",
+        title: "About CallSphere | AI Voice & Chat Agent Company",
+        description:
+            "CallSphere LLC builds AI voice and chat agents for enterprise customer communications. 92% order closure rate.",
+    },
 };
 
 const coreValues = [
@@ -48,7 +65,7 @@ const coreValues = [
         icon: Shield,
         title: "Security First",
         description:
-            "PCI-compliant payment processing, PII vaulting, and comprehensive audit logs protect your data.",
+            "Payments processed via Stripe/Square. Role-based access, encryption, and audit logging protect your data.",
     },
     {
         icon: Zap,
@@ -62,7 +79,7 @@ const agentCapabilities = [
     {
         icon: ShoppingCart,
         title: "Order Placement & Checkout",
-        description: "Complete end-to-end order processing with cart building and PCI-compliant payments.",
+        description: "Complete end-to-end order processing with cart building and secure payments via Stripe.",
     },
     {
         icon: HeadphonesIcon,
@@ -77,7 +94,7 @@ const agentCapabilities = [
     {
         icon: CreditCard,
         title: "Secure Payments",
-        description: "PCI-compliant handoff to Stripe, Square, and other processors.",
+        description: "Payments processed by PCI-DSS compliant providers (Stripe, Square). We don't store card details.",
     },
     {
         icon: BarChart3,
@@ -87,7 +104,7 @@ const agentCapabilities = [
     {
         icon: Lock,
         title: "Data Protection",
-        description: "Encrypted PII vaulting with role-based access controls.",
+        description: "Role-based access controls, encryption, and audit logging.",
     },
 ];
 
@@ -122,6 +139,12 @@ const processSteps = [
 export default function AboutPage() {
     return (
         <>
+            <BreadcrumbJsonLd
+                items={[
+                    { name: "Home", url: "https://callsphere.tech" },
+                    { name: "About", url: "https://callsphere.tech/about" },
+                ]}
+            />
             <Nav />
             <main id="main" className="relative">
                 {/* Hero Section */}
@@ -136,9 +159,11 @@ export default function AboutPage() {
                             AI-Powered Agentic Voice & Chat Agents
                         </h1>
                         <p className="mt-6 text-lg text-slate-600 sm:text-xl">
-                            CallSphere LLC specializes in deploying intelligent agentic systems that automate
-                            customer interactions across voice and text channels, transforming communications
-                            into completed transactions.
+                            CallSphere LLC is an AI voice and chat agent company based in New York that automates
+                            customer communications for businesses across 12+ industries. Founded to replace
+                            hold times and missed calls with instant, intelligent AI responses, CallSphere serves
+                            healthcare, real estate, HVAC, legal, and financial services companies with
+                            HIPAA-compliant, 57-language AI agents that go live in 3–5 days.
                         </p>
                         <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
                             <Button size="lg" asChild>
@@ -252,7 +277,7 @@ export default function AboutPage() {
                                 <ul className="mt-6 space-y-3">
                                     {[
                                         "Catalog search with semantic understanding",
-                                        "Cart building & PCI-compliant checkout",
+                                        "Cart building & secure checkout via Stripe",
                                         "No hold music or handoffs",
                                         "SMS/Email confirmation",
                                     ].map((item) => (

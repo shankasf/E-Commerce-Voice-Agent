@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { connectToDatabase } from '@/lib/mongodb';
-import { AdminUser } from '@/lib/models';
+import prisma from '@/lib/prisma';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'callsphere-admin-secret-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET!;
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
@@ -12,14 +11,19 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 async function ensureDefaultAdmin() {
   if (!ADMIN_EMAIL || !ADMIN_PASSWORD) return;
 
-  const existing = await AdminUser.findOne({ email: ADMIN_EMAIL.toLowerCase() });
+  const existing = await prisma.adminUser.findUnique({
+    where: { email: ADMIN_EMAIL.toLowerCase() },
+  });
+
   if (!existing) {
     const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 10);
-    await AdminUser.create({
-      email: ADMIN_EMAIL.toLowerCase(),
-      passwordHash,
-      name: 'Admin',
-      role: 'admin',
+    await prisma.adminUser.create({
+      data: {
+        email: ADMIN_EMAIL.toLowerCase(),
+        passwordHash,
+        name: 'Admin',
+        role: 'admin',
+      },
     });
     console.log('Default admin user created from env vars');
   }
@@ -28,7 +32,6 @@ async function ensureDefaultAdmin() {
 // POST /api/admin/auth - Login
 export async function POST(request: NextRequest) {
   try {
-    await connectToDatabase();
     await ensureDefaultAdmin();
 
     const body = await request.json();
@@ -41,8 +44,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const admin = await AdminUser.findOne({ email: email.toLowerCase() });
-    
+    const admin = await prisma.adminUser.findUnique({
+      where: { email: email.toLowerCase() },
+    });
+
     if (!admin) {
       return NextResponse.json(
         { error: 'Invalid credentials' },
@@ -51,7 +56,7 @@ export async function POST(request: NextRequest) {
     }
 
     const isValidPassword = await bcrypt.compare(password, admin.passwordHash);
-    
+
     if (!isValidPassword) {
       return NextResponse.json(
         { error: 'Invalid credentials' },
@@ -60,15 +65,18 @@ export async function POST(request: NextRequest) {
     }
 
     // Update last login
-    await AdminUser.findByIdAndUpdate(admin._id, { lastLogin: new Date() });
+    await prisma.adminUser.update({
+      where: { id: admin.id },
+      data: { lastLogin: new Date() },
+    });
 
     // Generate JWT
     const token = jwt.sign(
-      { 
-        userId: admin._id.toString(),
+      {
+        userId: admin.id,
         email: admin.email,
         role: admin.role,
-        name: admin.name
+        name: admin.name,
       },
       JWT_SECRET,
       { expiresIn: '24h' }
@@ -105,7 +113,7 @@ export async function POST(request: NextRequest) {
 // DELETE /api/admin/auth - Logout
 export async function DELETE() {
   const response = NextResponse.json({ success: true });
-  
+
   response.cookies.set('admin_token', '', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',

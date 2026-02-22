@@ -13,48 +13,48 @@ type ConversationEntry = {
 };
 
 const industryScripts: { [key: string]: ConversationEntry[] } = {
-  "Property Management": [
+  "HVAC Services": [
     {
-      id: "pm-agent-greeting",
+      id: "hvac-agent-greeting",
       role: "agent",
       stage: "Greeting",
       annotation: "Inbound Call",
       message:
-        "Hi, you've reached the maintenance line for 'The Grand'. How can I help you today?",
+        "Hi, you've reached 'ComfortAir HVAC Services'. How can I help you today?",
     },
     {
-      id: "pm-caller-request",
+      id: "hvac-caller-request",
       role: "caller",
       stage: "Issue",
-      message: "My sink is leaking.",
+      message: "My air conditioner stopped cooling.",
     },
     {
-      id: "pm-agent-confirm",
+      id: "hvac-agent-confirm",
       role: "agent",
       stage: "Triage",
-      annotation: "New Ticket",
+      annotation: "Diagnostics",
       message:
-        "I can help with that. Can you confirm your unit number?",
+        "I can help with that. Is the unit running but not cooling, or is it completely off?",
     },
     {
-      id: "pm-caller-unit",
+      id: "hvac-caller-detail",
       role: "caller",
       stage: "Details",
-      message: "Unit 303.",
+      message: "It's running but blowing warm air.",
     },
     {
-      id: "pm-agent-wrap",
+      id: "hvac-agent-wrap",
       role: "agent",
       stage: "Confirmation",
       annotation: "Dispatched",
       message:
-        "Thanks. I've created a new maintenance ticket for a leaking sink in unit 303. A plumber will be dispatched within 24 hours. Is there anything else?",
+        "Thanks. I've scheduled a technician to inspect your AC system. They'll arrive between 2-4 PM today. Is there anything else I can help with?",
     },
     {
-      id: "pm-caller-thanks",
+      id: "hvac-caller-thanks",
       role: "caller",
       stage: "Wrap-up",
-      message: "No, that's it.",
+      message: "No, that's perfect.",
     },
   ],
   "Healthcare": [
@@ -212,7 +212,7 @@ const industryScripts: { [key: string]: ConversationEntry[] } = {
 };
 
 const industryMeta: { [key: string]: { icon: string; phone?: string; isLiveVoice?: boolean; comingSoon?: boolean; color: string } } = {
-  "Property Management": { icon: "🏢", isLiveVoice: true, color: "bg-emerald-100 text-emerald-700" },
+  "HVAC Services": { icon: "🌡️", isLiveVoice: true, color: "bg-emerald-100 text-emerald-700" },
   "Healthcare": { icon: "⚕️", isLiveVoice: true, color: "bg-blue-100 text-blue-700" },
   "IT MSPs": { icon: "💻", isLiveVoice: true, color: "bg-amber-100 text-amber-700" },
   "Logistics": { icon: "🚚", comingSoon: true, color: "bg-purple-100 text-purple-700" },

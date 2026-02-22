@@ -7,7 +7,7 @@ const integrationColumns = [
   },
   {
     title: "Industry Systems",
-    items: ["EMRs (Healthcare)", "Yardi/AppFolio (PM)", "ConnectWise (MSP)"],
+    items: ["EMRs (Healthcare)", "ServiceTitan/Housecall Pro (HVAC)", "ConnectWise (MSP)"],
   },
   {
     title: "CRM & Support",
@@ -21,7 +21,7 @@ export function IntegrationsSection() {
       <SectionHeading
         eyebrow="Integrations"
         title="Plug into your stack"
-        description="CallSphere connects to telephony systems, industry-specific software (EMRs, Property Management Software, PSAs, WMS/TMS), CRMs, and ticketing systems you already rely on. No rip-and-replace required."
+        description="CallSphere connects to telephony systems, industry-specific software (EMRs, Field Service Management, PSAs, WMS/TMS), CRMs, and ticketing systems you already rely on. No rip-and-replace required."
         align="center"
       />
       <div className="mt-10 grid gap-6 md:grid-cols-3">

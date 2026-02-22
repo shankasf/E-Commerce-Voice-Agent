@@ -759,6 +759,32 @@ export function VoiceAgentLauncher() {
     );
   }, [error, isConnected, isDisconnecting, isListening, isLoading, isOpen, isSpeaking]);
 
+  // Mark session as abandoned when user closes tab or navigates away
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handlePageLeave = () => {
+      const sid = sessionIdRef.current;
+      if (!sid) return;
+
+      // Use sendBeacon for reliability during page unload
+      const payload = JSON.stringify({ sessionId: sid, status: "abandoned" });
+      const blob = new Blob([payload], { type: "application/json" });
+      navigator.sendBeacon("/api/analytics/sessions/end", blob);
+
+      // Clear ref so stopSession doesn't double-fire
+      sessionIdRef.current = null;
+    };
+
+    window.addEventListener("beforeunload", handlePageLeave);
+    window.addEventListener("pagehide", handlePageLeave);
+
+    return () => {
+      window.removeEventListener("beforeunload", handlePageLeave);
+      window.removeEventListener("pagehide", handlePageLeave);
+    };
+  }, []);
+
   useEffect(() => {
     if (!isOpen) return;
 

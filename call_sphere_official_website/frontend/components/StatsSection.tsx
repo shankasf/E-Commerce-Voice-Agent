@@ -3,9 +3,9 @@ import { Stat } from "@/components/Stat";
 
 const stats = [
   {
-    label: "maintenance requests triaged automatically",
+    label: "service calls resolved automatically",
     value: "95%",
-    description: "Average for property management clients.",
+    description: "Average for HVAC service clients.",
   },
   {
     label: "reduction in no-shows",

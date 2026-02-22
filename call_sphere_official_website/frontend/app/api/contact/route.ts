@@ -76,7 +76,11 @@ export async function POST(request: Request) {
         );
       }
     } else {
-      console.info("Contact request received for sagar@callsphere.tech", data);
+      console.error("RESEND_API_KEY not configured — contact form email not sent");
+      return NextResponse.json(
+        { success: false, error: "Email service is not configured. Please try again later." },
+        { status: 503 }
+      );
     }
 
     return NextResponse.json({ success: true });

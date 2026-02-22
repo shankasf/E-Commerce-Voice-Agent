@@ -1,13 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
-import { VoiceSession, ConversationTurn } from '@/lib/models';
+import prisma from '@/lib/prisma';
 import { v4 as uuidv4 } from 'uuid';
+
+const ALLOWED_ORIGINS = [
+  'https://callsphere.tech',
+  'https://www.callsphere.tech',
+  'http://localhost:3000',
+];
+
+function isAllowedOrigin(request: NextRequest): boolean {
+  const origin = request.headers.get('origin');
+  const referer = request.headers.get('referer');
+  if (origin && ALLOWED_ORIGINS.includes(origin)) return true;
+  if (referer && ALLOWED_ORIGINS.some((o) => referer.startsWith(o))) return true;
+  return false;
+}
 
 // Create a new voice session
 export async function POST(request: NextRequest) {
+  if (!isAllowedOrigin(request)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
   try {
-    await connectToDatabase();
-
     const body = await request.json();
     const sessionId = body.sessionId || uuidv4();
 
@@ -17,20 +31,22 @@ export async function POST(request: NextRequest) {
     const forwardedFor = request.headers.get('x-forwarded-for');
     const ipAddress = forwardedFor?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || undefined;
 
-    const session = await VoiceSession.create({
-      sessionId,
-      startedAt: new Date(),
-      status: 'active',
-      userAgent,
-      ipAddress,
-      referrer,
-      utmSource: body.utmSource,
-      utmMedium: body.utmMedium,
-      utmCampaign: body.utmCampaign,
-      utmTerm: body.utmTerm,
-      utmContent: body.utmContent,
-      landingPage: body.landingPage,
-      turnCount: 0,
+    const session = await prisma.voiceSession.create({
+      data: {
+        sessionId,
+        startedAt: new Date(),
+        status: 'active',
+        userAgent,
+        ipAddress,
+        referrer,
+        utmSource: body.utmSource,
+        utmMedium: body.utmMedium,
+        utmCampaign: body.utmCampaign,
+        utmTerm: body.utmTerm,
+        utmContent: body.utmContent,
+        landingPage: body.landingPage,
+        turnCount: 0,
+      },
     });
 
     return NextResponse.json({
@@ -49,9 +65,10 @@ export async function POST(request: NextRequest) {
 
 // Get session by ID (for admin)
 export async function GET(request: NextRequest) {
+  if (!isAllowedOrigin(request)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
   try {
-    await connectToDatabase();
-
     const { searchParams } = new URL(request.url);
     const sessionId = searchParams.get('sessionId');
 
@@ -62,8 +79,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const session = await VoiceSession.findOne({ sessionId }).lean();
-    
+    const session = await prisma.voiceSession.findUnique({
+      where: { sessionId },
+    });
+
     if (!session) {
       return NextResponse.json(
         { error: 'Session not found' },
@@ -72,9 +91,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Also fetch conversation turns
-    const turns = await ConversationTurn.find({ sessionId })
-      .sort({ turnIndex: 1 })
-      .lean();
+    const turns = await prisma.conversationTurn.findMany({
+      where: { sessionId },
+      orderBy: { turnIndex: 'asc' },
+    });
 
     return NextResponse.json({
       session,
@@ -91,9 +111,10 @@ export async function GET(request: NextRequest) {
 
 // Update session (end, update PII, etc.)
 export async function PATCH(request: NextRequest) {
+  if (!isAllowedOrigin(request)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
   try {
-    await connectToDatabase();
-
     const body = await request.json();
     const { sessionId, ...updates } = body;
 
@@ -106,7 +127,9 @@ export async function PATCH(request: NextRequest) {
 
     // Calculate duration if ending session
     if (updates.status === 'completed' || updates.status === 'error' || updates.status === 'abandoned') {
-      const session = await VoiceSession.findOne({ sessionId });
+      const session = await prisma.voiceSession.findUnique({
+        where: { sessionId },
+      });
       if (session) {
         updates.endedAt = new Date();
         updates.durationSeconds = Math.floor(
@@ -115,18 +138,10 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    const updatedSession = await VoiceSession.findOneAndUpdate(
-      { sessionId },
-      { $set: updates },
-      { new: true }
-    );
-
-    if (!updatedSession) {
-      return NextResponse.json(
-        { error: 'Session not found' },
-        { status: 404 }
-      );
-    }
+    const updatedSession = await prisma.voiceSession.update({
+      where: { sessionId },
+      data: updates,
+    });
 
     return NextResponse.json({
       success: true,

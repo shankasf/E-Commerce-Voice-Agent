@@ -14,7 +14,7 @@ export function LiveDemoSection() {
                         </div>
                         <h4 className="font-semibold text-slate-900">Enterprise Security</h4>
                         <p className="mt-2 text-sm text-slate-600">
-                            256-bit AES encryption, SOC2 Type II certified, and regular penetration testing.
+                            Encryption in transit (TLS) and at rest. Security program aligned with SOC 2 principles.
                         </p>
                     </div>
                     <div className="text-center">
@@ -32,7 +32,7 @@ export function LiveDemoSection() {
                         </div>
                         <h4 className="font-semibold text-slate-900">Data Privacy</h4>
                         <p className="mt-2 text-sm text-slate-600">
-                            GDPR compliant, data residency options, and automatic PII redaction.
+                            GDPR/CPRA rights requests supported. DPA available for business customers.
                         </p>
                     </div>
                 </div>

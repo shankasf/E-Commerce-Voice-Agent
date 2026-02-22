@@ -1,8 +1,29 @@
-"use client";
-
+import { Metadata } from "next";
 import { Nav } from "@/components/Nav";
 import { Footer } from "@/components/Footer";
 import { SectionHeading } from "@/components/SectionHeading";
+
+export const metadata: Metadata = {
+  title: "Terms of Service | CallSphere",
+  description:
+    "CallSphere Terms of Service. Subscription plans, acceptable use, data ownership, intellectual property, and dispute resolution for our AI voice and chat platform.",
+  alternates: {
+    canonical: "https://callsphere.tech/terms",
+  },
+  openGraph: {
+    title: "Terms of Service | CallSphere",
+    description:
+      "CallSphere Terms of Service covering subscription plans, acceptable use, data ownership, and more.",
+    url: "https://callsphere.tech/terms",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "Terms of Service | CallSphere",
+    description:
+      "CallSphere Terms of Service covering subscription plans, acceptable use, data ownership, and more.",
+  },
+};
 
 export default function TermsOfServicePage() {
   return (

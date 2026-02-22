@@ -1,7 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
-import { VoiceSession, ConversationTurn } from '@/lib/models';
+import prisma from '@/lib/prisma';
 import OpenAI from 'openai';
+
+const ALLOWED_ORIGINS = [
+  'https://callsphere.tech',
+  'https://www.callsphere.tech',
+  'http://localhost:3000',
+];
+
+function isAllowedOrigin(request: NextRequest): boolean {
+  const origin = request.headers.get('origin');
+  const referer = request.headers.get('referer');
+  if (origin && ALLOWED_ORIGINS.includes(origin)) return true;
+  if (referer && ALLOWED_ORIGINS.some((o) => referer.startsWith(o))) return true;
+  return false;
+}
 
 // Lazy-load OpenAI client to avoid build-time errors
 let openaiClient: OpenAI | null = null;
@@ -16,9 +29,10 @@ function getOpenAIClient(): OpenAI {
 
 // Log a conversation turn
 export async function POST(request: NextRequest) {
+  if (!isAllowedOrigin(request)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
   try {
-    await connectToDatabase();
-
     const body = await request.json();
     const { sessionId, role, content, audioDurationMs } = body;
 
@@ -30,24 +44,28 @@ export async function POST(request: NextRequest) {
     }
 
     // Get current turn count
-    const existingTurns = await ConversationTurn.countDocuments({ sessionId });
+    const existingTurns = await prisma.conversationTurn.count({
+      where: { sessionId },
+    });
     const turnIndex = existingTurns;
 
     // Create the turn
-    const turn = await ConversationTurn.create({
-      sessionId,
-      turnIndex,
-      role,
-      content,
-      timestamp: new Date(),
-      audioDurationMs,
+    const turn = await prisma.conversationTurn.create({
+      data: {
+        sessionId,
+        turnIndex,
+        role,
+        content,
+        timestamp: new Date(),
+        audioDurationMs,
+      },
     });
 
     // Update session turn count
-    await VoiceSession.findOneAndUpdate(
-      { sessionId },
-      { $inc: { turnCount: 1 } }
-    );
+    await prisma.voiceSession.update({
+      where: { sessionId },
+      data: { turnCount: { increment: 1 } },
+    });
 
     // Extract PII from user messages asynchronously
     if (role === 'user') {
@@ -56,7 +74,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      turnId: turn._id,
+      turnId: turn.id,
       turnIndex,
     });
   } catch (error) {
@@ -70,9 +88,10 @@ export async function POST(request: NextRequest) {
 
 // Get all turns for a session
 export async function GET(request: NextRequest) {
+  if (!isAllowedOrigin(request)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
   try {
-    await connectToDatabase();
-
     const { searchParams } = new URL(request.url);
     const sessionId = searchParams.get('sessionId');
 
@@ -83,9 +102,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const turns = await ConversationTurn.find({ sessionId })
-      .sort({ turnIndex: 1 })
-      .lean();
+    const turns = await prisma.conversationTurn.findMany({
+      where: { sessionId },
+      orderBy: { turnIndex: 'asc' },
+    });
 
     return NextResponse.json({ turns });
   } catch (error) {
@@ -128,7 +148,7 @@ Only return the JSON object, nothing else.`,
 
     try {
       const extracted = JSON.parse(result);
-      
+
       // Update the turn with extracted PII
       const updateTurn: Record<string, string> = {};
       if (extracted.name) updateTurn.extractedName = extracted.name;
@@ -137,34 +157,28 @@ Only return the JSON object, nothing else.`,
       if (extracted.company) updateTurn.extractedCompany = extracted.company;
 
       if (Object.keys(updateTurn).length > 0) {
-        await ConversationTurn.findOneAndUpdate(
-          { sessionId, turnIndex },
-          { $set: updateTurn }
-        );
+        await prisma.conversationTurn.updateMany({
+          where: { sessionId, turnIndex },
+          data: updateTurn,
+        });
 
         // Also update the session with PII (first non-null wins)
-        const sessionUpdate: Record<string, string> = {};
-        if (extracted.name) sessionUpdate.userName = extracted.name;
-        if (extracted.email) sessionUpdate.userEmail = extracted.email;
-        if (extracted.phone) sessionUpdate.userPhone = extracted.phone;
-        if (extracted.company) sessionUpdate.userCompany = extracted.company;
+        const session = await prisma.voiceSession.findUnique({
+          where: { sessionId },
+        });
 
-        if (Object.keys(sessionUpdate).length > 0) {
-          // Only update fields that are not already set
-          const session = await VoiceSession.findOne({ sessionId });
-          if (session) {
-            const finalUpdate: Record<string, string> = {};
-            if (!session.userName && sessionUpdate.userName) finalUpdate.userName = sessionUpdate.userName;
-            if (!session.userEmail && sessionUpdate.userEmail) finalUpdate.userEmail = sessionUpdate.userEmail;
-            if (!session.userPhone && sessionUpdate.userPhone) finalUpdate.userPhone = sessionUpdate.userPhone;
-            if (!session.userCompany && sessionUpdate.userCompany) finalUpdate.userCompany = sessionUpdate.userCompany;
+        if (session) {
+          const sessionUpdate: Record<string, string> = {};
+          if (!session.userName && extracted.name) sessionUpdate.userName = extracted.name;
+          if (!session.userEmail && extracted.email) sessionUpdate.userEmail = extracted.email;
+          if (!session.userPhone && extracted.phone) sessionUpdate.userPhone = extracted.phone;
+          if (!session.userCompany && extracted.company) sessionUpdate.userCompany = extracted.company;
 
-            if (Object.keys(finalUpdate).length > 0) {
-              await VoiceSession.findOneAndUpdate(
-                { sessionId },
-                { $set: finalUpdate }
-              );
-            }
+          if (Object.keys(sessionUpdate).length > 0) {
+            await prisma.voiceSession.update({
+              where: { sessionId },
+              data: sessionUpdate,
+            });
           }
         }
       }

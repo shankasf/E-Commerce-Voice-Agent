@@ -13,7 +13,6 @@ import {
     Calendar,
     Filter,
     RefreshCw,
-    LogOut,
     ChevronRight,
     MessageSquare,
     Star,
@@ -99,22 +98,10 @@ export default function VoiceAnalyticsPage() {
     const [followUpOnly, setFollowUpOnly] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
 
-    // Check authentication
+    // Mark as authenticated (layout handles auth check)
     useEffect(() => {
-        async function checkAuth() {
-            try {
-                const response = await fetch("/api/admin/auth");
-                if (response.ok) {
-                    setIsAuthenticated(true);
-                } else {
-                    router.push("/admin/login");
-                }
-            } catch {
-                router.push("/admin/login");
-            }
-        }
-        checkAuth();
-    }, [router]);
+        setIsAuthenticated(true);
+    }, []);
 
     // Fetch overview data
     const fetchOverview = useCallback(async () => {
@@ -192,12 +179,6 @@ export default function VoiceAnalyticsPage() {
         }
     }, [isAuthenticated, fetchOverview, fetchSessions]);
 
-    // Logout handler
-    const handleLogout = async () => {
-        await fetch("/api/admin/auth", { method: "DELETE" });
-        router.push("/admin/login");
-    };
-
     // Format duration
     const formatDuration = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
@@ -224,36 +205,25 @@ export default function VoiceAnalyticsPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950">
-            {/* Header */}
-            <header className="sticky top-0 z-50 border-b border-white/10 bg-slate-950/80 backdrop-blur-xl">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h1 className="text-2xl font-bold text-white">Voice Analytics</h1>
-                            <p className="text-slate-400 text-sm">CallSphere AI Voice Agent Dashboard</p>
-                        </div>
-                        <div className="flex items-center gap-4">
-                            <button
-                                onClick={() => { fetchOverview(); fetchSessions(); }}
-                                className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-                                title="Refresh"
-                            >
-                                <RefreshCw className="w-5 h-5" />
-                            </button>
-                            <button
-                                onClick={handleLogout}
-                                className="flex items-center gap-2 px-4 py-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-                            >
-                                <LogOut className="w-4 h-4" />
-                                Logout
-                            </button>
-                        </div>
+        <div>
+            {/* Page Header */}
+            <div className="px-4 sm:px-6 lg:px-8 py-6 border-b border-white/10">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h1 className="text-2xl font-bold text-white">Voice Analytics</h1>
+                        <p className="text-slate-400 text-sm">CallSphere AI Voice Agent Dashboard</p>
                     </div>
+                    <button
+                        onClick={() => { fetchOverview(); fetchSessions(); }}
+                        className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                        title="Refresh"
+                    >
+                        <RefreshCw className="w-5 h-5" />
+                    </button>
                 </div>
-            </header>
+            </div>
 
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {/* KPI Cards */}
                 {overview && (
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
@@ -576,7 +546,7 @@ export default function VoiceAnalyticsPage() {
                         </div>
                     )}
                 </div>
-            </main>
+            </div>
 
             {/* Session Detail Modal */}
             {(selectedSession || isDetailLoading) && (

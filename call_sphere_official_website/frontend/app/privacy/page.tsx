@@ -1,8 +1,29 @@
-"use client";
-
+import { Metadata } from "next";
 import { Nav } from "@/components/Nav";
 import { Footer } from "@/components/Footer";
 import { SectionHeading } from "@/components/SectionHeading";
+
+export const metadata: Metadata = {
+  title: "Privacy Policy | CallSphere",
+  description:
+    "Learn how CallSphere collects, uses, and protects your information. GDPR & CPRA compliant. Data encryption, retention policies, and your privacy rights.",
+  alternates: {
+    canonical: "https://callsphere.tech/privacy",
+  },
+  openGraph: {
+    title: "Privacy Policy | CallSphere",
+    description:
+      "Learn how CallSphere collects, uses, and protects your information. GDPR & CPRA compliant.",
+    url: "https://callsphere.tech/privacy",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "Privacy Policy | CallSphere",
+    description:
+      "Learn how CallSphere collects, uses, and protects your information. GDPR & CPRA compliant.",
+  },
+};
 
 export default function PrivacyPolicyPage() {
   return (
@@ -67,15 +88,18 @@ export default function PrivacyPolicyPage() {
             <section>
               <h2 className="text-xl font-semibold text-slate-900 mb-4">4. Data Security</h2>
               <p>
-                We implement industry-standard security measures to protect your information:
+                We implement security measures to protect your information:
               </p>
               <ul className="list-disc list-inside space-y-2 ml-4 mt-3">
-                <li><strong>PCI-DSS Compliance:</strong> Payment information is processed through PCI-compliant payment processors and is never stored on our servers.</li>
-                <li><strong>PII Vaulting:</strong> Personal identifying information is encrypted and stored in secure vaults with role-based access controls.</li>
-                <li><strong>Encryption:</strong> All data in transit is encrypted using TLS 1.3, and data at rest is encrypted using AES-256.</li>
-                <li><strong>Audit Logging:</strong> Comprehensive audit trails track all access to sensitive data for compliance and security monitoring.</li>
+                <li><strong>Payment Processing:</strong> Payments are processed by PCI-DSS compliant providers (e.g., Stripe). We do not store card details on our servers.</li>
+                <li><strong>Data Protection:</strong> Personal information is stored with role-based access controls and encryption where supported by our infrastructure.</li>
+                <li><strong>Encryption:</strong> Encryption in transit (TLS/HTTPS) and encryption at rest where supported by our cloud providers.</li>
+                <li><strong>Audit Logging:</strong> Admin actions are logged for security monitoring.</li>
                 <li><strong>Access Controls:</strong> Role-based access controls restrict sensitive operations to authorized personnel only.</li>
               </ul>
+              <p className="mt-3">
+                For more details about our security practices, please visit our <a href="/security" className="text-blue-600 hover:underline">Security page</a>.
+              </p>
             </section>
 
             <section>
@@ -103,25 +127,28 @@ export default function PrivacyPolicyPage() {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-slate-900 mb-4">7. Your Rights and Choices</h2>
-              <p>Depending on your location, you may have the following rights:</p>
+              <h2 className="text-xl font-semibold text-slate-900 mb-4">7. Your Rights and Choices (GDPR/CPRA)</h2>
+              <p>We support GDPR and CPRA rights requests. Depending on your location, you may have the following rights:</p>
               <ul className="list-disc list-inside space-y-2 ml-4 mt-3">
                 <li><strong>Access:</strong> Request a copy of the personal information we hold about you.</li>
                 <li><strong>Correction:</strong> Request correction of inaccurate or incomplete information.</li>
                 <li><strong>Deletion:</strong> Request deletion of your personal information, subject to legal retention requirements.</li>
-                <li><strong>Portability:</strong> Request your data in a structured, machine-readable format.</li>
+                <li><strong>Portability/Export:</strong> Request your data in a structured, machine-readable format.</li>
                 <li><strong>Opt-Out:</strong> Opt out of marketing communications at any time.</li>
                 <li><strong>Withdraw Consent:</strong> Where processing is based on consent, you may withdraw it at any time.</li>
               </ul>
               <p className="mt-3">
-                To exercise these rights, please contact us at <a href="mailto:sagar@callsphere.tech" className="text-blue-600 hover:underline">sagar@callsphere.tech</a>.
+                To exercise these rights, please visit our <a href="/data-rights" className="text-blue-600 hover:underline">Data Rights page</a> or contact us at <a href="mailto:sagar@callsphere.tech" className="text-blue-600 hover:underline">sagar@callsphere.tech</a>.
+              </p>
+              <p className="mt-3">
+                For business customers requiring a Data Processing Addendum (DPA), please contact us at <a href="mailto:sagar@callsphere.tech" className="text-blue-600 hover:underline">sagar@callsphere.tech</a>.
               </p>
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-slate-900 mb-4">8. HIPAA Compliance</h2>
+              <h2 className="text-xl font-semibold text-slate-900 mb-4">8. Healthcare Customers (HIPAA)</h2>
               <p>
-                For healthcare clients, CallSphere offers HIPAA-compliant configurations. If you are a covered entity or business associate under HIPAA, please contact us to execute a Business Associate Agreement (BAA) before transmitting protected health information (PHI) through our Services.
+                HIPAA support is available for healthcare customers with a signed Business Associate Agreement (BAA) and eligible infrastructure configuration. If you are a covered entity or business associate under HIPAA, please contact us at <a href="mailto:sagar@callsphere.tech" className="text-blue-600 hover:underline">sagar@callsphere.tech</a> to discuss BAA requirements before transmitting protected health information (PHI) through our Services.
               </p>
             </section>
 
@@ -155,13 +182,20 @@ export default function PrivacyPolicyPage() {
                 <p className="font-semibold text-slate-900">CallSphere LLC</p>
                 <p>27 Orchard Pl</p>
                 <p>New York, NY</p>
-                <p className="mt-2">
+                <p className="mt-4">
                   Email: <a href="mailto:sagar@callsphere.tech" className="text-blue-600 hover:underline">sagar@callsphere.tech</a>
                 </p>
-                <p>
+                <p className="mt-2">
                   Phone: <a href="tel:+18453884261" className="text-blue-600 hover:underline">(845) 388-4261</a>
                 </p>
               </div>
+            </section>
+
+            <section>
+              <h2 className="text-xl font-semibold text-slate-900 mb-4">13. Subprocessors</h2>
+              <p>
+                We use third-party service providers (subprocessors) to help deliver our Services. For a current list of our subprocessors and their purposes, please visit our <a href="/subprocessors" className="text-blue-600 hover:underline">Subprocessors page</a>.
+              </p>
             </section>
           </div>
         </div>

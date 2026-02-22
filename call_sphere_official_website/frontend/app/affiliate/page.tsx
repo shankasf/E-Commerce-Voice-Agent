@@ -5,11 +5,28 @@ import { DollarSign, Users, TrendingUp, Zap, CheckCircle, ArrowRight, Gift, Shie
 import { Footer } from "@/components/Footer";
 import { Nav } from "@/components/Nav";
 import { VoiceAgentLauncher } from "@/components/VoiceAgentLauncher";
+import { BreadcrumbJsonLd } from "@/components/StructuredData";
 
 export const metadata: Metadata = {
     title: "Affiliate Program - Earn 22% Commission | CallSphere",
     description:
         "Join the CallSphere Affiliate Program and earn 22% of all payments from your referrals for the first year. Start earning passive income by promoting AI voice agents.",
+    alternates: {
+        canonical: "https://callsphere.tech/affiliate",
+    },
+    openGraph: {
+        title: "Affiliate Program - Earn 22% Commission | CallSphere",
+        description:
+            "Earn 22% of all payments from your referrals for the first year. Promote AI voice agents and earn passive income.",
+        url: "https://callsphere.tech/affiliate",
+        type: "website",
+    },
+    twitter: {
+        card: "summary_large_image",
+        title: "Affiliate Program - Earn 22% Commission | CallSphere",
+        description:
+            "Earn 22% of all payments from your referrals for the first year. Promote AI voice agents and earn passive income.",
+    },
 };
 
 const benefits = [
@@ -84,6 +101,12 @@ const earnings = [
 export default function AffiliatePage() {
     return (
         <>
+            <BreadcrumbJsonLd
+                items={[
+                    { name: "Home", url: "https://callsphere.tech" },
+                    { name: "Affiliate Program", url: "https://callsphere.tech/affiliate" },
+                ]}
+            />
             <Nav />
             <main id="main" className="relative overflow-hidden">
                 {/* Hero Section */}
