@@ -2,14 +2,26 @@ import api from './api';
 import { Customer } from '@/types';
 
 // Transform backend response (snake_case IDs) to frontend (id)
-const transformCustomer = (customer: any): Customer => ({
-  ...customer,
-  id: customer.id || String(customer.customer_id),
-  first_name: customer.first_name || customer.user?.first_name || '',
-  last_name: customer.last_name || customer.user?.last_name || '',
-  email: customer.email || customer.user?.email || '',
-  phone: customer.phone || customer.user?.phone,
-});
+const transformCustomer = (customer: any): Customer => {
+  // Extract first/last name from user.full_name if customer fields are missing
+  let firstName = customer.first_name || '';
+  let lastName = customer.last_name || '';
+
+  if (!firstName && !lastName && customer.user?.full_name) {
+    const nameParts = customer.user.full_name.split(' ');
+    firstName = nameParts[0] || '';
+    lastName = nameParts.slice(1).join(' ') || '';
+  }
+
+  return {
+    ...customer,
+    id: customer.id || String(customer.customer_id),
+    first_name: firstName,
+    last_name: lastName,
+    email: customer.email || customer.user?.email || '',
+    phone: customer.phone || customer.user?.phone,
+  };
+};
 
 export const customerService = {
   async getAll(): Promise<Customer[]> {

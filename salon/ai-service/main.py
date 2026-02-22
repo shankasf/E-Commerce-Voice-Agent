@@ -1178,6 +1178,24 @@ async def tool_create_appointment(request: Request):
             logger.error(f"   ❌ Failed to get customer_id from: {customer}")
             return {"success": False, "error": "Failed to get or create customer"}
         
+        # Find the most recent active call log to link the appointment
+        # Since ElevenLabs webhooks don't pass session context, we link to the latest in_progress call
+        call_id = None
+        try:
+            from db import get_db_cursor
+            with get_db_cursor() as cursor:
+                cursor.execute("""
+                    SELECT call_id FROM call_logs
+                    WHERE status = 'in_progress' AND caller_phone = 'webrtc'
+                    ORDER BY created_at DESC LIMIT 1
+                """)
+                result = cursor.fetchone()
+                if result:
+                    call_id = result['call_id']
+                    logger.info(f"   📞 Linking to call: {call_id}")
+        except Exception as e:
+            logger.warning(f"   ⚠️ Could not find active call: {e}")
+
         # Create the appointment
         logger.info(f"   📝 Creating appointment in database...")
         appointment = create_appointment(
@@ -1187,10 +1205,22 @@ async def tool_create_appointment(request: Request):
             appointment_date=appointment_date,
             start_time=appointment_time,
             customer_notes=notes,
-            booked_via="voice_agent"
+            booked_via="voice_agent",
+            call_id=call_id
         )
-        
+
         if appointment:
+            # Update the call log with the appointment_id
+            if call_id:
+                try:
+                    update_call_log(
+                        call_id,
+                        appointment_id=appointment.get("appointment_id"),
+                        action_taken="appointment_booked"
+                    )
+                    logger.info(f"   ✅ Linked appointment to call log")
+                except Exception as e:
+                    logger.warning(f"   ⚠️ Failed to update call log: {e}")
             reference = appointment.get("booking_reference") or f"GB-{date_str.replace('-', '')}-{appointment.get('appointment_id', '000'):03d}"
             
             logger.info(f"   🎉 APPOINTMENT CREATED!")
@@ -1224,6 +1254,14 @@ async def tool_create_appointment(request: Request):
         logger.error(f"   Traceback: {traceback.format_exc()}")
         log_broadcaster.log_error("agent", str(e), {"tool": "create_appointment"})
         return {"success": False, "error": str(e)}
+
+
+@app.post("/api/agent/tools/book_appointment")
+async def tool_book_appointment(request: Request):
+    """
+    Alias for create_appointment - some LLMs may use 'book' instead of 'create'.
+    """
+    return await tool_create_appointment(request)
 
 
 @app.post("/api/agent/tools/lookup_appointment")

@@ -6,24 +6,25 @@ Environment configuration for the salon voice agent.
 
 import os
 from functools import lru_cache
+from pathlib import Path
 from typing import List, Optional
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load .env from project root (parent directory)
+root_env = Path(__file__).parent.parent / '.env'
+load_dotenv(root_env)
 
 
 class Config:
     """Application configuration from environment variables."""
-    
+
     # Server
-    host: str = os.getenv("HOST", "0.0.0.0")
-    port: int = int(os.getenv("PORT", "8086"))
+    host: str = os.getenv("AI_SERVICE_HOST", os.getenv("HOST", "0.0.0.0"))
+    port: int = int(os.getenv("AI_SERVICE_PORT", os.getenv("PORT", "8086")))
     debug: bool = os.getenv("DEBUG", "false").lower() == "true"
     
-    # Supabase
-    supabase_url: str = os.getenv("SUPABASE_URL", "")
-    supabase_key: str = os.getenv("SUPABASE_KEY", "")  # anon key (optional, for RLS-restricted access)
-    supabase_service_key: str = os.getenv("SUPABASE_SERVICE_KEY", "")  # service role key (bypasses RLS)
+    # Database
+    database_url: str = os.getenv("DATABASE_URL", "postgresql://glambook:glambook2024@localhost:5432/glambook")
     
     # Eleven Labs
     elevenlabs_api_key: str = os.getenv("ELEVENLABS_API_KEY", "")
@@ -57,16 +58,14 @@ class Config:
     def validate(self) -> List[str]:
         """Validate required configuration."""
         errors: List[str] = []
-        
-        if not self.supabase_url:
-            errors.append("SUPABASE_URL is required")
-        if not self.supabase_service_key:
-            errors.append("SUPABASE_SERVICE_KEY is required (service role key to bypass RLS)")
+
+        if not self.database_url:
+            errors.append("DATABASE_URL is required")
         if not self.elevenlabs_api_key:
             errors.append("ELEVENLABS_API_KEY is required")
         if not self.openai_api_key:
             errors.append("OPENAI_API_KEY is required")
-            
+
         return errors
 
 

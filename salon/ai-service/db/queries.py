@@ -1,12 +1,15 @@
 """
 GlamBook AI Service - Database Queries
 
-Query functions for the salon voice agent.
+Query functions for the salon voice agent using plain PostgreSQL.
 """
 
 from datetime import datetime, date, time, timedelta
 from typing import Optional, List, Dict, Any
-from db import get_supabase
+from db import get_db_cursor
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 # ============================================
@@ -18,31 +21,30 @@ def find_customer_by_phone(phone: str) -> Optional[Dict[str, Any]]:
     Find a customer by their phone number.
     Returns customer details if found.
     """
-    supabase = get_supabase()
-    
-    # First find user by phone
-    user_result = supabase.table("users").select("*").eq("phone", phone).execute()
-    
-    if not user_result.data:
-        # Try with normalized phone formats
-        normalized = phone.replace("-", "").replace(" ", "").replace("(", "").replace(")", "")
-        user_result = supabase.table("users").select("*").ilike("phone", f"%{normalized[-10:]}%").execute()
-    
-    if not user_result.data:
-        return None
-    
-    user = user_result.data[0]
-    
-    # Get customer record
-    customer_result = supabase.table("customers").select("*").eq("user_id", user["user_id"]).execute()
-    
-    if customer_result.data:
-        return {
-            **user,
-            **customer_result.data[0]
-        }
-    
-    return user
+    with get_db_cursor() as cursor:
+        # First find user by phone
+        cursor.execute("SELECT * FROM users WHERE phone = %s", (phone,))
+        user = cursor.fetchone()
+
+        if not user:
+            # Try with normalized phone formats
+            normalized = phone.replace("-", "").replace(" ", "").replace("(", "").replace(")", "")
+            cursor.execute("SELECT * FROM users WHERE phone ILIKE %s", (f"%{normalized[-10:]}%",))
+            user = cursor.fetchone()
+
+        if not user:
+            return None
+
+        user = dict(user)
+
+        # Get customer record
+        cursor.execute("SELECT * FROM customers WHERE user_id = %s", (user["user_id"],))
+        customer = cursor.fetchone()
+
+        if customer:
+            return {**user, **dict(customer)}
+
+        return user
 
 
 def create_customer(
@@ -53,37 +55,29 @@ def create_customer(
     """
     Create a new customer in the database.
     """
-    supabase = get_supabase()
-    
     # Generate email if not provided (required by schema)
     if not email:
-        # Create a unique email based on phone number
         clean_phone = ''.join(filter(str.isdigit, phone))
         email = f"customer_{clean_phone}@glambook.voice"
-    
-    # Create user first
-    user_data = {
-        "phone": phone,
-        "full_name": full_name,
-        "email": email,
-        "role": "customer",
-        "is_active": True
-    }
-    
-    user_result = supabase.table("users").insert(user_data).execute()
-    user = user_result.data[0]
-    
-    # Create customer record
-    customer_data = {
-        "user_id": user["user_id"]
-    }
-    
-    customer_result = supabase.table("customers").insert(customer_data).execute()
-    
-    return {
-        **user,
-        **customer_result.data[0]
-    }
+
+    with get_db_cursor() as cursor:
+        # Create user first
+        cursor.execute("""
+            INSERT INTO users (phone, full_name, email, role, is_active)
+            VALUES (%s, %s, %s, 'customer', true)
+            RETURNING *
+        """, (phone, full_name, email))
+        user = dict(cursor.fetchone())
+
+        # Create customer record
+        cursor.execute("""
+            INSERT INTO customers (user_id)
+            VALUES (%s)
+            RETURNING *
+        """, (user["user_id"],))
+        customer = dict(cursor.fetchone())
+
+        return {**user, **customer}
 
 
 def get_customer_appointments(
@@ -94,22 +88,40 @@ def get_customer_appointments(
     """
     Get appointments for a customer.
     """
-    supabase = get_supabase()
-    
-    query = supabase.table("appointments").select(
-        "*, appointment_services(*, services(name, price))"
-    ).eq("customer_id", customer_id)
-    
-    if upcoming_only:
-        query = query.gte("appointment_date", date.today().isoformat())
-    
-    if status:
-        query = query.eq("status", status)
-    
-    query = query.order("appointment_date", desc=False).order("start_time", desc=False)
-    
-    result = query.execute()
-    return result.data
+    with get_db_cursor() as cursor:
+        query = """
+            SELECT a.*,
+                   s.name as stylist_name
+            FROM appointments a
+            LEFT JOIN stylists s ON a.stylist_id = s.stylist_id
+            WHERE a.customer_id = %s
+        """
+        params = [customer_id]
+
+        if upcoming_only:
+            query += " AND a.appointment_date >= %s"
+            params.append(date.today().isoformat())
+
+        if status:
+            query += " AND a.status = %s"
+            params.append(status)
+
+        query += " ORDER BY a.appointment_date ASC, a.start_time ASC"
+
+        cursor.execute(query, params)
+        appointments = [dict(row) for row in cursor.fetchall()]
+
+        # Get services for each appointment
+        for apt in appointments:
+            cursor.execute("""
+                SELECT as2.*, s.name as service_name
+                FROM appointment_services as2
+                LEFT JOIN services s ON as2.service_id = s.service_id
+                WHERE as2.appointment_id = %s
+            """, (apt["appointment_id"],))
+            apt["services"] = [dict(row) for row in cursor.fetchall()]
+
+        return appointments
 
 
 # ============================================
@@ -120,54 +132,61 @@ def get_all_services(category_id: Optional[int] = None, active_only: bool = True
     """
     Get all salon services.
     """
-    supabase = get_supabase()
-    
-    query = supabase.table("services").select("*, service_categories(name)")
-    
-    if active_only:
-        query = query.eq("is_active", True)
-    
-    if category_id:
-        query = query.eq("category_id", category_id)
-    
-    query = query.order("display_order")
-    
-    result = query.execute()
-    return result.data
+    with get_db_cursor() as cursor:
+        query = """
+            SELECT s.*, sc.name as category_name
+            FROM services s
+            LEFT JOIN service_categories sc ON s.category_id = sc.category_id
+            WHERE 1=1
+        """
+        params = []
+
+        if active_only:
+            query += " AND s.is_active = true"
+
+        if category_id:
+            query += " AND s.category_id = %s"
+            params.append(category_id)
+
+        query += " ORDER BY s.display_order"
+
+        cursor.execute(query, params)
+        return [dict(row) for row in cursor.fetchall()]
 
 
 def get_service_categories() -> List[Dict[str, Any]]:
     """
     Get all service categories.
     """
-    supabase = get_supabase()
-    
-    result = supabase.table("service_categories").select("*").eq(
-        "is_active", True
-    ).order("display_order").execute()
-    
-    return result.data
+    with get_db_cursor() as cursor:
+        cursor.execute("""
+            SELECT * FROM service_categories
+            WHERE is_active = true
+            ORDER BY display_order
+        """)
+        return [dict(row) for row in cursor.fetchall()]
 
 
 def find_service_by_name(name: str) -> Optional[Dict[str, Any]]:
     """
     Find a service by name (fuzzy match).
     """
-    supabase = get_supabase()
-    
-    # Try exact match first
-    result = supabase.table("services").select("*").ilike("name", name).execute()
-    
-    if result.data:
-        return result.data[0]
-    
-    # Try partial match
-    result = supabase.table("services").select("*").ilike("name", f"%{name}%").execute()
-    
-    if result.data:
-        return result.data[0]
-    
-    return None
+    with get_db_cursor() as cursor:
+        # Try exact match first
+        cursor.execute("SELECT * FROM services WHERE name ILIKE %s", (name,))
+        result = cursor.fetchone()
+
+        if result:
+            return dict(result)
+
+        # Try partial match
+        cursor.execute("SELECT * FROM services WHERE name ILIKE %s", (f"%{name}%",))
+        result = cursor.fetchone()
+
+        if result:
+            return dict(result)
+
+        return None
 
 
 # ============================================
@@ -178,31 +197,26 @@ def get_all_stylists(active_only: bool = True) -> List[Dict[str, Any]]:
     """
     Get all stylists.
     """
-    supabase = get_supabase()
-    
-    query = supabase.table("stylists").select("*")
-    
-    if active_only:
-        query = query.eq("is_active", True)
-    
-    result = query.execute()
-    return result.data
+    with get_db_cursor() as cursor:
+        query = "SELECT * FROM stylists"
+        if active_only:
+            query += " WHERE is_active = true"
+
+        cursor.execute(query)
+        return [dict(row) for row in cursor.fetchall()]
 
 
 def get_stylist_by_name(name: str) -> Optional[Dict[str, Any]]:
     """
     Find a stylist by name.
     """
-    supabase = get_supabase()
-    
-    result = supabase.table("stylists").select("*").ilike(
-        "full_name", f"%{name}%"
-    ).eq("is_active", True).execute()
-    
-    if result.data:
-        return result.data[0]
-    
-    return None
+    with get_db_cursor() as cursor:
+        cursor.execute("""
+            SELECT * FROM stylists
+            WHERE full_name ILIKE %s AND is_active = true
+        """, (f"%{name}%",))
+        result = cursor.fetchone()
+        return dict(result) if result else None
 
 
 def get_stylist_availability(
@@ -213,48 +227,51 @@ def get_stylist_availability(
     Get stylist availability for a specific date.
     Returns working hours and booked slots.
     """
-    supabase = get_supabase()
-    
-    # Get day of week
     day_name = check_date.strftime("%A").lower()
-    
-    # Get stylist schedule for this day
-    schedule_result = supabase.table("stylist_schedules").select("*").eq(
-        "stylist_id", stylist_id
-    ).eq("day_of_week", day_name).execute()
-    
-    if not schedule_result.data or not schedule_result.data[0].get("is_working"):
-        return {"available": False, "reason": "Stylist not working this day"}
-    
-    schedule = schedule_result.data[0]
-    
-    # Check for time off
-    time_off_result = supabase.table("stylist_time_off").select("*").eq(
-        "stylist_id", stylist_id
-    ).lte("start_datetime", f"{check_date}T23:59:59").gte(
-        "end_datetime", f"{check_date}T00:00:00"
-    ).execute()
-    
-    if time_off_result.data:
-        return {"available": False, "reason": "Stylist has time off"}
-    
-    # Get existing appointments
-    appointments_result = supabase.table("appointments").select(
-        "start_time, end_time, duration_minutes"
-    ).eq("stylist_id", stylist_id).eq(
-        "appointment_date", check_date.isoformat()
-    ).not_.in_("status", ["cancelled"]).execute()
-    
-    booked_slots = [(apt["start_time"], apt["end_time"]) for apt in appointments_result.data]
-    
-    return {
-        "available": True,
-        "start_time": schedule["start_time"],
-        "end_time": schedule["end_time"],
-        "break_start": schedule.get("break_start"),
-        "break_end": schedule.get("break_end"),
-        "booked_slots": booked_slots
-    }
+
+    with get_db_cursor() as cursor:
+        # Get stylist schedule for this day
+        cursor.execute("""
+            SELECT * FROM stylist_schedules
+            WHERE stylist_id = %s AND day_of_week = %s
+        """, (stylist_id, day_name))
+        schedule = cursor.fetchone()
+
+        if not schedule or not schedule.get("is_working"):
+            return {"available": False, "reason": "Stylist not working this day"}
+
+        schedule = dict(schedule)
+
+        # Check for time off
+        cursor.execute("""
+            SELECT * FROM stylist_time_off
+            WHERE stylist_id = %s
+            AND start_datetime <= %s
+            AND end_datetime >= %s
+        """, (stylist_id, f"{check_date}T23:59:59", f"{check_date}T00:00:00"))
+
+        if cursor.fetchone():
+            return {"available": False, "reason": "Stylist has time off"}
+
+        # Get existing appointments
+        cursor.execute("""
+            SELECT start_time, end_time, duration_minutes
+            FROM appointments
+            WHERE stylist_id = %s
+            AND appointment_date = %s
+            AND status NOT IN ('cancelled')
+        """, (stylist_id, check_date.isoformat()))
+
+        booked_slots = [(str(apt["start_time"]), str(apt["end_time"])) for apt in cursor.fetchall()]
+
+        return {
+            "available": True,
+            "start_time": str(schedule["start_time"]),
+            "end_time": str(schedule["end_time"]),
+            "break_start": str(schedule.get("break_start")) if schedule.get("break_start") else None,
+            "break_end": str(schedule.get("break_end")) if schedule.get("break_end") else None,
+            "booked_slots": booked_slots
+        }
 
 
 # ============================================
@@ -269,120 +286,117 @@ def get_available_slots(
     """
     Get available time slots for a service on a specific date.
     """
-    supabase = get_supabase()
-    
-    # Get service duration
-    service_result = supabase.table("services").select("duration_minutes").eq(
-        "service_id", service_id
-    ).execute()
-    
-    if not service_result.data:
-        return []
-    
-    duration = service_result.data[0]["duration_minutes"]
-    
-    # Get business hours
     day_name = check_date.strftime("%A").lower()
-    hours_result = supabase.table("business_hours").select("*").eq(
-        "day_of_week", day_name
-    ).execute()
-    
-    if not hours_result.data or not hours_result.data[0].get("is_open"):
-        return []
-    
-    hours = hours_result.data[0]
-    
-    # Check for salon closure
-    closure_result = supabase.table("salon_closures").select("*").eq(
-        "closure_date", check_date.isoformat()
-    ).execute()
-    
-    if closure_result.data:
-        return []
-    
-    # Get stylists who can perform this service
-    if stylist_id:
-        stylists = [{"stylist_id": stylist_id}]
-    else:
-        stylists_result = supabase.table("stylist_services").select(
-            "stylist_id, stylists(full_name, is_active)"
-        ).eq("service_id", service_id).execute()
-        
-        stylists = [s for s in stylists_result.data if s.get("stylists", {}).get("is_active")]
-        
+
+    with get_db_cursor() as cursor:
+        # Get service duration
+        cursor.execute("SELECT duration_minutes FROM services WHERE service_id = %s", (service_id,))
+        service = cursor.fetchone()
+
+        if not service:
+            return []
+
+        duration = service["duration_minutes"]
+
+        # Get business hours
+        cursor.execute("""
+            SELECT * FROM business_hours WHERE day_of_week = %s
+        """, (day_name,))
+        hours = cursor.fetchone()
+
+        if not hours or not hours.get("is_open"):
+            return []
+
+        hours = dict(hours)
+
+        # Check for salon closure
+        cursor.execute("""
+            SELECT * FROM salon_closures WHERE closure_date = %s
+        """, (check_date.isoformat(),))
+
+        if cursor.fetchone():
+            return []
+
+        # Get stylists
+        if stylist_id:
+            cursor.execute("SELECT stylist_id, full_name FROM stylists WHERE stylist_id = %s AND is_active = true", (stylist_id,))
+        else:
+            cursor.execute("SELECT stylist_id, full_name FROM stylists WHERE is_active = true")
+
+        stylists = [dict(row) for row in cursor.fetchall()]
+
         if not stylists:
-            # If no specific assignments, get all active stylists
-            all_stylists = supabase.table("stylists").select("stylist_id, full_name").eq(
-                "is_active", True
-            ).execute()
-            stylists = all_stylists.data
-    
-    # Generate time slots
-    available_slots = []
-    slot_duration = 30  # 30-minute slots
-    
-    # Helper to parse time strings in various formats
-    def parse_time_str(time_str: str) -> time:
-        for fmt in ["%H:%M:%S", "%H:%M", "%I:%M:%S %p", "%I:%M %p"]:
-            try:
-                return datetime.strptime(time_str, fmt).time()
-            except ValueError:
-                continue
-        # Default to midnight if parsing fails
-        return time(0, 0)
-    
-    open_time = parse_time_str(hours.get("open_time", "09:00:00"))
-    close_time = parse_time_str(hours.get("close_time", "17:00:00"))
-    
-    current_slot = datetime.combine(check_date, open_time)
-    end_of_day = datetime.combine(check_date, close_time)
-    
-    while current_slot + timedelta(minutes=duration) <= end_of_day:
-        slot_time = current_slot.time()
-        
-        # Check each stylist's availability
-        for stylist in stylists:
-            sid = stylist["stylist_id"]
-            availability = get_stylist_availability(sid, check_date)
-            
-            if not availability.get("available"):
-                continue
-            
-            # Check if slot is within stylist's hours
-            try:
-                stylist_start = parse_time_str(availability.get("start_time", "09:00:00"))
-                stylist_end = parse_time_str(availability.get("end_time", "17:00:00"))
-            except Exception:
-                continue
-            
-            if slot_time < stylist_start or slot_time >= stylist_end:
-                continue
-            
-            # Check if slot conflicts with booked appointments
-            slot_end = (current_slot + timedelta(minutes=duration)).time()
-            is_booked = False
-            
-            for booked_start, booked_end in availability.get("booked_slots", []):
+            return []
+
+        # Helper to parse time strings
+        def parse_time_str(time_val) -> time:
+            if isinstance(time_val, time):
+                return time_val
+            if isinstance(time_val, datetime):
+                return time_val.time()
+            if isinstance(time_val, str):
+                for fmt in ["%H:%M:%S", "%H:%M", "%I:%M:%S %p", "%I:%M %p"]:
+                    try:
+                        return datetime.strptime(time_val, fmt).time()
+                    except ValueError:
+                        continue
+            return time(0, 0)
+
+        open_time = parse_time_str(hours.get("open_time", "09:00:00"))
+        close_time = parse_time_str(hours.get("close_time", "18:00:00"))
+
+        # Generate time slots
+        available_slots = []
+        slot_duration = 30
+
+        current_slot = datetime.combine(check_date, open_time)
+        end_of_day = datetime.combine(check_date, close_time)
+
+        while current_slot + timedelta(minutes=duration) <= end_of_day:
+            slot_time = current_slot.time()
+
+            for stylist in stylists:
+                sid = stylist["stylist_id"]
+                availability = get_stylist_availability(sid, check_date)
+
+                if not availability.get("available"):
+                    continue
+
+                # Check if slot is within stylist's hours
                 try:
-                    booked_start_time = parse_time_str(booked_start)
-                    booked_end_time = parse_time_str(booked_end)
+                    stylist_start = parse_time_str(availability.get("start_time", "09:00:00"))
+                    stylist_end = parse_time_str(availability.get("end_time", "18:00:00"))
                 except Exception:
                     continue
-                
-                if not (slot_end <= booked_start_time or slot_time >= booked_end_time):
-                    is_booked = True
-                    break
-            
-            if not is_booked:
-                available_slots.append({
-                    "time": slot_time.strftime("%H:%M"),
-                    "stylist_id": sid,
-                    "stylist_name": stylist.get("full_name", "Any Stylist")
-                })
-        
-        current_slot += timedelta(minutes=slot_duration)
-    
-    return available_slots
+
+                if slot_time < stylist_start or slot_time >= stylist_end:
+                    continue
+
+                # Check if slot conflicts with booked appointments
+                slot_end = (current_slot + timedelta(minutes=duration)).time()
+                is_booked = False
+
+                for booked_start, booked_end in availability.get("booked_slots", []):
+                    try:
+                        booked_start_time = parse_time_str(booked_start)
+                        booked_end_time = parse_time_str(booked_end)
+                    except Exception:
+                        continue
+
+                    if not (slot_end <= booked_start_time or slot_time >= booked_end_time):
+                        is_booked = True
+                        break
+
+                if not is_booked:
+                    available_slots.append({
+                        "time": slot_time.strftime("%H:%M"),
+                        "stylist_id": sid,
+                        "stylist_name": stylist.get("full_name", "Any Stylist")
+                    })
+
+            current_slot += timedelta(minutes=slot_duration)
+
+        return available_slots
 
 
 def create_appointment(
@@ -398,55 +412,54 @@ def create_appointment(
     """
     Create a new appointment.
     """
-    supabase = get_supabase()
-    
-    # Calculate total duration and price
-    services_result = supabase.table("services").select("*").in_(
-        "service_id", service_ids
-    ).execute()
-    
-    services = services_result.data
-    total_duration = sum(s["duration_minutes"] for s in services)
-    subtotal = sum(float(s["price"]) for s in services)
-    
-    # Calculate end time
-    start_datetime = datetime.combine(appointment_date, start_time)
-    end_datetime = start_datetime + timedelta(minutes=total_duration)
-    end_time = end_datetime.time()
-    
-    # Create appointment
-    appointment_data = {
-        "customer_id": customer_id,
-        "stylist_id": stylist_id,
-        "appointment_date": appointment_date.isoformat(),
-        "start_time": start_time.strftime("%H:%M:%S"),
-        "end_time": end_time.strftime("%H:%M:%S"),
-        "duration_minutes": total_duration,
-        "subtotal": subtotal,
-        "total_amount": subtotal,  # Add tax calculation if needed
-        "status": "confirmed",
-        "confirmed_at": datetime.now().isoformat(),
-        "customer_notes": customer_notes,
-        "booked_via": booked_via,
-        "call_id": call_id
-    }
-    
-    result = supabase.table("appointments").insert(appointment_data).execute()
-    appointment = result.data[0]
-    
-    # Add services to appointment
-    for idx, service in enumerate(services):
-        service_data = {
-            "appointment_id": appointment["appointment_id"],
-            "service_id": service["service_id"],
-            "service_name": service["name"],
-            "price": service["price"],
-            "duration_minutes": service["duration_minutes"],
-            "sequence_order": idx + 1
-        }
-        supabase.table("appointment_services").insert(service_data).execute()
-    
-    return appointment
+    import uuid
+
+    with get_db_cursor() as cursor:
+        # Get services
+        cursor.execute("""
+            SELECT * FROM services WHERE service_id = ANY(%s)
+        """, (service_ids,))
+        services = [dict(row) for row in cursor.fetchall()]
+
+        total_duration = sum(s["duration_minutes"] for s in services)
+        subtotal = sum(float(s["price"]) for s in services)
+
+        # Calculate end time
+        start_datetime = datetime.combine(appointment_date, start_time)
+        end_datetime = start_datetime + timedelta(minutes=total_duration)
+        end_time_val = end_datetime.time()
+
+        # Generate booking reference
+        booking_ref = f"GB{datetime.now().strftime('%y%m%d')}{str(uuid.uuid4())[:6].upper()}"
+
+        # Create appointment
+        cursor.execute("""
+            INSERT INTO appointments (
+                booking_reference, customer_id, stylist_id, appointment_date,
+                start_time, end_time, duration_minutes, subtotal, total_amount,
+                status, confirmed_at, customer_notes, booked_via, call_id
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'confirmed', %s, %s, %s, %s)
+            RETURNING *
+        """, (
+            booking_ref, customer_id, stylist_id, appointment_date.isoformat(),
+            start_time.strftime("%H:%M:%S"), end_time_val.strftime("%H:%M:%S"),
+            total_duration, subtotal, subtotal,
+            datetime.now().isoformat(), customer_notes, booked_via, call_id
+        ))
+        appointment = dict(cursor.fetchone())
+
+        # Add services to appointment
+        for idx, service in enumerate(services):
+            cursor.execute("""
+                INSERT INTO appointment_services (
+                    appointment_id, service_id, service_name, price, duration_minutes, sequence_order
+                ) VALUES (%s, %s, %s, %s, %s, %s)
+            """, (
+                appointment["appointment_id"], service["service_id"],
+                service["name"], service["price"], service["duration_minutes"], idx + 1
+            ))
+
+        return appointment
 
 
 def cancel_appointment(
@@ -457,20 +470,15 @@ def cancel_appointment(
     """
     Cancel an appointment.
     """
-    supabase = get_supabase()
-    
-    update_data = {
-        "status": "cancelled",
-        "cancelled_at": datetime.now().isoformat(),
-        "cancelled_by": cancelled_by,
-        "cancellation_reason": reason
-    }
-    
-    result = supabase.table("appointments").update(update_data).eq(
-        "appointment_id", appointment_id
-    ).execute()
-    
-    return result.data[0] if result.data else None
+    with get_db_cursor() as cursor:
+        cursor.execute("""
+            UPDATE appointments
+            SET status = 'cancelled', cancelled_at = %s, cancelled_by = %s, cancellation_reason = %s
+            WHERE appointment_id = %s
+            RETURNING *
+        """, (datetime.now().isoformat(), cancelled_by, reason, appointment_id))
+        result = cursor.fetchone()
+        return dict(result) if result else None
 
 
 def reschedule_appointment(
@@ -482,53 +490,60 @@ def reschedule_appointment(
     """
     Reschedule an appointment to a new date/time.
     """
-    supabase = get_supabase()
-    
-    # Get current appointment
-    current = supabase.table("appointments").select("*").eq(
-        "appointment_id", appointment_id
-    ).execute()
-    
-    if not current.data:
-        return None
-    
-    appointment = current.data[0]
-    duration = appointment["duration_minutes"]
-    
-    # Calculate new end time
-    new_start_datetime = datetime.combine(new_date, new_start_time)
-    new_end_datetime = new_start_datetime + timedelta(minutes=duration)
-    new_end_time = new_end_datetime.time()
-    
-    update_data = {
-        "appointment_date": new_date.isoformat(),
-        "start_time": new_start_time.strftime("%H:%M:%S"),
-        "end_time": new_end_time.strftime("%H:%M:%S"),
-        "status": "confirmed",
-        "confirmed_at": datetime.now().isoformat()
-    }
-    
-    if new_stylist_id:
-        update_data["stylist_id"] = new_stylist_id
-    
-    result = supabase.table("appointments").update(update_data).eq(
-        "appointment_id", appointment_id
-    ).execute()
-    
-    return result.data[0] if result.data else None
+    with get_db_cursor() as cursor:
+        # Get current appointment
+        cursor.execute("SELECT * FROM appointments WHERE appointment_id = %s", (appointment_id,))
+        current = cursor.fetchone()
+
+        if not current:
+            return None
+
+        duration = current["duration_minutes"]
+
+        # Calculate new end time
+        new_start_datetime = datetime.combine(new_date, new_start_time)
+        new_end_datetime = new_start_datetime + timedelta(minutes=duration)
+        new_end_time = new_end_datetime.time()
+
+        # Build update query
+        if new_stylist_id:
+            cursor.execute("""
+                UPDATE appointments
+                SET appointment_date = %s, start_time = %s, end_time = %s,
+                    stylist_id = %s, status = 'confirmed', confirmed_at = %s
+                WHERE appointment_id = %s
+                RETURNING *
+            """, (new_date.isoformat(), new_start_time.strftime("%H:%M:%S"),
+                  new_end_time.strftime("%H:%M:%S"), new_stylist_id,
+                  datetime.now().isoformat(), appointment_id))
+        else:
+            cursor.execute("""
+                UPDATE appointments
+                SET appointment_date = %s, start_time = %s, end_time = %s,
+                    status = 'confirmed', confirmed_at = %s
+                WHERE appointment_id = %s
+                RETURNING *
+            """, (new_date.isoformat(), new_start_time.strftime("%H:%M:%S"),
+                  new_end_time.strftime("%H:%M:%S"),
+                  datetime.now().isoformat(), appointment_id))
+
+        result = cursor.fetchone()
+        return dict(result) if result else None
 
 
 def get_appointment_by_reference(booking_reference: str) -> Optional[Dict[str, Any]]:
     """
     Get appointment by booking reference.
     """
-    supabase = get_supabase()
-    
-    result = supabase.table("appointments").select(
-        "*, customers(*, users(*)), stylists(*), appointment_services(*, services(*))"
-    ).eq("booking_reference", booking_reference).execute()
-    
-    return result.data[0] if result.data else None
+    with get_db_cursor() as cursor:
+        cursor.execute("""
+            SELECT a.*, s.full_name as stylist_name
+            FROM appointments a
+            LEFT JOIN stylists s ON a.stylist_id = s.stylist_id
+            WHERE a.booking_reference = %s
+        """, (booking_reference,))
+        result = cursor.fetchone()
+        return dict(result) if result else None
 
 
 # ============================================
@@ -539,20 +554,19 @@ def get_salon_settings() -> Dict[str, Any]:
     """
     Get salon settings/info.
     """
-    supabase = get_supabase()
-    
-    result = supabase.table("salon_settings").select("*").execute()
-    return result.data[0] if result.data else {}
+    with get_db_cursor() as cursor:
+        cursor.execute("SELECT * FROM salon_settings LIMIT 1")
+        result = cursor.fetchone()
+        return dict(result) if result else {}
 
 
 def get_business_hours() -> List[Dict[str, Any]]:
     """
     Get salon business hours.
     """
-    supabase = get_supabase()
-    
-    result = supabase.table("business_hours").select("*").order("day_of_week").execute()
-    return result.data
+    with get_db_cursor() as cursor:
+        cursor.execute("SELECT * FROM business_hours ORDER BY day_of_week")
+        return [dict(row) for row in cursor.fetchall()]
 
 
 # ============================================
@@ -568,32 +582,32 @@ def create_call_log(
     """
     Create a new call log entry.
     """
-    supabase = get_supabase()
-    
-    call_data = {
-        "call_id": call_id,
-        "session_id": session_id,
-        "caller_phone": caller_phone,
-        "customer_id": customer_id,
-        "status": "in_progress",
-        "direction": "inbound"
-    }
-    
-    result = supabase.table("call_logs").insert(call_data).execute()
-    return result.data[0] if result.data else None
+    with get_db_cursor() as cursor:
+        cursor.execute("""
+            INSERT INTO call_logs (call_id, session_id, caller_phone, customer_id, status, direction)
+            VALUES (%s, %s, %s, %s, 'in_progress', 'inbound')
+            RETURNING *
+        """, (call_id, session_id, caller_phone, customer_id))
+        result = cursor.fetchone()
+        return dict(result) if result else None
 
 
-def update_call_log(
-    call_id: str,
-    **kwargs
-) -> Dict[str, Any]:
+def update_call_log(call_id: str, **kwargs) -> Dict[str, Any]:
     """
     Update a call log entry.
     """
-    supabase = get_supabase()
-    
-    result = supabase.table("call_logs").update(kwargs).eq("call_id", call_id).execute()
-    return result.data[0] if result.data else None
+    if not kwargs:
+        return None
+
+    with get_db_cursor() as cursor:
+        set_parts = ", ".join([f"{k} = %s" for k in kwargs.keys()])
+        values = list(kwargs.values()) + [call_id]
+
+        cursor.execute(f"""
+            UPDATE call_logs SET {set_parts} WHERE call_id = %s RETURNING *
+        """, values)
+        result = cursor.fetchone()
+        return dict(result) if result else None
 
 
 def log_agent_interaction(
@@ -609,28 +623,30 @@ def log_agent_interaction(
     """
     Log an agent interaction.
     """
-    supabase = get_supabase()
-    
-    interaction_data = {
-        "call_id": call_id,
-        "session_id": session_id,
-        "agent_type": agent_type,
-        "agent_name": agent_name,
-        "user_message": user_message,
-        "agent_response": agent_response,
-        "tools_called": tools_called or [],
-        "tool_call_count": len(tools_called) if tools_called else 0,
-        "duration_ms": duration_ms
-    }
-    
-    result = supabase.table("agent_interactions").insert(interaction_data).execute()
-    return result.data[0] if result.data else None
+    import json
+
+    with get_db_cursor() as cursor:
+        cursor.execute("""
+            INSERT INTO agent_interactions (
+                call_id, session_id, agent_type, agent_name,
+                user_message, agent_response, tools_called, tool_call_count, duration_ms
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING *
+        """, (
+            call_id, session_id, agent_type, agent_name,
+            user_message, agent_response,
+            json.dumps(tools_called or []),
+            len(tools_called) if tools_called else 0,
+            duration_ms
+        ))
+        result = cursor.fetchone()
+        return dict(result) if result else None
 
 
 def log_elevenlabs_usage(
     call_id: str,
     session_id: str,
-    usage_type: str,  # 'tts' or 'stt'
+    usage_type: str,
     voice_id: str,
     characters_used: int = 0,
     audio_duration_seconds: float = 0,
@@ -640,18 +656,16 @@ def log_elevenlabs_usage(
     """
     Log Eleven Labs API usage.
     """
-    supabase = get_supabase()
-    
-    usage_data = {
-        "call_id": call_id,
-        "session_id": session_id,
-        "usage_type": usage_type,
-        "voice_id": voice_id,
-        "characters_used": characters_used,
-        "audio_duration_seconds": audio_duration_seconds,
-        "cost_cents": cost_cents,
-        "latency_ms": latency_ms
-    }
-    
-    result = supabase.table("elevenlabs_usage_logs").insert(usage_data).execute()
-    return result.data[0] if result.data else None
+    with get_db_cursor() as cursor:
+        cursor.execute("""
+            INSERT INTO elevenlabs_usage_logs (
+                call_id, session_id, usage_type, voice_id,
+                characters_used, audio_duration_seconds, cost_cents, latency_ms
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING *
+        """, (
+            call_id, session_id, usage_type, voice_id,
+            characters_used, audio_duration_seconds, cost_cents, latency_ms
+        ))
+        result = cursor.fetchone()
+        return dict(result) if result else None

@@ -74,7 +74,7 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
-  const preferredPort = parseInt(process.env.PORT || '3001', 10);
+  const preferredPort = parseInt(process.env.BACKEND_PORT || process.env.PORT || '3001', 10);
   const port = await findAvailablePort(preferredPort);
   
   if (port !== preferredPort) {

@@ -111,7 +111,15 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
-    const { password_hash, ...result } = user;
-    return result;
+    // Return consistent format with login response
+    return {
+      id: user.user_id,
+      email: user.email,
+      full_name: user.full_name,
+      role: user.role,
+      phone: user.phone,
+      avatar_url: user.avatar_url,
+      customer: user.customer,
+    };
   }
 }

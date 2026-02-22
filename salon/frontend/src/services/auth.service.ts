@@ -14,7 +14,14 @@ export const authService = {
     lastName: string;
     phone?: string;
   }): Promise<AuthResponse> {
-    const response = await api.post<AuthResponse>('/auth/register', data);
+    // Convert firstName/lastName to full_name for backend
+    const payload = {
+      email: data.email,
+      password: data.password,
+      full_name: `${data.firstName} ${data.lastName}`.trim(),
+      phone: data.phone,
+    };
+    const response = await api.post<AuthResponse>('/auth/register', payload);
     return response.data;
   },
 

@@ -4,6 +4,7 @@ import path from 'path'
 
 export default defineConfig({
   plugins: [react()],
+  envDir: path.resolve(__dirname, '..'),
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -13,52 +14,51 @@ export default defineConfig({
     port: 5173,
     host: '0.0.0.0',
     allowedHosts: ['salon.callsphere.tech', 'localhost'],
+    // Note: API routing is handled by k3s ingress in production
+    // These proxies are only used for local development
     proxy: {
       '/auth': {
-        target: 'http://localhost:3000',
+        target: process.env.VITE_BACKEND_URL || 'http://localhost:3001',
         changeOrigin: true,
       },
       '/users': {
-        target: 'http://localhost:3000',
+        target: process.env.VITE_BACKEND_URL || 'http://localhost:3001',
         changeOrigin: true,
       },
       '/services': {
-        target: 'http://localhost:3000',
+        target: process.env.VITE_BACKEND_URL || 'http://localhost:3001',
         changeOrigin: true,
       },
       '/stylists': {
-        target: 'http://localhost:3000',
+        target: process.env.VITE_BACKEND_URL || 'http://localhost:3001',
         changeOrigin: true,
       },
       '/appointments': {
-        target: 'http://localhost:3000',
+        target: process.env.VITE_BACKEND_URL || 'http://localhost:3001',
         changeOrigin: true,
       },
       '/customers': {
-        target: 'http://localhost:3000',
+        target: process.env.VITE_BACKEND_URL || 'http://localhost:3001',
         changeOrigin: true,
       },
-      // Dashboard API (admin stats) at /api/dashboard
       '/api/dashboard': {
-        target: 'http://localhost:3000',
+        target: process.env.VITE_BACKEND_URL || 'http://localhost:3001',
         changeOrigin: true,
       },
-      // Voice API routes to AI service (must come before general /api)
       '/api/voice': {
-        target: 'http://localhost:8086',
+        target: process.env.VITE_AI_URL || 'http://localhost:8086',
         changeOrigin: true,
       },
       '/api/chat': {
-        target: 'http://localhost:8086',
+        target: process.env.VITE_AI_URL || 'http://localhost:8086',
         changeOrigin: true,
       },
-      // General API routes to backend
       '/api': {
-        target: 'http://localhost:3000',
+        target: process.env.VITE_BACKEND_URL || 'http://localhost:3001',
         changeOrigin: true,
       },
       '/calls': {
-        target: 'http://localhost:3000',
+        target: process.env.VITE_BACKEND_URL || 'http://localhost:3001',
         changeOrigin: true,
       },
     },

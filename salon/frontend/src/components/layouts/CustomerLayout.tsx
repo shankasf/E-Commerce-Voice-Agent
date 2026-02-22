@@ -79,11 +79,11 @@ export default function CustomerLayout() {
                         <div className="flex items-center gap-3 mb-3">
                             <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
                                 <span className="text-primary-600 font-medium">
-                                    {user?.first_name?.[0]}{user?.last_name?.[0]}
+                                    {user?.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                                 </span>
                             </div>
                             <div>
-                                <p className="text-sm font-medium">{user?.first_name} {user?.last_name}</p>
+                                <p className="text-sm font-medium">{user?.full_name}</p>
                                 <p className="text-xs text-gray-500">{user?.email}</p>
                             </div>
                         </div>
@@ -109,7 +109,7 @@ export default function CustomerLayout() {
                     </button>
                     <div className="flex-1">
                         <h1 className="text-lg font-medium text-gray-900">
-                            Welcome back, {user?.first_name}!
+                            Welcome back, {user?.full_name?.split(' ')[0]}!
                         </h1>
                     </div>
                 </div>
