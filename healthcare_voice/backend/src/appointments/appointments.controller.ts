@@ -18,6 +18,8 @@ export class AppointmentsController {
   @Get()
   async findAll(
     @Query('date') date?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
     @Query('providerId') providerId?: string,
     @Query('patientId') patientId?: string,
     @Query('status') status?: string,
@@ -26,6 +28,8 @@ export class AppointmentsController {
   ) {
     return this.appointmentsService.findAll(DEFAULT_PRACTICE_ID, {
       date,
+      startDate,
+      endDate,
       providerId,
       patientId,
       status,

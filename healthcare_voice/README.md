@@ -20,7 +20,7 @@ healthcare_voice/
 ├── ai-service/          # Python FastAPI - Voice AI & WebSocket server
 │   ├── agents/          # Healthcare voice agent tools
 │   ├── routes/          # API endpoints (voice, patients, appointments)
-│   └── db/              # Supabase database queries
+│   └── db/              # PostgreSQL database queries
 ├── backend/             # Node.js NestJS - REST API server
 │   ├── src/             # API modules (auth, patients, appointments, etc.)
 │   └── prisma/          # Database schema
@@ -28,7 +28,6 @@ healthcare_voice/
 │   └── src/
 │       ├── pages/       # Dashboard, Appointments, Patients, Voice Agent
 │       └── components/  # Reusable UI components
-├── database/            # SQL schema for Supabase
 └── docker-compose.yml   # Container orchestration
 ```
 
@@ -37,14 +36,14 @@ healthcare_voice/
 - **AI Service**: Python, FastAPI, OpenAI Realtime API, WebSockets
 - **Backend**: Node.js, NestJS, Prisma, PostgreSQL
 - **Frontend**: React, TypeScript, Vite, Tailwind CSS
-- **Database**: PostgreSQL (Supabase)
+- **Database**: PostgreSQL
 - **Voice**: OpenAI Realtime API (WebSocket-based)
 
 ## Prerequisites
 
 - Node.js 20+
 - Python 3.11+
-- PostgreSQL (or Supabase account)
+- PostgreSQL
 - OpenAI API key with Realtime API access
 
 ## Quick Start
@@ -59,10 +58,11 @@ cp .env.example .env
 
 ### 2. Database Setup
 
-Run the SQL schema in Supabase SQL Editor:
 ```bash
-# Copy contents of database/schema.sql to Supabase SQL Editor
-# This creates all tables and sample data
+cd backend
+npm install
+npx prisma db push
+npx prisma db seed
 ```
 
 ### 3. Start Services
@@ -172,8 +172,6 @@ The voice agent can:
 | Variable | Description | Required |
 |----------|-------------|----------|
 | OPENAI_API_KEY | OpenAI API key | Yes |
-| SUPABASE_URL | Supabase project URL | Yes |
-| SUPABASE_KEY | Supabase service role key | Yes |
 | DATABASE_URL | PostgreSQL connection string | Yes |
 | JWT_SECRET | Secret for JWT tokens | Yes |
 | DEFAULT_PRACTICE_ID | Default practice UUID | No |
@@ -225,7 +223,6 @@ Each service has its own Dockerfile for independent deployment.
 ## Security Notes
 
 - All endpoints require JWT authentication (except auth routes)
-- Patient data is protected with Row Level Security in Supabase
 - Voice sessions create audit logs in `call_logs` table
 - Sensitive data (SSN) stored as last 4 digits only
 

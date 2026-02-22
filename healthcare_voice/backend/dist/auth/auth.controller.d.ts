@@ -20,7 +20,7 @@ export declare class AuthController {
             email: string;
             firstName: string;
             lastName: string;
-            role: import(".prisma/client").$Enums.UserRole;
+            role: import(".prisma/client").$Enums.user_role;
             practiceId: string;
             practiceName: string;
         };
@@ -33,7 +33,7 @@ export declare class AuthController {
             practiceId: string;
             firstName: string;
             lastName: string;
-            role: import(".prisma/client").$Enums.UserRole;
+            role: import(".prisma/client").$Enums.user_role;
         };
         token: string;
     }>;
@@ -43,7 +43,7 @@ export declare class AuthController {
         practiceId: string;
         firstName: string;
         lastName: string;
-        role: import(".prisma/client").$Enums.UserRole;
+        role: import(".prisma/client").$Enums.user_role;
         isActive: boolean;
     }>;
 }

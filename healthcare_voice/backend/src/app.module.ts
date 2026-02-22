@@ -9,6 +9,7 @@ import { ServicesModule } from './services/services.module';
 import { CallLogsModule } from './call-logs/call-logs.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { WebsocketModule } from './websocket/websocket.module';
+import { VoiceModule } from './voice/voice.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { WebsocketModule } from './websocket/websocket.module';
     CallLogsModule,
     DashboardModule,
     WebsocketModule,
+    VoiceModule,
   ],
 })
 export class AppModule {}

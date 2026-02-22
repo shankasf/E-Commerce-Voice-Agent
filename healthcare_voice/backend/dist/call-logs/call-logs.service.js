@@ -17,9 +17,15 @@ let CallLogsService = class CallLogsService {
         this.prisma = prisma;
     }
     async findAll(practiceId, filters) {
-        const where = { practiceId };
+        const where = {};
+        if (practiceId) {
+            where.practiceId = practiceId;
+        }
         if (filters?.patientId) {
             where.patientId = filters.patientId;
+        }
+        if (filters?.agentType) {
+            where.agentType = filters.agentType;
         }
         if (filters?.startDate || filters?.endDate) {
             where.createdAt = {};
@@ -42,6 +48,15 @@ let CallLogsService = class CallLogsService {
                     provider: {
                         select: { firstName: true, lastName: true, title: true },
                     },
+                    analytics: {
+                        select: {
+                            sentimentLabel: true,
+                            leadClassification: true,
+                            intent: true,
+                            patientSatisfaction: true,
+                            escalationRequired: true,
+                        },
+                    },
                 },
                 orderBy: { createdAt: 'desc' },
             }),
@@ -55,8 +70,13 @@ let CallLogsService = class CallLogsService {
             include: {
                 patient: true,
                 provider: true,
-                appointment: true,
+                appointment: {
+                    include: {
+                        service: { select: { name: true } },
+                    },
+                },
                 agentInteractions: true,
+                analytics: true,
             },
         });
     }
@@ -82,19 +102,50 @@ let CallLogsService = class CallLogsService {
                 direction: true,
                 durationSeconds: true,
                 resolutionStatus: true,
+                agentType: true,
+                analytics: {
+                    select: {
+                        sentimentLabel: true,
+                        leadClassification: true,
+                        patientSatisfaction: true,
+                    },
+                },
             },
         });
         const totalCalls = logs.length;
         const completedCalls = logs.filter((l) => l.status === 'completed').length;
         const avgDuration = logs.reduce((sum, l) => sum + (l.durationSeconds || 0), 0) / (completedCalls || 1);
-        const resolvedCalls = logs.filter((l) => l.resolutionStatus === 'resolved').length;
+        const sentiments = logs.filter(l => l.analytics?.sentimentLabel).map(l => l.analytics.sentimentLabel);
+        const sentimentBreakdown = {
+            positive: sentiments.filter(s => s === 'positive').length,
+            neutral: sentiments.filter(s => s === 'neutral').length,
+            negative: sentiments.filter(s => s === 'negative').length,
+            mixed: sentiments.filter(s => s === 'mixed').length,
+        };
+        const leads = logs.filter(l => l.analytics?.leadClassification).map(l => l.analytics.leadClassification);
+        const leadBreakdown = {
+            hot: leads.filter(l => l === 'hot').length,
+            warm: leads.filter(l => l === 'warm').length,
+            cold: leads.filter(l => l === 'cold').length,
+        };
+        const satisfactionScores = logs.filter(l => l.analytics?.patientSatisfaction).map(l => l.analytics.patientSatisfaction);
+        const avgSatisfaction = satisfactionScores.length > 0
+            ? Math.round((satisfactionScores.reduce((a, b) => a + b, 0) / satisfactionScores.length) * 10) / 10
+            : 0;
+        const voiceCalls = logs.filter(l => l.agentType === 'voice_webrtc').length;
+        const chatSessions = logs.filter(l => l.agentType === 'chat').length;
         return {
             totalCalls,
             completedCalls,
             avgDuration: Math.round(avgDuration),
-            resolutionRate: totalCalls ? Math.round((resolvedCalls / totalCalls) * 100) : 0,
+            resolutionRate: totalCalls ? Math.round((completedCalls / totalCalls) * 100) : 0,
             inboundCalls: logs.filter((l) => l.direction === 'inbound').length,
             outboundCalls: logs.filter((l) => l.direction === 'outbound').length,
+            voiceCalls,
+            chatSessions,
+            sentimentBreakdown,
+            leadBreakdown,
+            avgSatisfaction,
         };
     }
 };

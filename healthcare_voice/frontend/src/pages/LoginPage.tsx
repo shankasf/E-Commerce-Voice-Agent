@@ -30,8 +30,8 @@ export default function LoginPage() {
       <div className="max-w-md w-full mx-4">
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Healthcare Voice</h1>
-            <p className="text-gray-500 mt-2">Sunrise Family Healthcare</p>
+            <h1 className="text-3xl font-bold text-gray-900">Marengo Asia Hospitals</h1>
+            <p className="text-gray-500 mt-2">Healthcare Management Portal</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -50,7 +50,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                placeholder="admin@sunrisehealthcare.com"
+                placeholder="admin@marengoasiahospitals.com"
                 required
               />
             </div>
@@ -80,7 +80,7 @@ export default function LoginPage() {
 
           <div className="mt-6 text-center text-sm text-gray-500">
             <p>Demo credentials:</p>
-            <p className="font-mono mt-1">admin@sunrisehealthcare.com / password</p>
+            <p className="font-mono mt-1">admin@marengoasiahospitals.com / password</p>
           </div>
         </div>
       </div>

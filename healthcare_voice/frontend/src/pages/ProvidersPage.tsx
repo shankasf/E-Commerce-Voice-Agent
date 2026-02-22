@@ -13,7 +13,7 @@ interface Provider {
   acceptingNewPatients: boolean
   telehealthEnabled: boolean
   defaultAppointmentDuration: number
-  department: string | null
+  department: { name: string } | null
   schedules?: Array<{
     dayOfWeek: number
     dayName: string
@@ -102,7 +102,7 @@ export default function ProvidersPage() {
                     </h3>
                     <p className="text-sm text-gray-500">{provider.specialization}</p>
                     {provider.department && (
-                      <p className="text-xs text-gray-400 mt-1">{provider.department}</p>
+                      <p className="text-xs text-gray-400 mt-1">{provider.department.name}</p>
                     )}
                   </div>
                 </div>
@@ -156,7 +156,7 @@ export default function ProvidersPage() {
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">Department</span>
-                      <span className="font-medium">{selectedProvider.department || '-'}</span>
+                      <span className="font-medium">{selectedProvider.department?.name || '-'}</span>
                     </div>
                   </div>
                 </div>

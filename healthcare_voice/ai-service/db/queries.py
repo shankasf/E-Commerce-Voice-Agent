@@ -2,7 +2,7 @@
 import logging
 from typing import Optional, List, Dict, Any
 from datetime import date, time, datetime, timedelta
-from db.supabase_client import get_supabase
+from db.postgres_client import execute_query, execute_query_one, execute_insert, execute_update
 from config import settings
 
 logger = logging.getLogger(__name__)
@@ -14,27 +14,19 @@ logger = logging.getLogger(__name__)
 
 def find_patient_by_phone(phone: str, practice_id: str = None) -> Optional[Dict]:
     """Find patient by phone number (primary, secondary, or work)"""
-    supabase = get_supabase()
-    if not supabase:
-        return None
-
     practice_id = practice_id or settings.default_practice_id
 
     # Clean phone number - remove non-digits
     clean_phone = ''.join(filter(str.isdigit, phone))
+    phone_pattern = f"%{clean_phone[-10:]}%"
 
-    # Search all phone fields
-    result = supabase.table("patients").select("*").eq(
-        "practice_id", practice_id
-    ).or_(
-        f"phone_primary.ilike.%{clean_phone[-10:]}%,"
-        f"phone_secondary.ilike.%{clean_phone[-10:]}%,"
-        f"phone_work.ilike.%{clean_phone[-10:]}%"
-    ).execute()
-
-    if result.data:
-        return result.data[0]
-    return None
+    query = """
+        SELECT * FROM patients
+        WHERE practice_id = %s
+        AND (phone_primary ILIKE %s OR phone_secondary ILIKE %s OR phone_work ILIKE %s)
+        LIMIT 1
+    """
+    return execute_query_one(query, (practice_id, phone_pattern, phone_pattern, phone_pattern))
 
 
 def find_patient_by_name_dob(
@@ -43,62 +35,63 @@ def find_patient_by_name_dob(
     dob: str,
     practice_id: str = None
 ) -> Optional[Dict]:
-    """Find patient by name and date of birth"""
-    supabase = get_supabase()
-    if not supabase:
-        return None
-
+    """Find patient by name and date of birth. Falls back to name-only if DOB doesn't match."""
     practice_id = practice_id or settings.default_practice_id
 
-    result = supabase.table("patients").select("*").eq(
-        "practice_id", practice_id
-    ).ilike("first_name", f"%{first_name}%").ilike(
-        "last_name", f"%{last_name}%"
-    ).eq("date_of_birth", dob).execute()
+    # Try exact match first (name + DOB)
+    query = """
+        SELECT * FROM patients
+        WHERE practice_id = %s
+        AND first_name ILIKE %s
+        AND last_name ILIKE %s
+        AND date_of_birth = %s
+        LIMIT 1
+    """
+    result = execute_query_one(query, (practice_id, f"%{first_name}%", f"%{last_name}%", dob))
+    if result:
+        return result
 
-    if result.data:
-        return result.data[0]
-    return None
+    # Fallback: name-only match (DOB may be misheard over voice)
+    query_name_only = """
+        SELECT * FROM patients
+        WHERE practice_id = %s
+        AND first_name ILIKE %s
+        AND last_name ILIKE %s
+        LIMIT 1
+    """
+    return execute_query_one(query_name_only, (practice_id, f"%{first_name}%", f"%{last_name}%"))
 
 
 def get_patient_by_id(patient_id: str) -> Optional[Dict]:
     """Get patient by ID"""
-    supabase = get_supabase()
-    if not supabase:
-        return None
-
-    result = supabase.table("patients").select("*").eq(
-        "patient_id", patient_id
-    ).single().execute()
-
-    return result.data if result.data else None
+    query = "SELECT * FROM patients WHERE patient_id = %s"
+    return execute_query_one(query, (patient_id,))
 
 
 def get_patient_insurance(patient_id: str) -> List[Dict]:
     """Get patient's insurance information"""
-    supabase = get_supabase()
-    if not supabase:
-        return []
-
-    result = supabase.table("patient_insurance").select("*").eq(
-        "patient_id", patient_id
-    ).eq("is_active", True).execute()
-
-    return result.data or []
+    query = """
+        SELECT * FROM patient_insurance
+        WHERE patient_id = %s AND is_active = true
+    """
+    return execute_query(query, (patient_id,))
 
 
 def create_patient(patient_data: Dict) -> Optional[Dict]:
     """Create a new patient"""
-    supabase = get_supabase()
-    if not supabase:
-        return None
-
     patient_data["practice_id"] = patient_data.get(
         "practice_id", settings.default_practice_id
     )
 
-    result = supabase.table("patients").insert(patient_data).execute()
-    return result.data[0] if result.data else None
+    columns = ', '.join(patient_data.keys())
+    placeholders = ', '.join(['%s'] * len(patient_data))
+
+    query = f"""
+        INSERT INTO patients ({columns})
+        VALUES ({placeholders})
+        RETURNING *
+    """
+    return execute_insert(query, tuple(patient_data.values()))
 
 
 # ============================================
@@ -107,76 +100,66 @@ def create_patient(patient_data: Dict) -> Optional[Dict]:
 
 def get_all_providers(practice_id: str = None, active_only: bool = True) -> List[Dict]:
     """Get all providers for a practice"""
-    supabase = get_supabase()
-    if not supabase:
-        return []
-
     practice_id = practice_id or settings.default_practice_id
 
-    query = supabase.table("providers").select(
-        "*, departments(name)"
-    ).eq("practice_id", practice_id)
+    query = """
+        SELECT p.*, d.name as department_name
+        FROM providers p
+        LEFT JOIN departments d ON p.department_id = d.department_id
+        WHERE p.practice_id = %s
+    """
 
     if active_only:
-        query = query.eq("is_active", True)
+        query += " AND p.is_active = true"
 
-    result = query.execute()
-    return result.data or []
+    return execute_query(query, (practice_id,))
 
 
 def get_provider_by_id(provider_id: str) -> Optional[Dict]:
     """Get provider by ID with schedule"""
-    supabase = get_supabase()
-    if not supabase:
-        return None
-
-    result = supabase.table("providers").select(
-        "*, provider_schedules(*), departments(name)"
-    ).eq("provider_id", provider_id).single().execute()
-
-    return result.data if result.data else None
+    query = """
+        SELECT p.*, d.name as department_name
+        FROM providers p
+        LEFT JOIN departments d ON p.department_id = d.department_id
+        WHERE p.provider_id = %s
+    """
+    return execute_query_one(query, (provider_id,))
 
 
 def get_provider_by_name(name: str, practice_id: str = None) -> Optional[Dict]:
     """Find provider by name (partial match)"""
-    supabase = get_supabase()
-    if not supabase:
-        return None
-
     practice_id = practice_id or settings.default_practice_id
 
     # Try to split name if contains space
     parts = name.strip().split()
 
     if len(parts) >= 2:
-        result = supabase.table("providers").select("*").eq(
-            "practice_id", practice_id
-        ).ilike("first_name", f"%{parts[0]}%").ilike(
-            "last_name", f"%{parts[-1]}%"
-        ).execute()
+        query = """
+            SELECT * FROM providers
+            WHERE practice_id = %s
+            AND first_name ILIKE %s
+            AND last_name ILIKE %s
+            LIMIT 1
+        """
+        return execute_query_one(query, (practice_id, f"%{parts[0]}%", f"%{parts[-1]}%"))
     else:
-        result = supabase.table("providers").select("*").eq(
-            "practice_id", practice_id
-        ).or_(
-            f"first_name.ilike.%{name}%,last_name.ilike.%{name}%"
-        ).execute()
-
-    if result.data:
-        return result.data[0]
-    return None
+        query = """
+            SELECT * FROM providers
+            WHERE practice_id = %s
+            AND (first_name ILIKE %s OR last_name ILIKE %s)
+            LIMIT 1
+        """
+        return execute_query_one(query, (practice_id, f"%{name}%", f"%{name}%"))
 
 
 def get_provider_schedule(provider_id: str) -> List[Dict]:
     """Get provider's weekly schedule"""
-    supabase = get_supabase()
-    if not supabase:
-        return []
-
-    result = supabase.table("provider_schedules").select("*").eq(
-        "provider_id", provider_id
-    ).eq("is_available", True).order("day_of_week").execute()
-
-    return result.data or []
+    query = """
+        SELECT * FROM provider_schedules
+        WHERE provider_id = %s AND is_available = true
+        ORDER BY day_of_week
+    """
+    return execute_query(query, (provider_id,))
 
 
 def get_provider_time_off(
@@ -185,17 +168,13 @@ def get_provider_time_off(
     end_date: date
 ) -> List[Dict]:
     """Get provider's time off in date range"""
-    supabase = get_supabase()
-    if not supabase:
-        return []
-
-    result = supabase.table("provider_time_off").select("*").eq(
-        "provider_id", provider_id
-    ).gte("end_date", start_date.isoformat()).lte(
-        "start_date", end_date.isoformat()
-    ).execute()
-
-    return result.data or []
+    query = """
+        SELECT * FROM provider_time_off
+        WHERE provider_id = %s
+        AND end_date >= %s
+        AND start_date <= %s
+    """
+    return execute_query(query, (provider_id, start_date, end_date))
 
 
 # ============================================
@@ -208,22 +187,30 @@ def get_patient_appointments(
     limit: int = 10
 ) -> List[Dict]:
     """Get patient's appointments"""
-    supabase = get_supabase()
-    if not supabase:
-        return []
+    query = """
+        SELECT a.*,
+               p.first_name as provider_first_name,
+               p.last_name as provider_last_name,
+               p.title as provider_title,
+               p.specialization as provider_specialization,
+               s.name as service_name,
+               s.duration as service_duration
+        FROM appointments a
+        LEFT JOIN providers p ON a.provider_id = p.provider_id
+        LEFT JOIN services s ON a.service_id = s.service_id
+        WHERE a.patient_id = %s
+    """
 
-    query = supabase.table("appointments").select(
-        "*, providers(first_name, last_name, title, specialization), services(name, duration)"
-    ).eq("patient_id", patient_id)
+    params = [patient_id]
 
     if upcoming_only:
-        today = date.today().isoformat()
-        query = query.gte("scheduled_date", today).not_.in_(
-            "status", ["cancelled", "completed", "no_show"]
-        )
+        query += " AND a.scheduled_date >= %s AND a.status NOT IN ('cancelled', 'completed', 'no_show')"
+        params.append(date.today())
 
-    result = query.order("scheduled_date").order("scheduled_time").limit(limit).execute()
-    return result.data or []
+    query += " ORDER BY a.scheduled_date, a.scheduled_time LIMIT %s"
+    params.append(limit)
+
+    return execute_query(query, tuple(params))
 
 
 def get_appointments_for_date(
@@ -231,19 +218,15 @@ def get_appointments_for_date(
     target_date: date
 ) -> List[Dict]:
     """Get all appointments for a provider on a specific date"""
-    supabase = get_supabase()
-    if not supabase:
-        return []
-
-    result = supabase.table("appointments").select(
-        "scheduled_time, end_time, duration, status"
-    ).eq("provider_id", provider_id).eq(
-        "scheduled_date", target_date.isoformat()
-    ).not_.in_(
-        "status", ["cancelled", "no_show"]
-    ).order("scheduled_time").execute()
-
-    return result.data or []
+    query = """
+        SELECT scheduled_time, end_time, duration, status
+        FROM appointments
+        WHERE provider_id = %s
+        AND scheduled_date = %s
+        AND status NOT IN ('cancelled', 'no_show')
+        ORDER BY scheduled_time
+    """
+    return execute_query(query, (provider_id, target_date))
 
 
 def get_available_slots(
@@ -276,8 +259,16 @@ def get_available_slots(
 
     # Generate available slots
     slots = []
-    start_time = datetime.strptime(day_schedule["start_time"], "%H:%M:%S").time()
-    end_time = datetime.strptime(day_schedule["end_time"], "%H:%M:%S").time()
+    start_time_str = str(day_schedule["start_time"])
+    end_time_str = str(day_schedule["end_time"])
+
+    # Handle time objects or strings
+    if isinstance(day_schedule["start_time"], time):
+        start_time = day_schedule["start_time"]
+        end_time = day_schedule["end_time"]
+    else:
+        start_time = datetime.strptime(start_time_str.split('.')[0], "%H:%M:%S").time()
+        end_time = datetime.strptime(end_time_str.split('.')[0], "%H:%M:%S").time()
 
     current = datetime.combine(target_date, start_time)
     end_dt = datetime.combine(target_date, end_time)
@@ -289,8 +280,23 @@ def get_available_slots(
         # Check if slot overlaps with any existing appointment
         is_available = True
         for appt in existing:
-            appt_start = datetime.strptime(appt["scheduled_time"], "%H:%M:%S").time()
-            appt_end = datetime.strptime(appt["end_time"], "%H:%M:%S").time()
+            appt_start_str = str(appt["scheduled_time"])
+            appt_end_str = str(appt["end_time"]) if appt["end_time"] else None
+
+            if isinstance(appt["scheduled_time"], time):
+                appt_start = appt["scheduled_time"]
+            else:
+                appt_start = datetime.strptime(appt_start_str.split('.')[0], "%H:%M:%S").time()
+
+            if appt_end_str:
+                if isinstance(appt["end_time"], time):
+                    appt_end = appt["end_time"]
+                else:
+                    appt_end = datetime.strptime(appt_end_str.split('.')[0], "%H:%M:%S").time()
+            else:
+                # Calculate end time from duration
+                appt_end = (datetime.combine(target_date, appt_start) +
+                           timedelta(minutes=appt.get("duration", 30))).time()
 
             if not (slot_end <= appt_start or slot_start >= appt_end):
                 is_available = False
@@ -310,99 +316,101 @@ def get_available_slots(
 
 def create_appointment(appointment_data: Dict) -> Optional[Dict]:
     """Create a new appointment"""
-    supabase = get_supabase()
-    if not supabase:
-        return None
-
     appointment_data["practice_id"] = appointment_data.get(
         "practice_id", settings.default_practice_id
     )
-    appointment_data["created_via"] = appointment_data.get("created_via", "voice")
+    appointment_data["created_via"] = appointment_data.get("created_via", "web")
 
-    result = supabase.table("appointments").insert(appointment_data).execute()
-    return result.data[0] if result.data else None
+    columns = ', '.join(appointment_data.keys())
+    placeholders = ', '.join(['%s'] * len(appointment_data))
+
+    query = f"""
+        INSERT INTO appointments ({columns})
+        VALUES ({placeholders})
+        RETURNING *
+    """
+    return execute_insert(query, tuple(appointment_data.values()))
 
 
 def update_appointment(appointment_id: str, updates: Dict) -> Optional[Dict]:
     """Update an existing appointment"""
-    supabase = get_supabase()
-    if not supabase:
-        return None
+    set_clause = ', '.join([f"{k} = %s" for k in updates.keys()])
 
-    result = supabase.table("appointments").update(updates).eq(
-        "appointment_id", appointment_id
-    ).execute()
-
-    return result.data[0] if result.data else None
+    query = f"""
+        UPDATE appointments SET {set_clause}
+        WHERE appointment_id = %s
+        RETURNING *
+    """
+    return execute_update(query, tuple(list(updates.values()) + [appointment_id]))
 
 
 def cancel_appointment(appointment_id: str, reason: str = None) -> bool:
     """Cancel an appointment"""
-    supabase = get_supabase()
-    if not supabase:
-        return False
-
-    updates = {
-        "status": "cancelled",
-        "cancelled_at": datetime.utcnow().isoformat(),
-        "cancellation_reason": reason
-    }
-
-    result = supabase.table("appointments").update(updates).eq(
-        "appointment_id", appointment_id
-    ).execute()
-
-    return bool(result.data)
+    query = """
+        UPDATE appointments
+        SET status = 'cancelled', cancelled_at = %s, cancellation_reason = %s
+        WHERE appointment_id = %s
+        RETURNING *
+    """
+    result = execute_update(query, (datetime.utcnow(), reason, appointment_id))
+    return result is not None
 
 
 def reschedule_appointment(
     appointment_id: str,
     new_date: date,
     new_time: time,
-    provider_id: str = None
+    provider_id: str = None,
+    created_via: str = "web"
 ) -> Optional[Dict]:
     """Reschedule an appointment"""
-    supabase = get_supabase()
-    if not supabase:
-        return None
-
     # Get original appointment
-    original = supabase.table("appointments").select("*").eq(
-        "appointment_id", appointment_id
-    ).single().execute()
+    original = execute_query_one(
+        "SELECT * FROM appointments WHERE appointment_id = %s",
+        (appointment_id,)
+    )
 
-    if not original.data:
+    if not original:
         return None
 
     # Mark original as rescheduled
-    supabase.table("appointments").update({
-        "status": "rescheduled"
-    }).eq("appointment_id", appointment_id).execute()
+    execute_update(
+        "UPDATE appointments SET status = 'rescheduled' WHERE appointment_id = %s RETURNING *",
+        (appointment_id,)
+    )
 
     # Create new appointment
-    new_appt = {
-        "practice_id": original.data["practice_id"],
-        "patient_id": original.data["patient_id"],
-        "provider_id": provider_id or original.data["provider_id"],
-        "service_id": original.data["service_id"],
-        "appointment_type": original.data["appointment_type"],
-        "scheduled_date": new_date.isoformat(),
-        "scheduled_time": new_time.strftime("%H:%M"),
-        "duration": original.data["duration"],
-        "chief_complaint": original.data["chief_complaint"],
-        "rescheduled_from_id": appointment_id,
-        "created_via": "voice"
-    }
+    query = """
+        INSERT INTO appointments (
+            practice_id, patient_id, provider_id, service_id,
+            appointment_type, scheduled_date, scheduled_time,
+            duration, chief_complaint, rescheduled_from_id, created_via
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        RETURNING *
+    """
 
-    result = supabase.table("appointments").insert(new_appt).execute()
+    new_appt = execute_insert(query, (
+        original["practice_id"],
+        original["patient_id"],
+        provider_id or original["provider_id"],
+        original["service_id"],
+        original["appointment_type"],
+        new_date,
+        new_time,
+        original["duration"],
+        original["chief_complaint"],
+        appointment_id,
+        created_via
+    ))
 
-    if result.data:
+    if new_appt:
         # Update original with reference to new appointment
-        supabase.table("appointments").update({
-            "rescheduled_to_id": result.data[0]["appointment_id"]
-        }).eq("appointment_id", appointment_id).execute()
+        execute_update(
+            "UPDATE appointments SET rescheduled_to_id = %s WHERE appointment_id = %s RETURNING *",
+            (new_appt["appointment_id"], appointment_id)
+        )
 
-    return result.data[0] if result.data else None
+    return new_appt
 
 
 # ============================================
@@ -411,38 +419,33 @@ def reschedule_appointment(
 
 def get_services(practice_id: str = None, category: str = None) -> List[Dict]:
     """Get available services"""
-    supabase = get_supabase()
-    if not supabase:
-        return []
-
     practice_id = practice_id or settings.default_practice_id
 
-    query = supabase.table("services").select(
-        "*, service_categories(name)"
-    ).eq("practice_id", practice_id).eq("is_active", True)
+    query = """
+        SELECT s.*, sc.name as category_name
+        FROM services s
+        LEFT JOIN service_categories sc ON s.category_id = sc.category_id
+        WHERE s.practice_id = %s AND s.is_active = true
+    """
+    params = [practice_id]
 
     if category:
-        query = query.eq("service_categories.name", category)
+        query += " AND sc.name = %s"
+        params.append(category)
 
-    result = query.execute()
-    return result.data or []
+    return execute_query(query, tuple(params))
 
 
 def get_service_by_name(name: str, practice_id: str = None) -> Optional[Dict]:
     """Find service by name"""
-    supabase = get_supabase()
-    if not supabase:
-        return None
-
     practice_id = practice_id or settings.default_practice_id
 
-    result = supabase.table("services").select("*").eq(
-        "practice_id", practice_id
-    ).ilike("name", f"%{name}%").eq("is_active", True).execute()
-
-    if result.data:
-        return result.data[0]
-    return None
+    query = """
+        SELECT * FROM services
+        WHERE practice_id = %s AND name ILIKE %s AND is_active = true
+        LIMIT 1
+    """
+    return execute_query_one(query, (practice_id, f"%{name}%"))
 
 
 # ============================================
@@ -451,29 +454,31 @@ def get_service_by_name(name: str, practice_id: str = None) -> Optional[Dict]:
 
 def create_call_log(call_data: Dict) -> Optional[Dict]:
     """Create a call log entry"""
-    supabase = get_supabase()
-    if not supabase:
-        return None
-
     call_data["practice_id"] = call_data.get(
         "practice_id", settings.default_practice_id
     )
 
-    result = supabase.table("call_logs").insert(call_data).execute()
-    return result.data[0] if result.data else None
+    columns = ', '.join(call_data.keys())
+    placeholders = ', '.join(['%s'] * len(call_data))
+
+    query = f"""
+        INSERT INTO call_logs ({columns})
+        VALUES ({placeholders})
+        RETURNING *
+    """
+    return execute_insert(query, tuple(call_data.values()))
 
 
 def update_call_log(log_id: str, updates: Dict) -> Optional[Dict]:
     """Update a call log entry"""
-    supabase = get_supabase()
-    if not supabase:
-        return None
+    set_clause = ', '.join([f"{k} = %s" for k in updates.keys()])
 
-    result = supabase.table("call_logs").update(updates).eq(
-        "log_id", log_id
-    ).execute()
-
-    return result.data[0] if result.data else None
+    query = f"""
+        UPDATE call_logs SET {set_clause}
+        WHERE log_id = %s
+        RETURNING *
+    """
+    return execute_update(query, tuple(list(updates.values()) + [log_id]))
 
 
 def get_call_logs(
@@ -481,19 +486,64 @@ def get_call_logs(
     limit: int = 50
 ) -> List[Dict]:
     """Get call logs with optional patient filter"""
-    supabase = get_supabase()
-    if not supabase:
-        return []
-
-    query = supabase.table("call_logs").select(
-        "*, patients(first_name, last_name)"
-    )
+    query = """
+        SELECT cl.*, p.first_name, p.last_name
+        FROM call_logs cl
+        LEFT JOIN patients p ON cl.patient_id = p.patient_id
+    """
+    params = []
 
     if patient_id:
-        query = query.eq("patient_id", patient_id)
+        query += " WHERE cl.patient_id = %s"
+        params.append(patient_id)
 
-    result = query.order("created_at", desc=True).limit(limit).execute()
-    return result.data or []
+    query += " ORDER BY cl.created_at DESC LIMIT %s"
+    params.append(limit)
+
+    return execute_query(query, tuple(params))
+
+
+# ============================================
+# CALL LOG ANALYTICS QUERIES
+# ============================================
+
+def save_call_log_analytics(log_id: str, analytics: Dict) -> Optional[Dict]:
+    """Save AI-generated analytics for a call log"""
+    import json
+    query = """
+        INSERT INTO call_log_analytics (log_id, sentiment_label, sentiment_score, lead_classification,
+            lead_score, intent, key_topics, patient_satisfaction, escalation_required, escalation_reason,
+            ai_summary, analyzed_at)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+        ON CONFLICT (log_id) DO UPDATE SET
+            sentiment_label = EXCLUDED.sentiment_label,
+            sentiment_score = EXCLUDED.sentiment_score,
+            lead_classification = EXCLUDED.lead_classification,
+            lead_score = EXCLUDED.lead_score,
+            intent = EXCLUDED.intent,
+            key_topics = EXCLUDED.key_topics,
+            patient_satisfaction = EXCLUDED.patient_satisfaction,
+            escalation_required = EXCLUDED.escalation_required,
+            escalation_reason = EXCLUDED.escalation_reason,
+            ai_summary = EXCLUDED.ai_summary,
+            analyzed_at = NOW()
+        RETURNING *
+    """
+    topics_json = json.dumps(analytics.get("key_topics", []))
+    params = (
+        log_id,
+        analytics.get("sentiment_label"),
+        analytics.get("sentiment_score"),
+        analytics.get("lead_classification"),
+        analytics.get("lead_score"),
+        analytics.get("intent"),
+        topics_json,
+        analytics.get("patient_satisfaction"),
+        analytics.get("escalation_required", False),
+        analytics.get("escalation_reason"),
+        analytics.get("ai_summary"),
+    )
+    return execute_insert(query, params)
 
 
 # ============================================
@@ -502,17 +552,10 @@ def get_call_logs(
 
 def get_practice(practice_id: str = None) -> Optional[Dict]:
     """Get practice information"""
-    supabase = get_supabase()
-    if not supabase:
-        return None
-
     practice_id = practice_id or settings.default_practice_id
 
-    result = supabase.table("practices").select("*").eq(
-        "practice_id", practice_id
-    ).single().execute()
-
-    return result.data if result.data else None
+    query = "SELECT * FROM practices WHERE practice_id = %s"
+    return execute_query_one(query, (practice_id,))
 
 
 def get_office_hours(practice_id: str = None) -> Optional[Dict]:

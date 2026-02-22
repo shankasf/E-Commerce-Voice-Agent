@@ -1,4 +1,5 @@
 """Provider API routes"""
+from datetime import time as time_type
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
 from db import queries
@@ -41,7 +42,7 @@ async def list_providers(
             "accepting_new_patients": p.get("accepting_new_patients", True),
             "telehealth_enabled": p.get("telehealth_enabled", False),
             "default_appointment_duration": p.get("default_appointment_duration", 30),
-            "department": p.get("departments", {}).get("name") if p.get("departments") else None
+            "department": p.get("department_name")
         })
 
     return {"providers": formatted, "count": len(formatted)}
@@ -54,17 +55,23 @@ async def get_provider(provider_id: str):
     if not provider:
         raise HTTPException(status_code=404, detail="Provider not found")
 
-    # Format schedule
-    schedules = provider.get("provider_schedules", [])
+    # Fetch schedule separately from provider_schedules table
+    schedules = queries.get_provider_schedule(provider_id)
     day_names = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 
     schedule_formatted = []
     for s in schedules:
+        start = s["start_time"]
+        end = s["end_time"]
+        if isinstance(start, time_type):
+            start = start.strftime("%H:%M")
+        if isinstance(end, time_type):
+            end = end.strftime("%H:%M")
         schedule_formatted.append({
             "day_of_week": s["day_of_week"],
             "day_name": day_names[s["day_of_week"]],
-            "start_time": s["start_time"],
-            "end_time": s["end_time"],
+            "start_time": start,
+            "end_time": end,
             "is_available": s.get("is_available", True),
             "location": s.get("location")
         })
@@ -83,7 +90,7 @@ async def get_provider(provider_id: str):
         "accepting_new_patients": provider.get("accepting_new_patients", True),
         "telehealth_enabled": provider.get("telehealth_enabled", False),
         "default_appointment_duration": provider.get("default_appointment_duration", 30),
-        "department": provider.get("departments", {}).get("name") if provider.get("departments") else None,
+        "department": provider.get("department_name"),
         "schedule": schedule_formatted
     }
 
@@ -136,27 +143,32 @@ async def get_provider_appointments(
     date: Optional[str] = Query(None, description="Filter by date YYYY-MM-DD")
 ):
     """Get provider's appointments"""
-    from db.supabase_client import get_supabase
+    from db.postgres_client import execute_query
     from datetime import date as date_type
 
-    supabase = get_supabase()
-    if not supabase:
-        raise HTTPException(status_code=503, detail="Database unavailable")
-
-    query = supabase.table("appointments").select(
-        "*, patients(first_name, last_name, phone_primary), services(name)"
-    ).eq("provider_id", provider_id)
+    query = """
+        SELECT a.*,
+               pt.first_name as patient_first_name, pt.last_name as patient_last_name, pt.phone_primary,
+               s.name as service_name
+        FROM appointments a
+        LEFT JOIN patients pt ON a.patient_id = pt.patient_id
+        LEFT JOIN services s ON a.service_id = s.service_id
+        WHERE a.provider_id = %s
+        AND a.status NOT IN ('cancelled', 'no_show')
+    """
+    params = [provider_id]
 
     if date:
-        query = query.eq("scheduled_date", date)
+        query += " AND a.scheduled_date = %s"
+        params.append(date)
     else:
-        query = query.gte("scheduled_date", date_type.today().isoformat())
+        query += " AND a.scheduled_date >= %s"
+        params.append(date_type.today().isoformat())
 
-    query = query.not_.in_("status", ["cancelled", "no_show"])
+    query += " ORDER BY a.scheduled_date, a.scheduled_time"
 
-    result = query.order("scheduled_date").order("scheduled_time").execute()
-
-    return {"appointments": result.data or [], "count": len(result.data or [])}
+    appointments = execute_query(query, tuple(params))
+    return {"appointments": appointments, "count": len(appointments)}
 
 
 @router.get("/search/name")

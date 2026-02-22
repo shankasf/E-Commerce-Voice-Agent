@@ -86,7 +86,7 @@ export default function DashboardPage() {
     <div>
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-500">Welcome to Sunrise Family Healthcare</p>
+        <p className="text-gray-500">Welcome to Marengo Asia Hospitals</p>
       </div>
 
       {/* Stats Grid */}
@@ -133,7 +133,7 @@ export default function DashboardPage() {
               <PhoneIcon className="w-6 h-6 text-orange-600" />
             </div>
             <div className="ml-4">
-              <p className="text-sm text-gray-500">Recent Calls (24h)</p>
+              <p className="text-sm text-gray-500">Recent Conversations</p>
               <p className="text-2xl font-bold text-gray-900">{overview?.recentCalls || 0}</p>
             </div>
           </div>

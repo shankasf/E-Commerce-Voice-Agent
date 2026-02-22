@@ -38,52 +38,69 @@ async def list_appointments(
     limit: int = Query(50, le=100)
 ):
     """List appointments with optional filters"""
-    from db.supabase_client import get_supabase
-    supabase = get_supabase()
-    if not supabase:
-        raise HTTPException(status_code=503, detail="Database unavailable")
+    from db.postgres_client import execute_query
 
-    query = supabase.table("appointments").select(
-        "*, patients(first_name, last_name, phone_primary), "
-        "providers(first_name, last_name, title, specialization), "
-        "services(name, duration)"
-    )
+    query = """
+        SELECT a.*,
+               pt.first_name as patient_first_name, pt.last_name as patient_last_name, pt.phone_primary,
+               pr.first_name as provider_first_name, pr.last_name as provider_last_name, pr.title, pr.specialization,
+               s.name as service_name, s.duration as service_duration
+        FROM appointments a
+        LEFT JOIN patients pt ON a.patient_id = pt.patient_id
+        LEFT JOIN providers pr ON a.provider_id = pr.provider_id
+        LEFT JOIN services s ON a.service_id = s.service_id
+        WHERE 1=1
+    """
+    params = []
 
     if date:
-        query = query.eq("scheduled_date", date)
+        query += " AND a.scheduled_date = %s"
+        params.append(date)
     if provider_id:
-        query = query.eq("provider_id", provider_id)
+        query += " AND a.provider_id = %s"
+        params.append(provider_id)
     if patient_id:
-        query = query.eq("patient_id", patient_id)
+        query += " AND a.patient_id = %s"
+        params.append(patient_id)
     if status:
-        query = query.eq("status", status)
+        query += " AND a.status = %s"
+        params.append(status)
 
-    result = query.order("scheduled_date").order("scheduled_time").limit(limit).execute()
+    query += " ORDER BY a.scheduled_date, a.scheduled_time LIMIT %s"
+    params.append(limit)
 
-    return {"appointments": result.data or [], "count": len(result.data or [])}
+    appointments = execute_query(query, tuple(params))
+    return {"appointments": appointments, "count": len(appointments)}
 
 
 @router.get("/today")
 async def get_todays_appointments(provider_id: Optional[str] = Query(None)):
     """Get today's appointments"""
-    from db.supabase_client import get_supabase
-    supabase = get_supabase()
-    if not supabase:
-        raise HTTPException(status_code=503, detail="Database unavailable")
+    from db.postgres_client import execute_query
 
     today = date.today().isoformat()
 
-    query = supabase.table("appointments").select(
-        "*, patients(first_name, last_name, phone_primary), "
-        "providers(first_name, last_name, title), services(name)"
-    ).eq("scheduled_date", today)
+    query = """
+        SELECT a.*,
+               pt.first_name as patient_first_name, pt.last_name as patient_last_name, pt.phone_primary,
+               pr.first_name as provider_first_name, pr.last_name as provider_last_name, pr.title,
+               s.name as service_name
+        FROM appointments a
+        LEFT JOIN patients pt ON a.patient_id = pt.patient_id
+        LEFT JOIN providers pr ON a.provider_id = pr.provider_id
+        LEFT JOIN services s ON a.service_id = s.service_id
+        WHERE a.scheduled_date = %s
+    """
+    params = [today]
 
     if provider_id:
-        query = query.eq("provider_id", provider_id)
+        query += " AND a.provider_id = %s"
+        params.append(provider_id)
 
-    result = query.order("scheduled_time").execute()
+    query += " ORDER BY a.scheduled_time"
 
-    return {"appointments": result.data or [], "count": len(result.data or [])}
+    appointments = execute_query(query, tuple(params))
+    return {"appointments": appointments, "count": len(appointments)}
 
 
 @router.get("/availability")
@@ -112,21 +129,28 @@ async def check_availability(
 @router.get("/{appointment_id}")
 async def get_appointment(appointment_id: str):
     """Get appointment by ID"""
-    from db.supabase_client import get_supabase
-    supabase = get_supabase()
-    if not supabase:
-        raise HTTPException(status_code=503, detail="Database unavailable")
+    from db.postgres_client import execute_query_one
 
-    result = supabase.table("appointments").select(
-        "*, patients(first_name, last_name, phone_primary, email), "
-        "providers(first_name, last_name, title, specialization), "
-        "services(name, duration, price)"
-    ).eq("appointment_id", appointment_id).single().execute()
+    query = """
+        SELECT a.*,
+               pt.first_name as patient_first_name, pt.last_name as patient_last_name,
+               pt.phone_primary, pt.email as patient_email,
+               pr.first_name as provider_first_name, pr.last_name as provider_last_name,
+               pr.title, pr.specialization,
+               s.name as service_name, s.duration as service_duration, s.price as service_price
+        FROM appointments a
+        LEFT JOIN patients pt ON a.patient_id = pt.patient_id
+        LEFT JOIN providers pr ON a.provider_id = pr.provider_id
+        LEFT JOIN services s ON a.service_id = s.service_id
+        WHERE a.appointment_id = %s
+    """
 
-    if not result.data:
+    appointment = execute_query_one(query, (appointment_id,))
+
+    if not appointment:
         raise HTTPException(status_code=404, detail="Appointment not found")
 
-    return result.data
+    return appointment
 
 
 @router.post("/")

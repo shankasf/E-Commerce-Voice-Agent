@@ -20,9 +20,11 @@ let AppointmentsController = class AppointmentsController {
     constructor(appointmentsService) {
         this.appointmentsService = appointmentsService;
     }
-    async findAll(date, providerId, patientId, status, skip, take) {
+    async findAll(date, startDate, endDate, providerId, patientId, status, skip, take) {
         return this.appointmentsService.findAll(DEFAULT_PRACTICE_ID, {
             date,
+            startDate,
+            endDate,
             providerId,
             patientId,
             status,
@@ -65,13 +67,15 @@ exports.AppointmentsController = AppointmentsController;
 __decorate([
     (0, common_1.Get)(),
     __param(0, (0, common_1.Query)('date')),
-    __param(1, (0, common_1.Query)('providerId')),
-    __param(2, (0, common_1.Query)('patientId')),
-    __param(3, (0, common_1.Query)('status')),
-    __param(4, (0, common_1.Query)('skip')),
-    __param(5, (0, common_1.Query)('take')),
+    __param(1, (0, common_1.Query)('startDate')),
+    __param(2, (0, common_1.Query)('endDate')),
+    __param(3, (0, common_1.Query)('providerId')),
+    __param(4, (0, common_1.Query)('patientId')),
+    __param(5, (0, common_1.Query)('status')),
+    __param(6, (0, common_1.Query)('skip')),
+    __param(7, (0, common_1.Query)('take')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, String, String, String, String, String]),
+    __metadata("design:paramtypes", [String, String, String, String, String, String, String, String]),
     __metadata("design:returntype", Promise)
 ], AppointmentsController.prototype, "findAll", null);
 __decorate([

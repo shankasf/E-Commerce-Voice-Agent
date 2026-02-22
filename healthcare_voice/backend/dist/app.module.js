@@ -18,6 +18,7 @@ const services_module_1 = require("./services/services.module");
 const call_logs_module_1 = require("./call-logs/call-logs.module");
 const dashboard_module_1 = require("./dashboard/dashboard.module");
 const websocket_module_1 = require("./websocket/websocket.module");
+const voice_module_1 = require("./voice/voice.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -36,6 +37,7 @@ exports.AppModule = AppModule = __decorate([
             call_logs_module_1.CallLogsModule,
             dashboard_module_1.DashboardModule,
             websocket_module_1.WebsocketModule,
+            voice_module_1.VoiceModule,
         ],
     })
 ], AppModule);

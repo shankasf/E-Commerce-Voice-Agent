@@ -2,7 +2,7 @@ import { CallLogsService } from './call-logs.service';
 export declare class CallLogsController {
     private callLogsService;
     constructor(callLogsService: CallLogsService);
-    findAll(patientId?: string, startDate?: string, endDate?: string, skip?: string, take?: string): Promise<{
+    findAll(patientId?: string, startDate?: string, endDate?: string, agentType?: string, skip?: string, take?: string): Promise<{
         logs: ({
             provider: {
                 firstName: string;
@@ -13,20 +13,27 @@ export declare class CallLogsController {
                 firstName: string;
                 lastName: string;
             };
+            analytics: {
+                sentimentLabel: string;
+                leadClassification: string;
+                intent: string;
+                patientSatisfaction: number;
+                escalationRequired: boolean;
+            };
         } & {
             practiceId: string | null;
-            createdAt: Date;
+            createdAt: Date | null;
             patientId: string | null;
             providerId: string | null;
             appointmentId: string | null;
-            status: import(".prisma/client").$Enums.CallStatus;
-            startedAt: Date;
+            status: import(".prisma/client").$Enums.call_status | null;
+            startedAt: Date | null;
             logId: string;
             callSid: string | null;
             sessionId: string | null;
             phoneFrom: string | null;
             phoneTo: string | null;
-            direction: import(".prisma/client").$Enums.CallDirection;
+            direction: import(".prisma/client").$Enums.call_direction;
             agentType: string | null;
             callReason: string | null;
             durationSeconds: number | null;
@@ -34,7 +41,7 @@ export declare class CallLogsController {
             callSummary: string | null;
             sentiment: string | null;
             resolutionStatus: string | null;
-            followUpRequired: boolean;
+            followUpRequired: boolean | null;
             followUpNotes: string | null;
             recordingUrl: string | null;
             endedAt: Date | null;
@@ -48,6 +55,20 @@ export declare class CallLogsController {
         resolutionRate: number;
         inboundCalls: number;
         outboundCalls: number;
+        voiceCalls: number;
+        chatSessions: number;
+        sentimentBreakdown: {
+            positive: number;
+            neutral: number;
+            negative: number;
+            mixed: number;
+        };
+        leadBreakdown: {
+            hot: number;
+            warm: number;
+            cold: number;
+        };
+        avgSatisfaction: number;
     }>;
     findOne(id: string): Promise<{
         provider: {
@@ -56,32 +77,32 @@ export declare class CallLogsController {
             firstName: string;
             lastName: string;
             phone: string | null;
-            isActive: boolean;
-            createdAt: Date;
-            updatedAt: Date;
+            isActive: boolean | null;
+            createdAt: Date | null;
+            updatedAt: Date | null;
             npiNumber: string | null;
             providerId: string;
             departmentId: string | null;
             title: string | null;
-            providerType: import(".prisma/client").$Enums.ProviderType;
+            providerType: import(".prisma/client").$Enums.provider_type;
             specialization: string | null;
             licenseNumber: string | null;
             licenseState: string | null;
             bio: string | null;
             photoUrl: string | null;
-            acceptingNewPatients: boolean;
-            telehealthEnabled: boolean;
-            defaultAppointmentDuration: number;
-            scheduleBuffer: number;
+            acceptingNewPatients: boolean | null;
+            telehealthEnabled: boolean | null;
+            defaultAppointmentDuration: number | null;
+            scheduleBuffer: number | null;
         };
         patient: {
             email: string | null;
             practiceId: string;
             firstName: string;
             lastName: string;
-            isActive: boolean;
-            createdAt: Date;
-            updatedAt: Date;
+            isActive: boolean | null;
+            createdAt: Date | null;
+            updatedAt: Date | null;
             addressLine1: string | null;
             addressLine2: string | null;
             city: string | null;
@@ -93,15 +114,15 @@ export declare class CallLogsController {
             middleName: string | null;
             preferredName: string | null;
             dateOfBirth: Date;
-            gender: import(".prisma/client").$Enums.GenderType | null;
+            gender: import(".prisma/client").$Enums.gender_type | null;
             ssnLastFour: string | null;
             phoneSecondary: string | null;
             phoneWork: string | null;
-            preferredContactMethod: string;
+            preferredContactMethod: string | null;
             emergencyContactName: string | null;
             emergencyContactPhone: string | null;
             emergencyContactRelation: string | null;
-            preferredLanguage: string;
+            preferredLanguage: string | null;
             preferredProviderId: string | null;
             primaryCareProvider: string | null;
             referringProvider: string | null;
@@ -109,35 +130,39 @@ export declare class CallLogsController {
             medications: string[];
             medicalConditions: string[];
             notes: string | null;
-            portalAccess: boolean;
-            smsConsent: boolean;
-            emailConsent: boolean;
+            portalAccess: boolean | null;
+            smsConsent: boolean | null;
+            emailConsent: boolean | null;
             hipaaConsentDate: Date | null;
         };
         appointment: {
+            service: {
+                name: string;
+            };
+        } & {
             practiceId: string;
-            createdAt: Date;
-            updatedAt: Date;
+            createdAt: Date | null;
+            updatedAt: Date | null;
             patientId: string;
             notes: string | null;
             providerId: string;
             appointmentId: string;
             serviceId: string | null;
-            appointmentType: import(".prisma/client").$Enums.AppointmentType;
-            status: import(".prisma/client").$Enums.AppointmentStatus;
+            appointmentType: import(".prisma/client").$Enums.appointment_type;
+            status: import(".prisma/client").$Enums.appointment_status;
             scheduledDate: Date;
-            scheduledTime: string;
-            endTime: string | null;
+            scheduledTime: Date;
+            endTime: Date | null;
             duration: number;
             room: string | null;
             chiefComplaint: string | null;
             internalNotes: string | null;
-            isRecurring: boolean;
+            isRecurring: boolean | null;
             recurringPattern: import("@prisma/client/runtime/library").JsonValue | null;
             parentAppointmentId: string | null;
-            confirmationSent: boolean;
+            confirmationSent: boolean | null;
             confirmationSentAt: Date | null;
-            reminderSent: boolean;
+            reminderSent: boolean | null;
             reminderSentAt: Date | null;
             checkedInAt: Date | null;
             startedAt: Date | null;
@@ -148,11 +173,11 @@ export declare class CallLogsController {
             rescheduledToId: string | null;
             telehealthLink: string | null;
             createdBy: string | null;
-            createdVia: string;
+            createdVia: string | null;
         };
         agentInteractions: {
-            createdAt: Date;
-            startedAt: Date;
+            createdAt: Date | null;
+            startedAt: Date | null;
             sessionId: string | null;
             endedAt: Date | null;
             interactionId: string;
@@ -164,20 +189,35 @@ export declare class CallLogsController {
             actionsTaken: import("@prisma/client/runtime/library").JsonValue | null;
             outcome: string | null;
         }[];
+        analytics: {
+            id: string;
+            logId: string;
+            sentimentLabel: string | null;
+            sentimentScore: number | null;
+            leadClassification: string | null;
+            leadScore: number | null;
+            intent: string | null;
+            keyTopics: import("@prisma/client/runtime/library").JsonValue | null;
+            patientSatisfaction: number | null;
+            escalationRequired: boolean | null;
+            escalationReason: string | null;
+            aiSummary: string | null;
+            analyzedAt: Date | null;
+        };
     } & {
         practiceId: string | null;
-        createdAt: Date;
+        createdAt: Date | null;
         patientId: string | null;
         providerId: string | null;
         appointmentId: string | null;
-        status: import(".prisma/client").$Enums.CallStatus;
-        startedAt: Date;
+        status: import(".prisma/client").$Enums.call_status | null;
+        startedAt: Date | null;
         logId: string;
         callSid: string | null;
         sessionId: string | null;
         phoneFrom: string | null;
         phoneTo: string | null;
-        direction: import(".prisma/client").$Enums.CallDirection;
+        direction: import(".prisma/client").$Enums.call_direction;
         agentType: string | null;
         callReason: string | null;
         durationSeconds: number | null;
@@ -185,25 +225,25 @@ export declare class CallLogsController {
         callSummary: string | null;
         sentiment: string | null;
         resolutionStatus: string | null;
-        followUpRequired: boolean;
+        followUpRequired: boolean | null;
         followUpNotes: string | null;
         recordingUrl: string | null;
         endedAt: Date | null;
     }>;
     create(data: any): Promise<{
         practiceId: string | null;
-        createdAt: Date;
+        createdAt: Date | null;
         patientId: string | null;
         providerId: string | null;
         appointmentId: string | null;
-        status: import(".prisma/client").$Enums.CallStatus;
-        startedAt: Date;
+        status: import(".prisma/client").$Enums.call_status | null;
+        startedAt: Date | null;
         logId: string;
         callSid: string | null;
         sessionId: string | null;
         phoneFrom: string | null;
         phoneTo: string | null;
-        direction: import(".prisma/client").$Enums.CallDirection;
+        direction: import(".prisma/client").$Enums.call_direction;
         agentType: string | null;
         callReason: string | null;
         durationSeconds: number | null;
@@ -211,25 +251,25 @@ export declare class CallLogsController {
         callSummary: string | null;
         sentiment: string | null;
         resolutionStatus: string | null;
-        followUpRequired: boolean;
+        followUpRequired: boolean | null;
         followUpNotes: string | null;
         recordingUrl: string | null;
         endedAt: Date | null;
     }>;
     update(id: string, data: any): Promise<{
         practiceId: string | null;
-        createdAt: Date;
+        createdAt: Date | null;
         patientId: string | null;
         providerId: string | null;
         appointmentId: string | null;
-        status: import(".prisma/client").$Enums.CallStatus;
-        startedAt: Date;
+        status: import(".prisma/client").$Enums.call_status | null;
+        startedAt: Date | null;
         logId: string;
         callSid: string | null;
         sessionId: string | null;
         phoneFrom: string | null;
         phoneTo: string | null;
-        direction: import(".prisma/client").$Enums.CallDirection;
+        direction: import(".prisma/client").$Enums.call_direction;
         agentType: string | null;
         callReason: string | null;
         durationSeconds: number | null;
@@ -237,7 +277,7 @@ export declare class CallLogsController {
         callSummary: string | null;
         sentiment: string | null;
         resolutionStatus: string | null;
-        followUpRequired: boolean;
+        followUpRequired: boolean | null;
         followUpNotes: string | null;
         recordingUrl: string | null;
         endedAt: Date | null;

@@ -21,6 +21,15 @@ let AppointmentsService = class AppointmentsService {
         if (filters?.date) {
             where.scheduledDate = new Date(filters.date);
         }
+        else if (filters?.startDate || filters?.endDate) {
+            where.scheduledDate = {};
+            if (filters.startDate) {
+                where.scheduledDate.gte = new Date(filters.startDate);
+            }
+            if (filters.endDate) {
+                where.scheduledDate.lte = new Date(filters.endDate);
+            }
+        }
         if (filters?.providerId) {
             where.providerId = filters.providerId;
         }
@@ -124,8 +133,12 @@ let AppointmentsService = class AppointmentsService {
             select: { scheduledTime: true, endTime: true, duration: true },
         });
         const slots = [];
-        const [startHour, startMin] = schedule.startTime.split(':').map(Number);
-        const [endHour, endMin] = schedule.endTime.split(':').map(Number);
+        const startTime = schedule.startTime instanceof Date ? schedule.startTime : new Date(schedule.startTime);
+        const endTime = schedule.endTime instanceof Date ? schedule.endTime : new Date(schedule.endTime);
+        const startHour = startTime.getUTCHours();
+        const startMin = startTime.getUTCMinutes();
+        const endHour = endTime.getUTCHours();
+        const endMin = endTime.getUTCMinutes();
         let currentHour = startHour;
         let currentMin = startMin;
         while (currentHour < endHour || (currentHour === endHour && currentMin + duration <= endMin)) {
@@ -134,8 +147,10 @@ let AppointmentsService = class AppointmentsService {
             const slotEndHour = currentHour + Math.floor(slotEndMin / 60);
             const slotEnd = `${String(slotEndHour).padStart(2, '0')}:${String(slotEndMin % 60).padStart(2, '0')}`;
             const isAvailable = !existing.some((appt) => {
-                const apptStart = appt.scheduledTime;
-                const apptEnd = appt.endTime || appt.scheduledTime;
+                const apptStartTime = appt.scheduledTime instanceof Date ? appt.scheduledTime : new Date(appt.scheduledTime);
+                const apptEndTime = appt.endTime instanceof Date ? appt.endTime : (appt.endTime ? new Date(appt.endTime) : apptStartTime);
+                const apptStart = `${String(apptStartTime.getUTCHours()).padStart(2, '0')}:${String(apptStartTime.getUTCMinutes()).padStart(2, '0')}`;
+                const apptEnd = `${String(apptEndTime.getUTCHours()).padStart(2, '0')}:${String(apptEndTime.getUTCMinutes()).padStart(2, '0')}`;
                 return !(slotEnd <= apptStart || slotStart >= apptEnd);
             });
             if (isAvailable) {
@@ -154,6 +169,12 @@ let AppointmentsService = class AppointmentsService {
         return slots;
     }
     async create(data) {
+        const appointmentDate = new Date(data.scheduledDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (appointmentDate < today) {
+            throw new common_1.ConflictException('Cannot schedule appointments in the past');
+        }
         const slots = await this.getAvailableSlots(data.providerId, data.scheduledDate, data.duration || 30);
         const isAvailable = slots.some((s) => s.startTime === data.scheduledTime);
         if (!isAvailable) {
@@ -186,6 +207,12 @@ let AppointmentsService = class AppointmentsService {
         });
     }
     async reschedule(appointmentId, newDate, newTime, newProviderId) {
+        const targetDate = new Date(newDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (targetDate < today) {
+            throw new common_1.ConflictException('Cannot reschedule to a past date');
+        }
         const original = await this.findOne(appointmentId);
         await this.prisma.appointment.update({
             where: { appointmentId },

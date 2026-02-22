@@ -8,8 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from config import settings
-from routes import voice, patients, appointments, providers
-from db.supabase_client import init_supabase
+from routes import voice, chat, patients, appointments, providers
+from db.postgres_client import init_db
 
 # Configure logging
 logging.basicConfig(
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Application lifespan events"""
     logger.info("Starting Healthcare Voice AI Service...")
-    init_supabase()
+    init_db()
     yield
     logger.info("Shutting down Healthcare Voice AI Service...")
 
@@ -44,11 +44,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers
-app.include_router(voice.router, prefix="/ws", tags=["Voice"])
-app.include_router(patients.router, prefix="/patients", tags=["Patients"])
-app.include_router(appointments.router, prefix="/appointments", tags=["Appointments"])
-app.include_router(providers.router, prefix="/providers", tags=["Providers"])
+# Include routers - note: /ai prefix is added by ingress routing
+app.include_router(voice.router, prefix="/ai/ws", tags=["Voice"])
+app.include_router(chat.router, prefix="/ai/ws", tags=["Chat"])
+app.include_router(patients.router, prefix="/ai/patients", tags=["Patients"])
+app.include_router(appointments.router, prefix="/ai/appointments", tags=["Appointments"])
+app.include_router(providers.router, prefix="/ai/providers", tags=["Providers"])
 
 
 @app.get("/")
@@ -60,8 +61,22 @@ async def root():
     }
 
 
+@app.get("/ai")
+async def ai_root():
+    return {
+        "service": settings.app_name,
+        "status": "running",
+        "version": "1.0.0"
+    }
+
+
 @app.get("/health")
 async def health_check():
+    return {"status": "healthy"}
+
+
+@app.get("/ai/health")
+async def ai_health_check():
     return {"status": "healthy"}
 
 

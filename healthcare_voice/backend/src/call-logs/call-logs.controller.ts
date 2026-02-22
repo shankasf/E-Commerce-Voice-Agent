@@ -12,6 +12,7 @@ export class CallLogsController {
     @Query('patientId') patientId?: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
+    @Query('agentType') agentType?: string,
     @Query('skip') skip?: string,
     @Query('take') take?: string,
   ) {
@@ -19,6 +20,7 @@ export class CallLogsController {
       patientId,
       startDate,
       endDate,
+      agentType,
       skip: skip ? parseInt(skip) : undefined,
       take: take ? parseInt(take) : undefined,
     });

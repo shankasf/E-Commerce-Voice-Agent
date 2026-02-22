@@ -216,6 +216,11 @@ async function main() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  // Helper function to create time as Date object
+  const createTime = (hours: number, minutes: number) => {
+    return new Date(`1970-01-01T${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00.000Z`);
+  };
+
   const appointments = await Promise.all([
     prisma.appointment.create({
       data: {
@@ -224,7 +229,7 @@ async function main() {
         providerId: providers[0].providerId,
         serviceId: services[0].serviceId,
         scheduledDate: today,
-        scheduledTime: '09:00',
+        scheduledTime: createTime(9, 0),
         duration: 45,
         status: 'confirmed',
         appointmentType: 'routine_checkup',
@@ -237,7 +242,7 @@ async function main() {
         providerId: providers[0].providerId,
         serviceId: services[2].serviceId,
         scheduledDate: today,
-        scheduledTime: '10:30',
+        scheduledTime: createTime(10, 30),
         duration: 30,
         status: 'scheduled',
         appointmentType: 'emergency',
@@ -250,7 +255,7 @@ async function main() {
         providerId: providers[1].providerId,
         serviceId: services[1].serviceId,
         scheduledDate: today,
-        scheduledTime: '11:00',
+        scheduledTime: createTime(11, 0),
         duration: 20,
         status: 'confirmed',
         appointmentType: 'telehealth',
@@ -263,7 +268,7 @@ async function main() {
         providerId: providers[2].providerId,
         serviceId: services[0].serviceId,
         scheduledDate: today,
-        scheduledTime: '14:00',
+        scheduledTime: createTime(14, 0),
         duration: 45,
         status: 'scheduled',
         appointmentType: 'routine_checkup',

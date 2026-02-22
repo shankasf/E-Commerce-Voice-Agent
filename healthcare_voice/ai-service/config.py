@@ -1,6 +1,5 @@
 """Configuration settings for Healthcare Voice AI Service"""
 from pydantic_settings import BaseSettings
-from pydantic import Field
 from functools import lru_cache
 from typing import Optional
 
@@ -14,12 +13,11 @@ class Settings(BaseSettings):
 
     # OpenAI
     openai_api_key: str = ""
-    openai_model: str = "gpt-4o-realtime-preview-2024-12-17"
-    openai_voice: str = "alloy"
+    openai_model: str = "gpt-4o-realtime-preview-2025-06-03"
+    openai_voice: str = "coral"
 
-    # Supabase
-    supabase_url: str = ""
-    supabase_key: str = Field(default="", validation_alias="SUPABASE_SERVICE_ROLE_KEY")
+    # Database
+    database_url: str = ""
 
     # Twilio (optional)
     twilio_account_sid: Optional[str] = None
@@ -27,7 +25,7 @@ class Settings(BaseSettings):
     twilio_phone_number: Optional[str] = None
 
     # Backend API
-    backend_url: str = "http://localhost:3005"
+    backend_url: str = "http://healthcare-backend:3005"
     internal_api_key: str = ""
 
     # Practice settings (default practice ID)

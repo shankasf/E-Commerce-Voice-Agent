@@ -16,20 +16,24 @@ interface Appointment {
 
 export default function AppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([])
+  const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
 
   useEffect(() => {
     fetchAppointments()
-  }, [selectedDate])
+  }, [startDate, endDate])
 
   const fetchAppointments = async () => {
     setLoading(true)
     try {
-      const response = await api.get('/appointments', {
-        params: { date: selectedDate },
-      })
+      const params: Record<string, string> = {}
+      if (startDate) params.startDate = startDate
+      if (endDate) params.endDate = endDate
+      const response = await api.get('/appointments', { params })
       setAppointments(response.data.appointments)
+      setTotal(response.data.total)
     } catch (error) {
       console.error('Failed to fetch appointments:', error)
     } finally {
@@ -47,10 +51,11 @@ export default function AppointmentsPage() {
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
+      weekday: 'short',
+      month: 'short',
       day: 'numeric',
+      year: 'numeric',
+      timeZone: 'UTC',
     })
   }
 
@@ -87,15 +92,38 @@ export default function AppointmentsPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Appointments</h1>
-          <p className="text-gray-500">{formatDate(selectedDate)}</p>
+          <p className="text-gray-500">
+            {total} appointment{total !== 1 ? 's' : ''}
+            {startDate || endDate ? ' in selected range' : ' total'}
+          </p>
         </div>
-        <div className="flex items-center space-x-4">
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
-          />
+        <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2">
+            <label className="text-sm text-gray-500">From</label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm"
+            />
+          </div>
+          <div className="flex items-center space-x-2">
+            <label className="text-sm text-gray-500">To</label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-sm"
+            />
+          </div>
+          {(startDate || endDate) && (
+            <button
+              onClick={() => { setStartDate(''); setEndDate('') }}
+              className="px-3 py-2 text-sm text-gray-500 hover:text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              Clear
+            </button>
+          )}
         </div>
       </div>
 
@@ -107,7 +135,7 @@ export default function AppointmentsPage() {
         <div className="bg-white rounded-xl shadow-sm p-12 text-center">
           <CalendarIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No appointments</h3>
-          <p className="text-gray-500">No appointments scheduled for this date</p>
+          <p className="text-gray-500">No appointments found{startDate || endDate ? ' for the selected date range' : ''}</p>
         </div>
       ) : (
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
@@ -115,7 +143,7 @@ export default function AppointmentsPage() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Time
+                  Date & Time
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Patient
@@ -138,9 +166,12 @@ export default function AppointmentsPage() {
               {appointments.map((appointment) => (
                 <tr key={appointment.appointmentId} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <ClockIcon className="w-4 h-4 text-gray-400 mr-2" />
-                      <span className="font-medium">{formatTime(appointment.scheduledTime)}</span>
+                    <div>
+                      <p className="font-medium text-gray-900">{formatDate(appointment.scheduledDate)}</p>
+                      <div className="flex items-center text-sm text-gray-500">
+                        <ClockIcon className="w-3.5 h-3.5 mr-1" />
+                        {formatTime(appointment.scheduledTime)}
+                      </div>
                     </div>
                   </td>
                   <td className="px-6 py-4">

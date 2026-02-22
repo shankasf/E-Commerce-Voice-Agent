@@ -29,16 +29,16 @@ async def list_patients(
     offset: int = Query(0, ge=0)
 ):
     """List all patients (paginated)"""
-    from db.supabase_client import get_supabase
-    supabase = get_supabase()
-    if not supabase:
-        raise HTTPException(status_code=503, detail="Database unavailable")
+    from db.postgres_client import execute_query
 
-    result = supabase.table("patients").select(
-        "patient_id, mrn, first_name, last_name, date_of_birth, phone_primary, email"
-    ).range(offset, offset + limit - 1).execute()
-
-    return {"patients": result.data or [], "count": len(result.data or [])}
+    query = """
+        SELECT patient_id, mrn, first_name, last_name, date_of_birth, phone_primary, email
+        FROM patients
+        ORDER BY last_name, first_name
+        LIMIT %s OFFSET %s
+    """
+    patients = execute_query(query, (limit, offset))
+    return {"patients": patients, "count": len(patients)}
 
 
 @router.get("/{patient_id}")
