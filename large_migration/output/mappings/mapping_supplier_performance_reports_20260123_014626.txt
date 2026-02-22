@@ -1,0 +1,31 @@
+FIELD MAPPING DOCUMENT
+============================================================
+Field: supplier_performance_reports
+Generated: 2026-01-23T01:46:26.351190
+============================================================
+
+# Mapping: supplier_performance_reports (AMS)
+
+## Target
+- **Target field:** `supplier_performance_reports`
+- **Target template/UI name:** Supplier Performance Reports
+- **Target data type:** BOOLEAN
+- **Nullable:** False (required)
+
+## Source
+- **Source field (CLM):** `supplier_performance_reporting`
+- **Source DB / schema / table:** `clm.public.supplier_performance` *(PLACEHOLDER: not present in provided mapping workbook; confirm actual CLM object)*
+- **Source column(s):** `supplier_performance_reporting`
+
+## Transformation SQL
+```sql
+supplier_performance_reporting
+```
+
+## Join keys / relationships
+- **Join keys:** Not provided / not found.
+- Expected relationship (to be confirmed): join to contract grain by `contractid` (and possibly `version`) or equivalent agreement key.
+
+## Notes / special handling
+- User confirmed mapping: `supplier_performance_reporting` → `supplier_performance_reports`.
+- Template defines BOOLEAN + required, but the template description lists multiple report options (suggesting multi-select). Confirm whether source is boolean or needs derivation (e.g., `supplier_performance_reporting is not null` → TRUE).

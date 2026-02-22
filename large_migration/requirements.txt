@@ -1,0 +1,21 @@
+# Core dependencies
+openai-agents>=0.1.0
+openai>=1.0.0
+streamlit>=1.28.0
+python-dotenv>=1.0.0
+
+# Database
+psycopg2-binary>=2.9.9
+
+# Optional: LangSmith for tracing
+langsmith>=0.1.0
+
+# Utilities
+pydantic>=2.0.0
+
+# File parsing
+python-docx>=1.1.0      # DOCX files
+pypdf>=4.0.0            # PDF files
+openpyxl>=3.1.0         # Excel XLSX files
+xlrd>=2.0.0             # Excel XLS files (legacy)
+pandas>=2.0.0           # Data processing for CSV/Excel

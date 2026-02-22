@@ -1,0 +1,31 @@
+FIELD MAPPING DOCUMENT
+============================================================
+Field: supplier_performance_reports
+Generated: 2026-01-23T01:56:58.628552
+============================================================
+
+# Mapping: supplier_performance_reports (AMS)
+
+## Target
+- **Target field:** `supplier_performance_reports`
+- **Target template/UI name:** Supplier Performance Reports
+- **Target data type:** BOOLEAN
+- **Nullable:** False (required)
+
+## Source (authoritative, per user)
+- **Source DB:** `clm`
+- **Source schema/table:** `skssys.contract`
+- **Source column:** `frequencyid`
+
+## Join keys
+- `contractid, version`
+
+## Transformation SQL
+```sql
+CASE WHEN frequencyid IS NOT NULL THEN TRUE ELSE FALSE END
+```
+
+## Notes / special handling
+- This replaces the earlier placeholder mapping (`supplier_performance_reporting`), which lacked a confirmed source object.
+- If `frequencyid` is numeric/string in CLM and always populated, this will always be TRUE; confirm business intent.
+- If `frequencyid` can be 0/empty string and should count as FALSE, adjust to `NULLIF(TRIM(frequencyid), '') IS NOT NULL`.
