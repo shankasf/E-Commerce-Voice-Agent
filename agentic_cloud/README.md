@@ -94,13 +94,13 @@ docker run -p 3006:3000 agentic-cloud
 
 ## Kubernetes Deployment (k3s)
 
-Kubernetes manifests are located in `/home/ubuntu/apps/kubernetes/apps/agentic-cloud/`
+Kubernetes manifests are located in `/home/ubuntu/apps/k3s/apps/agentic-cloud/`
 
 ### Quick Deploy
 
 ```bash
 # Use the deployment script
-cd /home/ubuntu/apps/kubernetes/apps/agentic-cloud
+cd /home/ubuntu/apps/k3s/apps/agentic-cloud
 
 # Full deployment (build + deploy)
 ./deploy.sh full
@@ -123,7 +123,7 @@ docker tag agentic-cloud:latest localhost:5000/agentic-cloud:latest
 docker push localhost:5000/agentic-cloud:latest
 
 # Deploy to k3s
-cd /home/ubuntu/apps/kubernetes/apps/agentic-cloud
+cd /home/ubuntu/apps/k3s/apps/agentic-cloud
 kubectl apply -k .
 
 # Check status
