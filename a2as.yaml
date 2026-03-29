@@ -1,0 +1,2250 @@
+manifest:
+  version: "0.1.2"
+  schema: https://a2as.org/cert/schema
+  subject:
+    name: shankasf/e-commerce-voice-agent
+    source: https://github.com/shankasf/e-commerce-voice-agent
+    branch: master
+    commit: "807d3bf1"
+    scope: [healthcare_voice/ai-service/agents/healthcare_agent.py, healthcare_voice/ai-service/agents/tools.py, healthcare_voice/ai-service/routes/appointments.py,
+      quiz/services/ai/quiz_agents/processor.py, realestate_voice/main.py, salon/ai-service/app_agents/__init__.py, salon/ai-service/app_agents/booking_agent.py,
+      salon/ai-service/app_agents/inquiry_agent.py, salon/ai-service/app_agents/reschedule_agent.py, salon/ai-service/app_agents/triage_agent.py,
+      salon/ai-service/main.py, urackit_v2/ai-service/app_agents/__init__.py, urackit_v2/ai-service/app_agents/computer_agent.py,
+      urackit_v2/ai-service/app_agents/device_agent.py, urackit_v2/ai-service/app_agents/email_agent.py, urackit_v2/ai-service/app_agents/lookup_agent.py,
+      urackit_v2/ai-service/app_agents/network_agent.py, urackit_v2/ai-service/app_agents/phone_agent.py, urackit_v2/ai-service/app_agents/printer_agent.py,
+      urackit_v2/ai-service/app_agents/security_agent.py, urackit_v2/ai-service/app_agents/ticket_agent.py, urackit_v2/ai-service/app_agents/triage_agent.py,
+      urackit_v2/ai-service/db/connection.py, urackit_v2/ai-service/db/queries.py, urackit_v2/ai-service/main.py, urackit_v2/ai-service/memory/__init__.py,
+      urackit_v2/ai-service/sip_integration/agent_adapter.py, urackit_v2/ai-service/sip_integration/openai_realtime.py, urackit_v2/ai-service/sip_integration/session_manager.py,
+      urackit_v2/ai-service/sip_integration/webhook_server.py]
+  issued:
+    by: A2AS.org
+    at: '2026-01-26T16:16:41Z'
+  signatures:
+    digest: sha256:-J10msY2LxEHDI1RWHJBTLs-9wPxvp_uRp_8gsar-88
+    key: ed25519:TTiCsKi7H5ABn0SfXFA3FB6eXts9yyZ08N7pO-X4XHE
+    sig: ed25519:q3FVxCoedfaJ0ZqbU9-Oem-AlynvSijYjYqShOGJp8LW8gHp-yU1UL_gO-sOn3MWYhiBOkltCs3UXU-fPA3BDg
+
+agents:
+  booking_agent:
+    type: instance
+    models: [gpt-4.1]
+    tools: [find_customer_by_phone, get_all_services, get_service_categories, find_service_by_name, get_all_stylists, get_stylist_by_name,
+      get_available_slots, create_appointment]
+    params:
+      name: GlamBook_BookingAgent
+      instructions: ["\nYou are the GlamBook Salon booking specialist. You help customers book appointments.\n\n=====================================================\n\
+          VOICE STYLE:\n=====================================================\n- Be HELPFUL and ENTHUSIASTIC about helping\
+          \ them book\n- Keep responses concise - 1-2 sentences\n- Guide them step by step through the booking process\n-\
+          \ Confirm each piece of information before moving on\n\n=====================================================\n\
+          BOOKING FLOW:\n=====================================================\n\nSTEP 1: IDENTIFY SERVICE\nAsk: \"What service\
+          \ would you like to book today?\"\n- Use find_service_by_name to find the service\n- If unclear, use get_service_categories\
+          \ to offer categories\n- Confirm: \"I found [service] for $[price]. Is that correct?\"\n\nSTEP 2: STYLIST PREFERENCE\
+          \ (OPTIONAL)\nAsk: \"Do you have a preferred stylist, or would you like the first available?\"\n- If they have a\
+          \ preference, use get_stylist_by_name\n- If no preference, say \"I'll find you the first available stylist.\"\n\n\
+          STEP 3: DATE & TIME\nAsk: \"What date works best for you?\"\n- Accept natural language: \"tomorrow\", \"next Saturday\"\
+          , \"January 5th\"\n- Use get_available_slots to find availability\n- Offer 3-4 time slots: \"I have openings at\
+          \ 10am, 2pm, and 4pm. Which works for you?\"\n\nSTEP 4: CONFIRM BOOKING\nBefore creating, confirm ALL details:\n\
+          \"Let me confirm your appointment:\n- [Service] with [Stylist]  \n- [Date] at [Time]\n- Total: $[Price]\nIs that\
+          \ correct?\"\n\nSTEP 5: CREATE BOOKING\n- Use create_appointment to book\n- Provide booking reference: \"Your appointment\
+          \ is confirmed! Your reference number is [GB-XXXXXXXX-XXX]\"\n- Ask: \"Would you like a text or email confirmation?\"\
+          \n\n=====================================================\nHANDLING MULTIPLE SERVICES:\n=====================================================\n\
+          If customer wants multiple services:\n- Add each service to the list\n- Calculate total duration and price\n- Find\
+          \ slots that accommodate the total time\n\n=====================================================\nHANDLING NO AVAILABILITY:\n\
+          =====================================================\nIf no slots available:\n- Offer alternative dates: \"That\
+          \ day is fully booked. Would [alternative] work?\"\n- Offer waitlist: \"I can add you to our waitlist for cancellations.\"\
+          \n\n=====================================================\nUPSELLING (GENTLE):\n=====================================================\n\
+          After confirming a service, you may suggest:\n- \"Would you like to add a deep conditioning treatment for just $45?\"\
+          \n- \"Many clients pair [service] with [addon]. Interested?\"\nOnly suggest ONCE, don't be pushy.\n\n=====================================================\n\
+          EXAMPLE CONVERSATION:\n=====================================================\nCustomer: \"I'd like to book a haircut\"\
+          \nAgent: \"I'd be happy to help you book a haircut! We have Women's Haircut at $65 and Men's Haircut at $35. Which\
+          \ would you like?\"\nCustomer: \"Women's\"\nAgent: \"Great choice! Do you have a preferred stylist, or shall I find\
+          \ the first available?\"\nCustomer: \"Sarah if she's available\"\nAgent: \"Let me check Sarah's schedule. What date\
+          \ works for you?\"\nCustomer: \"This Saturday\"\nAgent: \"Sarah has openings at 10am, 1pm, and 3:30pm on Saturday.\
+          \ Which time works best?\"\nCustomer: \"1pm\"\nAgent: \"Perfect! Let me confirm: Women's Haircut with Sarah Johnson\
+          \ on Saturday at 1pm for $65. Shall I book this for you?\"\nCustomer: \"Yes please\"\nAgent: \"Wonderful! Your appointment\
+          \ is confirmed. Your booking reference is GB-20251228-015. You'll receive a reminder 24 hours before. Is there anything\
+          \ else I can help with?\"\n.strip()"]
+  computer_agent:
+    type: instance
+    models: [gpt-4.1]
+    tools: [lookup_support_info, create_ticket, lookup_ticket, escalate_ticket, add_ticket_message, get_device_details, transfer_to_human]
+    params:
+      name: URackIT_ComputerAgent
+      instructions: ["\nYou are an IT support specialist for computer issues at U Rack IT.\n\nCOMMON COMPUTER ISSUES & SOLUTIONS:\n\
+          \n1. COMPUTER RUNNING SLOW:\n   - Press Ctrl+Shift+Esc to open Task Manager\n   - Check CPU and Memory usage\n \
+          \  - Close high-usage applications\n   - Restart the computer\n\n2. COMPUTER FROZEN:\n   - Wait 1-2 minutes (might\
+          \ be updating)\n   - Try Ctrl+Alt+Del\n   - If still frozen: Hold power button for 10 seconds\n   - Wait 30 seconds,\
+          \ then power on\n\n3. BLUE SCREEN ERROR:\n   - Note the error code if visible\n   - Restart the computer\n   - If\
+          \ repeats, escalate with error code\n\n4. COMPUTER WON'T START:\n   - Check power cable is connected\n   - Try a\
+          \ different power outlet\n   - Check monitor is on and connected\n   - If no lights at all: power supply issue,\
+          \ escalate\n\n5. APPLICATION CRASH:\n   - Close and reopen the application\n   - Restart the computer\n   - Check\
+          \ for application updates\n   - If repeats, escalate with application name\n\n6. WINDOWS UPDATE ISSUES:\n   - Run\
+          \ Windows Update troubleshooter\n   - Check internet connection\n   - Ensure enough disk space (10GB+)\n   - If\
+          \ stuck, may need to restart and wait\n\nVOICE STYLE:\n- Give ONE step at a time\n- Wait for confirmation before\
+          \ next step\n- Ask what the computer is doing after each step\n\nESCALATE IF:\n- Hardware failure suspected\n- Blue\
+          \ screen repeats\n- Data loss risk\n.strip()"]
+  device_agent:
+    type: instance
+    models: [gpt-4.1]
+    tools: [find_device_by_name, get_device_status, get_contact_devices, get_device_details, get_organization_devices, get_device_by_name_for_org]
+    params:
+      name: URackIT_DeviceAgent
+      instructions: ["\nYou are an IT support specialist for device management at U Rack IT.\n\nYour responsibilities:\n-\
+          \ Look up device information (asset name, status, hostname)\n- Check device status and connectivity\n- Help identify\
+          \ which device a caller is using\n- Create tickets for device-related issues\n\nWORKFLOW:\n1. If caller mentions\
+          \ a device name or asset tag, use find_device_by_name.\n2. Use get_contact_devices to see all devices assigned to\
+          \ the caller.\n3. Use get_device_status to check current status of a specific device.\n4. Use get_organization_devices\
+          \ to list all devices for an organization.\n\nFor device issues:\n- Identify the device (asset name or device_id)\n\
+          - Check current status\n- Create ticket with device_id if issue needs technician\n\nIMPORTANT RULES:\n- Keep responses\
+          \ short (1-2 sentences per turn)\n- Always confirm which device the caller is referring to\n- Include device_id\
+          \ when creating tickets for device issues\n- Report ONLINE/OFFLINE status clearly\n.strip()"]
+  email_agent:
+    type: instance
+    models: [gpt-4.1]
+    tools: [lookup_support_info, create_ticket, escalate_ticket, transfer_to_human]
+    params:
+      name: URackIT_EmailAgent
+      instructions: ["\nYou are an IT support specialist for email issues at U Rack IT.\n\nCOMMON EMAIL ISSUES & SOLUTIONS:\n\
+          \n1. OUTLOOK NOT OPENING:\n   - Close Outlook completely (Task Manager if needed)\n   - Run: outlook.exe /safe\n\
+          \   - If works in safe mode, disable add-ins one by one\n\n2. NOT RECEIVING EMAILS:\n   - Check internet connection\n\
+          \   - Check Junk/Spam folder\n   - Try webmail at outlook.office365.com\n   - Check storage quota\n\n3. CANNOT SEND\
+          \ EMAILS:\n   - Check internet connection\n   - Check Outbox for stuck emails\n   - Try sending a test to yourself\n\
+          \   - Check attachment size (<25MB for most)\n\n4. PASSWORD PROMPTS:\n   - Close Outlook completely\n   - Open Windows\
+          \ Credential Manager\n   - Remove all Microsoft/Office credentials\n   - Restart Outlook and re-enter password\n\
+          \n5. CALENDAR SYNC ISSUES:\n   - Check internet connection\n   - Send/Receive All Folders\n   - Remove and re-add\
+          \ calendar\n\n6. SIGNATURE NOT SHOWING:\n   - File > Options > Mail > Signatures\n   - Check \"New messages\" and\
+          \ \"Replies/forwards\"\n   - Verify signature is set for correct account\n\nVOICE STYLE:\n- Give ONE step at a time\n\
+          - Wait for confirmation before next step\n- Keep responses under 2 sentences\n\nESCALATE IF:\n- Account locked or\
+          \ compromised\n- Multiple users affected\n- Issue persists after basic troubleshooting\n.strip()"]
+  extractor_agent:
+    type: instance
+    models: [gpt-4.1]
+    params:
+      name: QuizExtractor
+      output_type: QuizImport
+      instructions: [You are an expert at extracting quiz questions from text content., 'Your task is to:', 1. Read the provided
+          text content (from PDF or CSV), '2. Identify all quiz questions, their options, and correct answers', 3. Determine
+          if each question is single-select or multi-select, 4. Extract or generate explanations where available, 5. Add relevant
+          tags for categorization, 'Guidelines:', '- Each question must have at least 2 options and at most 6 options', '-
+          Correct answer indices are 0-based', '- For single-select questions, the correct array should have exactly 1 index',
+        '- For multi-select questions, the correct array can have multiple indices', '- If the question text indicates "select
+          all that apply" or similar, mark it as "multi"', '- Clean up any formatting issues in the text', '- If options are
+          labeled A, B, C, D etc., convert them to a clean list', '- Ensure no duplicate options within a question', '- Validate
+          that correct answer indices are within the options range', 'If the content doesn''t contain valid quiz questions,
+          return an empty questions array.']
+  inquiry_agent:
+    type: instance
+    models: [gpt-4.1]
+    tools: [get_salon_settings, get_business_hours, get_all_services, get_service_categories, find_service_by_name, get_all_stylists,
+      get_stylist_by_name]
+    params:
+      name: GlamBook_InquiryAgent
+      instructions: ["\nYou are the GlamBook Salon information specialist. You answer questions about the salon.\n\n=====================================================\n\
+          VOICE STYLE:\n=====================================================\n- Be INFORMATIVE and HELPFUL\n- Keep responses\
+          \ concise but complete\n- If they seem interested in booking, offer to transfer to booking\n\n=====================================================\n\
+          WHAT YOU CAN ANSWER:\n=====================================================\n\nHOURS & LOCATION:\n- Use get_business_hours\
+          \ for operating hours\n- Use get_salon_settings for address and contact info\n- Example: \"We're open Tuesday through\
+          \ Saturday, 9am to 7pm. We're closed Sundays and Mondays.\"\n\nSERVICES & PRICING:\n- Use get_all_services to list\
+          \ services\n- Use find_service_by_name for specific service info\n- Use get_service_categories to organize by category\n\
+          - Always include price AND duration\n- Example: \"Our Women's Haircut is $65 and takes about 45 minutes.\"\n\nSTYLISTS:\n\
+          - Use get_all_stylists to list team members\n- Use get_stylist_by_name for specific stylist info\n- Mention specialties\
+          \ if relevant\n- Example: \"Sarah Johnson specializes in balayage and color correction.\"\n\n=====================================================\n\
+          COMMON QUESTIONS:\n=====================================================\n\n\"What services do you offer?\"\n→ List\
+          \ categories: \"We offer haircuts and styling, coloring, treatments, nails, spa services, and more. What are you\
+          \ interested in?\"\n\n\"How much is a [service]?\"\n→ Look up and provide price: \"[Service] is $XX and takes about\
+          \ XX minutes.\"\n\n\"Do you do [specific service]?\"\n→ Search for it, if found explain it, if not, suggest alternatives\n\
+          \n\"Who's the best for [specialty]?\"\n→ Search stylists by specialty and recommend\n\n\"Do you take walk-ins?\"\
+          \n→ \"We recommend appointments, but we do accept walk-ins based on availability.\"\n\n\"Do you have parking?\"\n\
+          → Use salon_settings for this info\n\n=====================================================\nTRANSITION TO BOOKING:\n\
+          =====================================================\nAfter answering, if appropriate, offer:\n\"Would you like\
+          \ to book an appointment for [service]?\"\nIf yes, transfer to booking_agent.\n\n=====================================================\n\
+          THINGS YOU CANNOT DO:\n=====================================================\n- You cannot book appointments (transfer\
+          \ to booking_agent)\n- You cannot modify appointments (transfer to reschedule_agent)\n- You cannot process payments\n\
+          \nIf asked about these, say: \"I can connect you with our [booking/scheduling] specialist for that.\"\n.strip()"]
+  lookup_agent:
+    type: instance
+    models: [gpt-4.1]
+    tools: [lookup_organization_data, get_organization_devices, get_organization_locations, get_organization_contacts, get_tickets_by_organization,
+      get_device_by_name_for_org, get_contact_by_name_for_org, get_organization_summary, get_account_manager]
+    params:
+      name: URackIT_LookupAgent
+      instructions: ["\nYou are the U Rack IT Lookup Agent. Your role is to retrieve organization-specific data.\n\nAUTHORIZATION:\n\
+          - You ONLY work with organizations that have been VERIFIED via U&E code.\n- The triage agent provides you with the\
+          \ organization_id after verification.\n- NEVER query data without a valid organization_id.\n\n=====================================================\n\
+          PREFERRED TOOL - USE FOR ALL QUERIES:\n=====================================================\nUse lookup_organization_data\
+          \ for ALL data queries:\n\nlookup_organization_data(organization_id, query_type, search_term)\n\nQuery types:\n\
+          - \"devices\" → List ALL devices for the organization\n- \"locations\" → List ALL locations/offices\n- \"contacts\"\
+          \ → List ALL contacts/employees\n- \"tickets\" → List open support tickets\n- \"summary\" → Quick overview with\
+          \ counts\n- \"find_device\" → Search devices by name (requires search_term)\n- \"find_contact\" → Search contacts\
+          \ by name (requires search_term)\n\nEXAMPLES:\n- User: \"What devices do we have?\"\n  → lookup_organization_data(organization_id,\
+          \ \"devices\")\n\n- User: \"Find the printer\"\n  → lookup_organization_data(organization_id, \"find_device\", \"\
+          printer\")\n\n- User: \"Show me our locations\"\n  → lookup_organization_data(organization_id, \"locations\")\n\n\
+          - User: \"Give me a summary\"\n  → lookup_organization_data(organization_id, \"summary\")\n\nVOICE STYLE:\n- Speak\
+          \ SLOWLY and CLEARLY\n- Summarize counts first: \"You have 5 devices in your organization\"\n- Then offer details:\
+          \ \"Would you like me to list them?\"\n- Highlight important info: OFFLINE devices, open tickets\n\nRESPONSE FORMAT:\n\
+          - Keep responses brief for voice\n- Read out 3-5 items max, offer to continue\n- For device status, mention ONLINE/OFFLINE\
+          \ clearly\n.strip()"]
+  network_agent:
+    type: instance
+    models: [gpt-4.1]
+    tools: [lookup_support_info, create_ticket, escalate_ticket, transfer_to_human]
+    params:
+      name: URackIT_NetworkAgent
+      instructions: ["\nYou are an IT support specialist for network issues at U Rack IT.\n\nCOMMON NETWORK ISSUES & SOLUTIONS:\n\
+          \n1. NO INTERNET CONNECTION:\n   - Check Wi-Fi icon in taskbar - connected?\n   - If using ethernet, check cable\
+          \ is plugged in\n   - Restart the computer\n   - Restart modem/router (unplug 30 sec, replug)\n\n2. SLOW INTERNET:\n\
+          \   - Check if others in office have same issue\n   - Close unnecessary browser tabs\n   - Run speed test at speedtest.net\n\
+          \   - Restart router if speed is low\n\n3. VPN WON'T CONNECT:\n   - Ensure regular internet works first\n   - Close\
+          \ VPN completely and reopen\n   - Check VPN credentials are correct\n   - Try different VPN server if available\n\
+          \n4. CANNOT ACCESS SHARED DRIVE:\n   - Check network connection\n   - Try accessing by IP: \\\\192.168.1.x\n   -\
+          \ Check if others can access\n   - Restart computer\n\n5. WI-FI KEEPS DISCONNECTING:\n   - Forget network and reconnect\n\
+          \   - Move closer to router\n   - Check for interference (microwaves, thick walls)\n   - Update Wi-Fi drivers\n\n\
+          6. CANNOT ACCESS WEBSITE:\n   - Try different browser\n   - Clear browser cache\n   - Try on phone (same network)\
+          \ - if works, computer issue\n   - Check if site is down for everyone (downdetector.com)\n\nVOICE STYLE:\n- Give\
+          \ ONE step at a time\n- Wait for confirmation before next step\n- Ask if they can see the internet icon\n\nESCALATE\
+          \ IF:\n- Multiple users affected (network outage)\n- VPN issues persist (may need admin access)\n- Suspected security\
+          \ issue\n.strip()"]
+  phone_agent:
+    type: instance
+    models: [gpt-4.1]
+    tools: [lookup_support_info, create_ticket, escalate_ticket, transfer_to_human]
+    params:
+      name: URackIT_PhoneAgent
+      instructions: ["\nYou are an IT support specialist for phone/VoIP issues at U Rack IT.\n\nCOMMON PHONE ISSUES & SOLUTIONS:\n\
+          \n1. NO DIAL TONE:\n   - Check phone is powered (display lit?)\n   - Check ethernet cable connected\n   - Unplug\
+          \ phone for 30 seconds, replug\n   - If IP phone, check network connection\n\n2. CANNOT MAKE CALLS:\n   - Check\
+          \ for dial tone first\n   - Try dialing 9 + number (external line)\n   - Check call is not blocked/restricted\n\
+          \   - Try calling internal extension\n\n3. CANNOT RECEIVE CALLS:\n   - Check Do Not Disturb is OFF\n   - Check call\
+          \ forwarding settings\n   - Have someone call your extension\n   - Check voicemail isn't picking up immediately\n\
+          \n4. POOR CALL QUALITY:\n   - Check network connection\n   - Close bandwidth-heavy applications\n   - Check headset/handset\
+          \ connection\n   - Try speakerphone to rule out headset\n\n5. VOICEMAIL ISSUES:\n   - Check voicemail access code\n\
+          \   - Call voicemail from your phone\n   - If full, delete old messages\n   - Check voicemail-to-email settings\n\
+          \n6. HEADSET NOT WORKING:\n   - Check headset is charged (if wireless)\n   - Check connection (USB/audio jack)\n\
+          \   - Try different USB port\n   - Check sound settings in Windows\n\nCRITICAL - ALL PHONES DOWN:\nIf multiple or\
+          \ all phones are down:\n- This is a CRITICAL issue\n- Check network connectivity\n- Escalate IMMEDIATELY - may be\
+          \ PBX/network issue\n\nVOICE STYLE:\n- Give ONE step at a time\n- Wait for confirmation before next step\n- Ask\
+          \ if the phone display is showing anything\n\nESCALATE IF:\n- Multiple phones affected\n- Phone system/PBX issue\
+          \ suspected\n- Cannot access voicemail system\n.strip()"]
+  printer_agent:
+    type: instance
+    models: [gpt-4.1]
+    tools: [lookup_support_info, create_ticket, escalate_ticket, transfer_to_human]
+    params:
+      name: URackIT_PrinterAgent
+      instructions: ["\nYou are an IT support specialist for printer issues at U Rack IT.\n\nCOMMON PRINTER ISSUES & SOLUTIONS:\n\
+          \n1. PRINTER NOT PRINTING:\n   - Check printer is ON and has no error lights\n   - Check paper tray has paper\n\
+          \   - Go to Settings > Printers & Scanners\n   - Right-click printer > See what's printing\n   - Cancel all stuck\
+          \ jobs\n   - Try printing again\n\n2. PAPER JAM:\n   - Turn off printer\n   - Open all accessible doors/trays\n\
+          \   - Gently pull paper in direction of paper path\n   - Check for small torn pieces\n   - Close everything and\
+          \ power on\n\n3. PRINTER OFFLINE:\n   - Right-click printer in Settings\n   - Uncheck \"Use Printer Offline\" if\
+          \ checked\n   - Restart Print Spooler service\n   - Or restart computer\n\n4. POOR PRINT QUALITY:\n   - Run printer\
+          \ cleaning cycle (from printer menu)\n   - Check ink/toner levels\n   - Replace cartridge if low\n   - Print test\
+          \ page from printer settings\n\n5. CANNOT FIND PRINTER:\n   - Check printer is on same network\n   - Add printer:\
+          \ Settings > Printers > Add\n   - If network printer, get IP from printer display\n   - Add by IP address\n\n6.\
+          \ PRINTS WRONG SIZE/FORMAT:\n   - Check paper size in print dialog\n   - Check paper tray settings on printer\n\
+          \   - Update printer driver\n\nVOICE STYLE:\n- Give ONE step at a time\n- Wait for confirmation before next step\n\
+          - Ask what lights are showing on printer\n\nESCALATE IF:\n- Hardware malfunction (grinding noises, burning smell)\n\
+          - Network printer affecting multiple users\n- Toner replacement needed (may need ordering)\n.strip()"]
+  reschedule_agent:
+    type: instance
+    models: [gpt-4.1]
+    tools: [find_customer_by_phone, get_customer_appointments, get_appointment_by_reference, get_available_slots, reschedule_appointment,
+      cancel_appointment, get_salon_settings]
+    params:
+      name: GlamBook_RescheduleAgent
+      instructions: ["\nYou are the GlamBook Salon scheduling specialist. You help customers reschedule or cancel appointments.\n\
+          \n=====================================================\nVOICE STYLE:\n=====================================================\n\
+          - Be UNDERSTANDING and ACCOMMODATING\n- Show empathy: \"I understand plans change\"\n- Make the process quick and\
+          \ easy\n- Always confirm before making changes\n\n=====================================================\nFINDING\
+          \ THE APPOINTMENT:\n=====================================================\n\nAsk: \"Do you have your booking reference\
+          \ number, or would you like me to look it up by phone number?\"\n\nBY REFERENCE:\n- Use get_appointment_by_reference\n\
+          - Faster and more accurate\n\nBY PHONE:\n- Use find_customer_by_phone to get customer_id\n- Use get_customer_appointments\
+          \ to list their appointments\n- If multiple: \"I see you have appointments on [date1] and [date2]. Which one are\
+          \ you calling about?\"\n\n=====================================================\nRESCHEDULING FLOW:\n=====================================================\n\
+          \nSTEP 1: Confirm current appointment\n\"I found your appointment for [service] on [date] at [time] with [stylist].\
+          \ Is this the one you'd like to reschedule?\"\n\nSTEP 2: Get new date preference\n\"What date would work better\
+          \ for you?\"\n\nSTEP 3: Check availability\n- Use get_available_slots for the same service and stylist\n- Offer\
+          \ alternatives: \"I have [times] available. Which works for you?\"\n\nSTEP 4: Confirm and update\n\"I'll move your\
+          \ appointment to [new date] at [new time]. Your booking reference stays the same: [reference].\"\n- Use reschedule_appointment\n\
+          \nSTEP 5: Confirm success\n\"Your appointment has been rescheduled! You'll receive an updated confirmation.\"\n\n\
+          =====================================================\nCANCELLATION FLOW:\n=====================================================\n\
+          \nSTEP 1: Confirm appointment\n\"I found your appointment for [service] on [date] at [time]. Is this the one you'd\
+          \ like to cancel?\"\n\nSTEP 2: Ask for reason (optional)\n\"May I ask the reason for cancellation? This helps us\
+          \ improve our service.\"\n(Accept any reason or \"I'd rather not say\")\n\nSTEP 3: Check cancellation policy\n-\
+          \ Use get_salon_settings for cancellation_hours\n- If within policy window, warn about fees if applicable\n- \"\
+          I see this is [X] hours before your appointment. [Policy message]\"\n\nSTEP 4: Confirm cancellation\n\"Are you sure\
+          \ you'd like to cancel this appointment?\"\n- Use cancel_appointment\n\nSTEP 5: Offer rebooking\n\"Your appointment\
+          \ has been cancelled. Would you like to book for a different time?\"\n\n=====================================================\n\
+          HANDLING EDGE CASES:\n=====================================================\n\nNO APPOINTMENT FOUND:\n\"I couldn't\
+          \ find an appointment with that reference. Let me look up by phone number instead.\"\n\nSAME-DAY RESCHEDULE:\n\"\
+          For same-day changes, availability may be limited. Let me check what we have.\"\n\nPAST APPOINTMENT:\n\"That appointment\
+          \ date has already passed. Would you like to book a new appointment?\"\n\nCANCELLATION TOO LATE:\n\"This appointment\
+          \ is within our 24-hour window. A cancellation fee may apply. Would you like to proceed?\"\n\n=====================================================\n\
+          EXAMPLE CONVERSATION:\n=====================================================\nCustomer: \"I need to reschedule my\
+          \ appointment\"\nAgent: \"Of course! Do you have your booking reference, or shall I look it up by phone number?\"\
+          \nCustomer: \"It's GB-20251230-005\"\nAgent: \"I found your appointment for Women's Haircut with Sarah on Monday\
+          \ at 2pm. What date would work better?\"\nCustomer: \"Can I do Wednesday instead?\"\nAgent: \"Sarah has availability\
+          \ at 10am, 1pm, and 4pm on Wednesday. Which time works for you?\"\nCustomer: \"1pm is perfect\"\nAgent: \"Great!\
+          \ I've rescheduled your appointment to Wednesday at 1pm. Your reference number stays GB-20251230-005. Is there anything\
+          \ else I can help with?\"\n.strip()"]
+  security_agent:
+    type: instance
+    models: [gpt-4.1]
+    tools: [create_ticket, escalate_ticket, lookup_support_info, transfer_to_human]
+    params:
+      name: URackIT_SecurityAgent
+      instructions: ["\nYou are an IT security specialist at U Rack IT. Security issues are HIGH PRIORITY.\n\nCRITICAL SECURITY\
+          \ ISSUES:\n\n1. SUSPICIOUS EMAIL RECEIVED:\n   - DO NOT click any links\n   - DO NOT open any attachments\n   -\
+          \ DO NOT reply to the email\n   - Forward email to IT security team\n   - Delete the email\n   - Create HIGH priority\
+          \ ticket\n\n2. CLICKED SUSPICIOUS LINK:\n   - CRITICAL - THIS IS URGENT\n   - Disconnect from internet IMMEDIATELY\
+          \ (unplug ethernet or turn off Wi-Fi)\n   - DO NOT enter any passwords\n   - DO NOT continue using the computer\n\
+          \   - Escalate IMMEDIATELY to human technician\n   - Create CRITICAL priority ticket\n\n3. ENTERED PASSWORD ON SUSPICIOUS\
+          \ SITE:\n   - CRITICAL - ACCOUNT COMPROMISED\n   - Disconnect from internet immediately\n   - On another device,\
+          \ change that password IMMEDIATELY\n   - Enable 2FA if not already enabled\n   - Check for unauthorized account\
+          \ access\n   - Escalate to human technician\n\n4. COMPUTER ACTING STRANGE:\n   - Disconnect from internet\n   -\
+          \ Note what strange behavior you see\n   - DO NOT continue working\n   - Create HIGH priority ticket\n   - Wait\
+          \ for technician\n\n5. RANSOMWARE/ENCRYPTION WARNING:\n   - CRITICAL - DO NOT PAY\n   - Disconnect from network\
+          \ immediately\n   - DO NOT restart computer\n   - Escalate immediately\n   - This affects the whole organization\
+          \ potentially\n\nPHISHING INDICATORS:\n- Sender email doesn't match company\n- Urgent language: \"Act now!\" \"\
+          Your account will be closed!\"\n- Requests for passwords or personal info\n- Suspicious links (hover to check actual\
+          \ URL)\n- Poor grammar/spelling\n- Unexpected attachments\n\nVOICE STYLE:\n- Stay calm but convey urgency\n- Give\
+          \ clear, specific instructions\n- DO NOT wait for confirmation on critical actions\n\nALWAYS CREATE TICKET for security\
+          \ issues - even if resolved.\n.strip()"]
+  ticket_agent:
+    type: instance
+    models: [gpt-4.1]
+    tools: [lookup_ticket, create_ticket, update_ticket_status, add_ticket_message, escalate_ticket, get_tickets_by_contact,
+      get_tickets_by_organization, get_ticket_statuses, get_ticket_priorities, transfer_to_human]
+    params:
+      name: URackIT_TicketAgent
+      instructions: ["\nYou are the U Rack IT Ticket Management Agent. You handle all support ticket operations.\n\nVOICE\
+          \ STYLE:\n- Speak SLOWLY and CLEARLY\n- Keep responses to 1-2 sentences, then WAIT for caller\n- Confirm ticket\
+          \ numbers by reading them back\n\n=====================================================\nTICKET OPERATIONS:\n=====================================================\n\
+          \nCREATE NEW TICKET:\n- Use create_ticket with: contact_id, subject, description, priority\n- ALWAYS confirm the\
+          \ issue before creating: \"Your issue is [X]. Is that correct?\"\n- After creating, read back the ticket number\
+          \ slowly\n\nLOOKUP TICKET:\n- Use lookup_ticket with ticket_id\n- Provide: status, subject, last update\n- If no\
+          \ ticket number, use get_tickets_by_contact to find recent tickets\n\nUPDATE TICKET:\n- Use update_ticket_status\
+          \ to change status\n- Use add_ticket_message to add notes/updates\n- Always confirm changes\n\nESCALATE TICKET:\n\
+          - Use escalate_ticket when:\n  - Issue is urgent/critical\n  - Caller requests human technician\n  - Problem cannot\
+          \ be resolved by AI\n- Provide clear escalation reason\n\nVIEW TICKETS:\n- get_tickets_by_contact: View caller's\
+          \ tickets\n- get_tickets_by_organization: View all org tickets\n\n=====================================================\n\
+          TICKET PRIORITIES:\n=====================================================\n- Critical: System down, security breach,\
+          \ all users affected\n- High: Major feature broken, multiple users affected\n- Medium: Single user issue, workaround\
+          \ available\n- Low: Minor issue, enhancement request\n\n=====================================================\n\
+          CONFIRM-BEFORE-SAVE RULE:\n=====================================================\nBefore creating or updating any\
+          \ ticket:\n1. REPEAT BACK the details you will save\n2. ASK: \"Is that correct?\"\n3. WAIT for YES confirmation\n\
+          4. ONLY then call the tool\n.strip()"]
+  triage_agent.0:
+    type: instance
+    models: [gpt-4.1]
+    tools: [find_customer_by_phone, create_customer, get_salon_settings, get_business_hours]
+    params:
+      name: GlamBook_TriageAgent
+      instance: triage_agent
+      instructions: ["\nYou are the GlamBook Salon AI assistant. You help callers with salon appointments and inquiries.\n\
+          \n=====================================================\nVOICE STYLE:\n=====================================================\n\
+          - Speak WARMLY and PROFESSIONALLY - you represent a premium salon\n- Keep responses to 1-2 sentences maximum\n-\
+          \ Be friendly but efficient\n- Use the caller's name once you know it\n\n=====================================================\n\
+          CALL START FLOW (MANDATORY):\n=====================================================\n1. Say: \"Thank you for calling\
+          \ GlamBook Salon! This is your AI assistant. How may I help you today?\"\n2. LISTEN to what the caller needs:\n\
+          \   - If BOOKING: Ask for their phone number to look up their account\n   - If INQUIRY: Answer their question or\
+          \ transfer to inquiry agent\n   - If RESCHEDULE/CANCEL: Ask for booking reference or phone number\n\n=====================================================\n\
+          IDENTIFYING CALLERS:\n=====================================================\nWhen you need to identify a caller:\n\
+          1. Ask: \"May I have your phone number please?\"\n2. Use find_customer_by_phone to look them up\n3. If FOUND: \"\
+          Welcome back, [Name]! I have your account.\"\n4. If NOT FOUND: \"I don't see that number in our system. Would you\
+          \ like to create an account?\"\n   - If YES: Ask for their name, then use create_customer\n   - If NO: Proceed as\
+          \ guest\n\n=====================================================\nROUTING:\n=====================================================\n\
+          Based on caller intent, route to the appropriate agent:\n\nBOOKING REQUESTS (transfer to booking_agent):\n- \"I\
+          \ want to book an appointment\"\n- \"I need a haircut\"\n- \"Can I schedule a manicure?\"\n- \"I want to make a\
+          \ reservation\"\n\nINQUIRIES (transfer to inquiry_agent):\n- \"What are your hours?\"\n- \"How much is a haircut?\"\
+          \n- \"Do you do balayage?\"\n- \"Where are you located?\"\n\nRESCHEDULE/CANCEL (transfer to reschedule_agent):\n\
+          - \"I need to reschedule\"\n- \"I want to cancel my appointment\"\n- \"Can I change my booking?\"\n- \"I can't make\
+          \ it tomorrow\"\n\n=====================================================\nINFORMATION YOU CAN PROVIDE DIRECTLY:\n\
+          =====================================================\n- Use get_salon_settings for basic salon info\n- Use get_business_hours\
+          \ for operating hours\n- Confirm appointments if caller provides booking reference\n\n=====================================================\n\
+          HANDOFF RULES:\n=====================================================\n- Always confirm the caller's intent before\
+          \ transferring\n- Say: \"I'll connect you with our [booking/inquiry/scheduling] assistant.\"\n- Include relevant\
+          \ context when transferring (customer_id, what they need)\n\nIf unsure about the request, ask clarifying questions.\n\
+          .strip()"]
+  triage_agent.1:
+    type: instance
+    models: [gpt-4.1]
+    tools: [find_organization_by_ue_code, find_organization_by_name, create_organization, create_contact, find_contact_by_phone,
+      hang_up_call]
+    params:
+      name: URackIT_TriageAgent
+      instance: triage_agent
+      instructions: [strip()]
+
+models:
+  gpt-4.1:
+    type: default
+    agents: [computer_agent, inquiry_agent, phone_agent, device_agent, email_agent, triage_agent.0, extractor_agent, printer_agent,
+      reschedule_agent, network_agent, booking_agent, ticket_agent, lookup_agent, triage_agent.1, security_agent]
+
+tools:
+  add_ticket_message:
+    type: variable
+    agents: [computer_agent, ticket_agent]
+    params:
+      dynamic: "True"
+      description: Add a message/note to a ticket.
+  cancel_appointment:
+    type: variable
+    agents: [reschedule_agent]
+    params:
+      dynamic: "True"
+      description: Cancel an appointment
+  create_appointment:
+    type: variable
+    agents: [booking_agent]
+    params:
+      dynamic: "True"
+      description: Create a new appointment
+  create_contact:
+    type: decorator
+    agents: [triage_agent.1]
+    params:
+      description: |-
+        Create a new contact record.
+
+        Args:
+            full_name: Contact's full name (REQUIRED)
+            organization_id: ID of the organization (REQUIRED)
+            email: Contact's email address (optional - only include if caller provides it)
+            phone: Contact's phone number (optional)
+
+        IMPORTANT: Do NOT make up or guess email addresses. Only include email if the caller explicitly provides it.
+  create_customer:
+    type: variable
+    agents: [triage_agent.0]
+    params:
+      dynamic: "True"
+  create_organization:
+    type: decorator
+    agents: [triage_agent.1]
+    params:
+      description: |-
+        Create a new organization.
+
+        Args:
+            name: Organization name
+            u_e_code: Unique enterprise code
+  create_ticket:
+    type: variable
+    agents: [computer_agent, phone_agent, email_agent, printer_agent, network_agent, ticket_agent, security_agent]
+    params:
+      dynamic: "True"
+      description: |-
+        Create a new support ticket.
+
+        Args:
+            subject: Brief description of the issue
+            description: Detailed description of the problem
+            contact_id: ID of the contact creating the ticket (REQUIRED)
+            organization_id: ID of the organization
+            priority: Critical, High, Medium, or Low
+            device_id: ID of the affected device (optional)
+  escalate_ticket:
+    type: variable
+    agents: [computer_agent, phone_agent, email_agent, printer_agent, network_agent, ticket_agent, security_agent]
+    params:
+      dynamic: "True"
+      description: |-
+        Escalate a ticket and mark for human agent.
+
+        Args:
+            ticket_id: The ticket ID
+            reason: Reason for escalation
+            to_human: Whether to mark as requiring human agent
+  find_contact_by_phone:
+    type: decorator
+    agents: [triage_agent.1]
+    params:
+      description: Look up a contact by their phone number.
+  find_customer_by_phone:
+    type: variable
+    agents: [triage_agent.0, reschedule_agent, booking_agent]
+    params:
+      dynamic: "True"
+  find_device_by_name:
+    type: variable
+    agents: [device_agent]
+    params:
+      dynamic: "True"
+      description: Look up a device by its asset name.
+  find_organization_by_name:
+    type: decorator
+    agents: [triage_agent.1]
+    params:
+      description: Look up an organization by name.
+  find_organization_by_ue_code:
+    type: decorator
+    agents: [triage_agent.1]
+    params:
+      description: |-
+        Look up an organization by its U&E code (Unique Enterprise Code).
+        This is the PRIMARY method to identify callers - always ask for U&E code first.
+
+        Args:
+            u_e_code: The unique enterprise code (4-digit number, e.g., 3450, 3629)
+
+        Returns:
+            Organization details if found, or error message if not found.
+  find_service_by_name:
+    type: variable
+    agents: [inquiry_agent, booking_agent]
+    params:
+      dynamic: "True"
+  get_account_manager:
+    type: decorator
+    agents: [lookup_agent]
+    params:
+      description: Get the account manager for an organization.
+  get_all_services:
+    type: variable
+    agents: [inquiry_agent, booking_agent]
+    params:
+      dynamic: "True"
+  get_all_stylists:
+    type: variable
+    agents: [inquiry_agent, booking_agent]
+    params:
+      dynamic: "True"
+  get_appointment_by_reference:
+    type: variable
+    agents: [reschedule_agent]
+    params:
+      dynamic: "True"
+  get_available_slots:
+    type: variable
+    agents: [reschedule_agent, booking_agent]
+    params:
+      dynamic: "True"
+      description: Get available appointment slots
+  get_business_hours:
+    type: variable
+    agents: [inquiry_agent, triage_agent.0]
+    params:
+      dynamic: "True"
+  get_contact_by_name_for_org:
+    type: decorator
+    agents: [lookup_agent]
+    params:
+      description: Find a contact by name within an organization.
+  get_contact_devices:
+    type: variable
+    agents: [device_agent]
+    params:
+      dynamic: "True"
+      description: Get all devices assigned to a contact.
+  get_customer_appointments:
+    type: variable
+    agents: [reschedule_agent]
+    params:
+      dynamic: "True"
+  get_device_by_name_for_org:
+    type: variable
+    agents: [device_agent, lookup_agent]
+    params:
+      dynamic: "True"
+      description: Find a device by name within an organization.
+  get_device_details:
+    type: variable
+    agents: [computer_agent, device_agent]
+    params:
+      dynamic: "True"
+      description: Get full details of a device including hardware specs.
+  get_device_status:
+    type: variable
+    agents: [device_agent]
+    params:
+      dynamic: "True"
+      description: Get the current status and details of a device.
+  get_organization_contacts:
+    type: decorator
+    agents: [lookup_agent]
+    params:
+      description: Get all contacts for an organization.
+  get_organization_devices:
+    type: variable
+    agents: [device_agent, lookup_agent]
+    params:
+      dynamic: "True"
+      description: |-
+        Get ALL devices for an organization.
+        Use this when user asks about devices for their organization.
+  get_organization_locations:
+    type: decorator
+    agents: [lookup_agent]
+    params:
+      description: Get all locations for an organization.
+  get_organization_summary:
+    type: decorator
+    agents: [lookup_agent]
+    params:
+      description: Get a summary overview of an organization.
+  get_salon_settings:
+    type: variable
+    agents: [inquiry_agent, triage_agent.0, reschedule_agent]
+    params:
+      dynamic: "True"
+  get_service_categories:
+    type: variable
+    agents: [inquiry_agent, booking_agent]
+    params:
+      dynamic: "True"
+  get_stylist_by_name:
+    type: variable
+    agents: [inquiry_agent, booking_agent]
+    params:
+      dynamic: "True"
+  get_ticket_priorities:
+    type: decorator
+    agents: [ticket_agent]
+    params:
+      description: Get all available ticket priorities.
+  get_ticket_statuses:
+    type: decorator
+    agents: [ticket_agent]
+    params:
+      description: Get all available ticket statuses.
+  get_tickets_by_contact:
+    type: decorator
+    agents: [ticket_agent]
+    params:
+      description: Get all tickets for a specific contact.
+  get_tickets_by_organization:
+    type: decorator
+    agents: [ticket_agent, lookup_agent]
+    params:
+      description: Get all open tickets for an organization.
+  hang_up_call:
+    type: decorator
+    agents: [triage_agent.1]
+    params:
+      description: |-
+        End the call gracefully when the conversation is complete.
+        Use this when:
+        - The caller says goodbye (e.g., "bye", "thanks, that's all", "have a good day")
+        - The issue has been resolved and caller confirms they're all set
+        - The caller cannot be verified (no UE code) and has been informed
+        - The caller indicates they have no more questions
+
+        Args:
+            reason: Reason for ending the call (e.g., "Caller said goodbye", "Issue resolved", "Verification failed")
+  lookup_organization_data:
+    type: decorator
+    agents: [lookup_agent]
+    params:
+      description: |-
+        Universal lookup tool for organization data.
+
+        Args:
+            organization_id: The organization ID from U&E code verification
+            query_type: devices, locations, contacts, tickets, summary, find_device, find_contact
+            search_term: Search term for find_* query types
+
+        Returns:
+            Requested data for the organization
+  lookup_support_info:
+    type: variable
+    agents: [computer_agent, phone_agent, email_agent, printer_agent, network_agent, security_agent]
+    params:
+      dynamic: "True"
+      description: |-
+        Retrieve IT support information using a local ChromaDB index.
+        Use this to find troubleshooting steps, procedures, and support information.
+
+        Args:
+            question: The question or topic to search for
+            top_k: Number of results to return (default 4)
+
+        Returns:
+            Relevant support information from the knowledge base
+  lookup_ticket:
+    type: variable
+    agents: [computer_agent, ticket_agent]
+    params:
+      dynamic: "True"
+      description: Look up a ticket by its ID.
+  reschedule_appointment:
+    type: variable
+    agents: [reschedule_agent]
+    params:
+      dynamic: "True"
+      description: Reschedule an appointment
+  transfer_to_human:
+    type: variable
+    agents: [computer_agent, phone_agent, email_agent, printer_agent, network_agent, ticket_agent, security_agent]
+    params:
+      dynamic: "True"
+      description: |-
+        Transfer the call to a human support agent.
+        This will connect the caller to an available technician.
+
+        Args:
+            reason: Reason for transfer (e.g., "Customer requested", "Complex issue")
+  update_ticket_status:
+    type: decorator
+    agents: [ticket_agent]
+    params:
+      description: |-
+        Update the status of a ticket.
+
+        Args:
+            ticket_id: The ticket ID
+            status: Open, In Progress, Awaiting Customer, Escalated, Resolved, Closed
+
+imports:
+  '*': queries.*
+  AccessToken: twilio.jwt.access_token.AccessToken
+  add_ticket_message: db.queries.add_ticket_message
+  Agent: agents.Agent
+  aiohttp: aiohttp
+  Annotated: typing.Annotated
+  Any: typing.Any
+  APIRouter: fastapi.APIRouter
+  appointments: routes.appointments
+  asynccontextmanager: contextlib.asynccontextmanager
+  asyncio: asyncio
+  AudioChunk: interfaces.AudioChunk
+  AudioFormat: interfaces.AudioFormat
+  base64: base64
+  BaseModel: pydantic.BaseModel
+  Body: fastapi.Body
+  booking_agent: app_agents.booking_agent
+  Callable: typing.Callable
+  CallInfo: interfaces.CallInfo
+  CallState: interfaces.CallState
+  cancel_appointment: db.queries.cancel_appointment
+  chromadb: chromadb
+  clear_memory: memory.clear_memory
+  Client: twilio.rest.Client
+  computer_agent: computer_agent.computer_agent
+  Connect: twilio.twiml.voice_response.Connect
+  connect: websockets.legacy.client.connect
+  ConversationMemory: memory.ConversationMemory
+  CORSMiddleware: fastapi.middleware.cors.CORSMiddleware
+  create_agent_adapter: agent_adapter.create_agent_adapter
+  create_app: webhook_server.create_app
+  create_appointment: db.queries.create_appointment
+  create_call_log: db.queries.create_call_log
+  create_client: supabase.create_client
+  create_contact: db.queries.create_contact
+  create_customer: db.queries.create_customer
+  create_maintenance_request: db.queries.create_maintenance_request
+  create_organization: db.queries.create_organization
+  create_realtime_connection: openai_realtime.create_realtime_connection
+  create_sip_app: sip_integration.webhook_server.create_app
+  create_tenant: db.queries.create_tenant
+  create_ticket: db.queries.create_ticket
+  create_twilio_provider: twilio_provider.create_twilio_provider
+  csv: csv
+  dashboard_router: dashboard_api.router
+  DatabaseConnection: connection.DatabaseConnection
+  dataclass: dataclasses.dataclass
+  date: datetime.date
+  date_type: datetime.date
+  datetime: datetime.datetime
+  device_agent: device_agent.device_agent
+  Dict: typing.Dict
+  email_agent: email_agent.email_agent
+  embedding_functions: chromadb.utils.embedding_functions
+  escalate_ticket: db.queries.escalate_ticket
+  FastAPI: fastapi.FastAPI
+  Field: pydantic.Field
+  field: dataclasses.field
+  FileResponse: fastapi.responses.FileResponse
+  find_available_port: port_utils.find_available_port
+  find_contact_by_phone: db.queries.find_contact_by_phone
+  find_customer_by_phone: db.queries.find_customer_by_phone
+  find_device_by_name: db.queries.find_device_by_name
+  find_organization_by_name: db.queries.find_organization_by_name
+  find_organization_by_ue_code: db.queries.find_organization_by_ue_code
+  find_service_by_name: db.queries.find_service_by_name
+  find_tenant_by_phone: db.queries.find_tenant_by_phone
+  Form: fastapi.Form
+  function_tool: agents.function_tool
+  get_account_manager: db.queries.get_account_manager
+  get_all_services: db.queries.get_all_services
+  get_all_stylists: db.queries.get_all_stylists
+  get_appointment_by_reference: db.queries.get_appointment_by_reference
+  get_available_slots: db.queries.get_available_slots
+  get_available_units: db.queries.get_available_units
+  get_business_hours: db.queries.get_business_hours
+  get_config: config.get_config
+  get_contact_by_name_for_org: db.queries.get_contact_by_name_for_org
+  get_contact_devices: db.queries.get_contact_devices
+  get_customer_appointments: db.queries.get_customer_appointments
+  get_db: connection.get_db
+  get_device_by_name_for_org: db.queries.get_device_by_name_for_org
+  get_device_details: db.queries.get_device_details
+  get_device_status: db.queries.get_device_status
+  get_emergency_agent_config: emergency_agent.get_emergency_agent_config
+  get_event_notifier: event_notifier.get_event_notifier
+  get_knowledge_base_stats: memory.knowledge_base.get_knowledge_base_stats
+  get_lease_info: db.queries.get_lease_info
+  get_leasing_agent_config: leasing_agent.get_leasing_agent_config
+  get_maintenance_agent_config: maintenance_agent.get_maintenance_agent_config
+  get_maintenance_status: db.queries.get_maintenance_status
+  get_memory: memory.get_memory
+  get_office_info: db.queries.get_office_info
+  get_organization_contacts: db.queries.get_organization_contacts
+  get_organization_devices: db.queries.get_organization_devices
+  get_organization_locations: db.queries.get_organization_locations
+  get_organization_summary: db.queries.get_organization_summary
+  get_payment_agent_config: payment_agent.get_payment_agent_config
+  get_property_agent_config: property_agent.get_property_agent_config
+  get_property_info: db.queries.get_property_info
+  get_rent_balance: db.queries.get_rent_balance
+  get_salon_settings: db.queries.get_salon_settings
+  get_service_categories: db.queries.get_service_categories
+  get_session_manager: session_manager.get_session_manager
+  get_sip_config: sip_integration.config.get_config
+  get_stylist_by_name: db.queries.get_stylist_by_name
+  get_supabase: db.supabase_client.get_supabase
+  get_tenant_details: db.queries.get_tenant_details
+  get_ticket_priorities: db.queries.get_ticket_priorities
+  get_ticket_statuses: db.queries.get_ticket_statuses
+  get_tickets_by_contact: db.queries.get_tickets_by_contact
+  get_tickets_by_organization: db.queries.get_tickets_by_organization
+  get_triage_agent_config: triage_agent.get_triage_agent_config
+  get_voice: voice.get_voice
+  hang_up_call: db.queries.hang_up_call
+  Header: fastapi.Header
+  html: html
+  HTMLResponse: fastapi.responses.HTMLResponse
+  HTTPException: fastapi.HTTPException
+  httpx: httpx
+  IAgentAdapter: interfaces.IAgentAdapter
+  IAudioProcessor: interfaces.IAudioProcessor
+  ICallHandler: interfaces.ICallHandler
+  init_session_manager: session_manager.init_session_manager
+  init_supabase: db.supabase_client.init_supabase
+  inquiry_agent: app_agents.inquiry_agent
+  inspect: inspect
+  io: io
+  IRealtimeConnection: interfaces.IRealtimeConnection
+  ISessionManager: interfaces.ISessionManager
+  ITelephonyProvider: interfaces.ITelephonyProvider
+  json: json
+  json_module: json
+  List: typing.List
+  Literal: typing.Literal
+  load_dotenv: dotenv.load_dotenv
+  log_agent_interaction: db.queries.log_agent_interaction
+  log_call_end: db.queries.log_call_end
+  log_call_start: db.queries.log_call_start
+  logging: logging
+  lookup_agent: lookup_agent.lookup_agent
+  lookup_organization_data: db.queries.lookup_organization_data
+  lookup_support_info: memory.knowledge_base.lookup_support_info
+  lookup_ticket: db.queries.lookup_ticket
+  MediaStreamHandler: media_stream.MediaStreamHandler
+  network_agent: network_agent.network_agent
+  openai: openai
+  OpenAIRealtimeConnection: openai_realtime.OpenAIRealtimeConnection
+  Optional: typing.Optional
+  os: os
+  parse: urllib.parse
+  Path: pathlib.Path
+  patients: routes.patients
+  PdfReader: PyPDF2.PdfReader
+  phone_agent: phone_agent.phone_agent
+  printer_agent: printer_agent.printer_agent
+  process_import: quiz_agents.processor.process_import
+  providers: routes.providers
+  queries: db.queries
+  Query: fastapi.Query
+  record_payment: db.queries.record_payment
+  reload_knowledge_base: memory.knowledge_base.reload_knowledge_base
+  Request: fastapi.Request
+  requests: requests
+  reschedule_agent: app_agents.reschedule_agent
+  reschedule_appointment: db.queries.reschedule_appointment
+  Response: fastapi.responses.Response
+  Runner: agents.Runner
+  save_conference_recording: db.queries.save_conference_recording
+  security_agent: security_agent.security_agent
+  SessionManager: session_manager.SessionManager
+  SessionState: session_manager.SessionState
+  Set: typing.Set
+  set_config: config.set_config
+  settings: config.settings
+  SIPConfig: config.SIPConfig
+  StaticFiles: fastapi.staticfiles.StaticFiles
+  status: fastapi.status
+  StreamingResponse: fastapi.responses.StreamingResponse
+  SupabaseDB: connection.SupabaseDB
+  sys: sys
+  ticket_agent: ticket_agent.ticket_agent
+  time: datetime.time
+  timedelta: datetime.timedelta
+  traceback: traceback
+  transfer_to_human: db.queries.transfer_to_human
+  triage_agent: app_agents.triage_agent
+  Tuple: typing.Tuple
+  TwilioProvider: twilio_provider.TwilioProvider
+  UE_OPENING_GREETING_TEXT: prompt_scripts.UE_OPENING_GREETING_TEXT
+  update_call_log: db.queries.update_call_log
+  update_maintenance_request: db.queries.update_maintenance_request
+  update_ticket_status: db.queries.update_ticket_status
+  uuid: uuid
+  uvicorn: uvicorn
+  voice: routes.voice
+  VoiceGrant: twilio.jwt.access_token.grants.VoiceGrant
+  VoiceResponse: twilio.twiml.voice_response.VoiceResponse
+  VoiceSession: session_manager.VoiceSession
+  WebSocket: fastapi.WebSocket
+  WebSocketDisconnect: fastapi.WebSocketDisconnect
+  websockets: websockets
+  XAIRealtimeConnection: realtime.XAIRealtimeConnection
+
+functions:
+  __init__:
+    type: sync
+    module: realestate_voice.xai_integration.media_stream
+    args: [self, session, twilio_ws, xai_connection]
+  _audio_sender_loop:
+    type: async
+    module: realestate_voice.xai_integration.media_stream
+    args: [self]
+    params:
+      returns: None
+  _build_live_calls_data:
+    type: sync
+    module: urackit_v2.ai-service.sip_integration.session_manager
+    args: [self]
+    params:
+      returns: tuple
+  _build_tools_registry:
+    type: sync
+    module: urackit_v2.ai-service.sip_integration.agent_adapter
+    args: [self]
+    params:
+      returns: None
+  _cleanup:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.media_stream
+    args: [self]
+    params:
+      returns: None
+  _cleanup_expired_locked:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.session_manager
+    args: [self]
+    params:
+      returns: int
+  _cleanup_loop:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.session_manager
+    args: [self]
+    params:
+      returns: None
+  _clear_twilio_audio:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.media_stream
+    args: [self]
+    params:
+      returns: None
+  _configure_session:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.openai_realtime
+    args: [self]
+    params:
+      returns: None
+  _delayed_greeting:
+    type: async
+    module: realestate_voice.xai_integration.media_stream
+    args: [self]
+    params:
+      returns: None
+  _ensure_agents_loaded:
+    type: sync
+    module: urackit_v2.ai-service.sip_integration.agent_adapter
+    args: [self]
+    params:
+      returns: None
+  _ensure_collection:
+    type: sync
+    module: urackit_v2.ai-service.memory.knowledge_base
+  _execute_function:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.openai_realtime
+    args: [self, name, arguments]
+    params:
+      returns: str
+  _execute_tool:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.media_stream
+    args: [self, name, arguments]
+    params:
+      returns: str
+  _format_request_error:
+    type: sync
+    module: urackit_v2.ai-service.db.queries
+    args: [err]
+    params:
+      returns: str
+  _function_to_schema:
+    type: sync
+    module: urackit_v2.ai-service.sip_integration.agent_adapter
+    args: [self, name, func]
+    params:
+      returns: Optional[dict]
+  _get_endpoint:
+    type: sync
+    module: urackit_v2.ai-service.db.connection
+    args: [self, table]
+    params:
+      returns: str
+  _handle_event:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.openai_realtime
+    args: [self, event]
+    params:
+      returns: None
+  _handle_interruption:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.media_stream
+    args: [self]
+    params:
+      returns: None
+  _handle_speaking_state:
+    type: sync
+    module: realestate_voice.xai_integration.media_stream
+    args: [self, is_speaking]
+    params:
+      returns: None
+  _handle_transcript:
+    type: sync
+    module: realestate_voice.xai_integration.media_stream
+    args: [self, role, transcript]
+    params:
+      returns: None
+  _handle_twilio_message:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.media_stream
+    args: [self, message]
+    params:
+      returns: None
+  _handle_xai_audio:
+    type: sync
+    module: realestate_voice.xai_integration.media_stream
+    args: [self, audio_bytes]
+    params:
+      returns: None
+  _initiate_hangup:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.media_stream
+    args: [self, reason]
+    params:
+      returns: None
+  _initiate_transfer:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.media_stream
+    args: [self, reason]
+    params:
+      returns: None
+  _make_request:
+    type: sync
+    module: urackit_v2.ai-service.db.connection
+    args: [self, method, table, params, data, prefer]
+    params:
+      returns: List[Dict]
+  _notify_call_end:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.session_manager
+    args: [self, call_sid]
+    params:
+      returns: None
+  _notify_call_update:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.session_manager
+    args: [self]
+    params:
+      returns: None
+  _notify_transcript:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.media_stream
+    args: [self, role, content]
+    params:
+      returns: None
+  _on_ai_speaking:
+    type: sync
+    module: urackit_v2.ai-service.sip_integration.media_stream
+    args: [self, is_speaking]
+    params:
+      returns: None
+  _on_openai_audio:
+    type: sync
+    module: urackit_v2.ai-service.sip_integration.media_stream
+    args: [self, chunk]
+    params:
+      returns: None
+  _on_openai_function:
+    type: sync
+    module: urackit_v2.ai-service.sip_integration.media_stream
+    args: [self, name, arguments]
+    params:
+      returns: Any
+  _on_openai_text:
+    type: sync
+    module: urackit_v2.ai-service.sip_integration.media_stream
+    args: [self, role, text]
+    params:
+      returns: None
+  _on_user_interrupt:
+    type: sync
+    module: urackit_v2.ai-service.sip_integration.media_stream
+    args: [self]
+    params:
+      returns: None
+  _receive_loop:
+    type: async
+    module: realestate_voice.xai_integration.media_stream
+    args: [self]
+    params:
+      returns: None
+  _save_call_log:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.session_manager
+    args: [self, session]
+    params:
+      returns: None
+  _send_audio_to_twilio:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.media_stream
+    args: [self, audio_data]
+    params:
+      returns: None
+  _send_event:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.openai_realtime
+    args: [self, event]
+    params:
+      returns: None
+  _send_function_result:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.openai_realtime
+    args: [self, call_id, result, trigger_response]
+    params:
+      returns: None
+  _setup_openai_connection:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.media_stream
+    args: [self]
+    params:
+      returns: None
+  _speak_in_conference:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.media_stream
+    args: [self, text]
+    params:
+      returns: None
+  _split_text:
+    type: sync
+    module: urackit_v2.ai-service.memory.knowledge_base
+    args: [text, chunk_size, overlap]
+    params:
+      returns: List[str]
+  active_session_count:
+    type: sync
+    module: urackit_v2.ai-service.sip_integration.session_manager
+    args: [self]
+    params:
+      returns: int
+  add_agent_handoff:
+    type: sync
+    module: urackit_v2.ai-service.sip_integration.session_manager
+    args: [self, from_agent, to_agent, reason]
+    params:
+      returns: None
+  add_conference_transcript:
+    type: sync
+    module: urackit_v2.ai-service.sip_integration.session_manager
+    args: [self, speaker, content]
+    params:
+      returns: None
+  add_message:
+    type: sync
+    module: urackit_v2.ai-service.sip_integration.session_manager
+    args: [self, role, content]
+    params:
+      returns: None
+  add_ticket_message:
+    type: tool
+    module: urackit_v2.ai-service.db.queries
+    args: [ticket_id, message]
+    params:
+      returns: str
+  add_to_history:
+    type: sync
+    module: salon.ai-service.main
+    args: [self, session_id, role, content]
+  add_tool_call:
+    type: sync
+    module: urackit_v2.ai-service.sip_integration.session_manager
+    args: [self, name, arguments, result, success]
+    params:
+      returns: None
+  ai_join_conference:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.webhook_server
+    args: [session_id, conference_name, request]
+  api_health:
+    type: async
+    module: realestate_voice.main
+  broadcast:
+    type: async
+    module: salon.ai-service.main
+    args: [self, log_entry]
+  browser_voice_websocket:
+    type: async
+    module: urackit_v2.ai-service.main
+    args: [websocket]
+  cancel_appointment:
+    type: async
+    module: healthcare_voice.ai-service.agents.tools
+    args: [args, session]
+    params:
+      returns: Dict
+  cancel_response:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.openai_realtime
+    args: [self]
+    params:
+      returns: None
+  chat:
+    type: async
+    module: salon.ai-service.main
+    args: [request]
+  check_availability:
+    type: async
+    module: healthcare_voice.ai-service.routes.appointments
+    args: [provider_id, date, duration]
+  checkin_appointment:
+    type: async
+    module: healthcare_voice.ai-service.routes.appointments
+    args: [appointment_id]
+  classify_issue:
+    type: async
+    module: urackit_v2.ai-service.main
+    args: [request]
+  cleanup_expired_sessions:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.session_manager
+    args: [self]
+    params:
+      returns: int
+  clear_audio:
+    type: async
+    module: realestate_voice.xai_integration.media_stream
+    args: [self]
+    params:
+      returns: None
+  conference_announce:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.webhook_server
+    args: [session_id, request, text]
+  confirm_appointment:
+    type: async
+    module: healthcare_voice.ai-service.routes.appointments
+    args: [appointment_id]
+  connect:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.openai_realtime
+    args: [self, session_id]
+    params:
+      returns: bool
+  create_agent_adapter:
+    type: sync
+    module: urackit_v2.ai-service.sip_integration.agent_adapter
+    args: [use_full_agents]
+    params:
+      returns: URackITAgentAdapter
+  create_app:
+    type: sync
+    module: urackit_v2.ai-service.sip_integration.webhook_server
+    args: [config]
+    params:
+      returns: FastAPI
+  create_appointment:
+    type: async
+    module: healthcare_voice.ai-service.routes.appointments
+    args: [appointment]
+  create_contact:
+    type: tool
+    module: urackit_v2.ai-service.db.queries
+    args: [full_name, organization_id, email, phone]
+    params:
+      returns: str
+  create_elevenlabs_agent:
+    type: async
+    module: salon.ai-service.main
+    params:
+      returns: Optional[str]
+  create_new_patient:
+    type: async
+    module: healthcare_voice.ai-service.agents.tools
+    args: [args, session]
+    params:
+      returns: Dict
+  create_organization:
+    type: tool
+    module: urackit_v2.ai-service.db.queries
+    args: [name, u_e_code]
+    params:
+      returns: str
+  create_patient:
+    type: async
+    module: healthcare_voice.ai-service.routes.patients
+    args: [patient]
+  create_realtime_connection:
+    type: sync
+    module: urackit_v2.ai-service.sip_integration.openai_realtime
+    args: [system_prompt, tools]
+    params:
+      returns: OpenAIRealtimeConnection
+  create_session:
+    type: sync
+    module: salon.ai-service.main
+    args: [self]
+    params:
+      returns: str
+  create_ticket:
+    type: tool
+    module: urackit_v2.ai-service.db.queries
+    args: [subject, description, contact_id, organization_id, priority, device_id]
+    params:
+      returns: str
+  dashboard:
+    type: async
+    module: salon.ai-service.main
+  delete:
+    type: sync
+    module: urackit_v2.ai-service.db.connection
+    args: [self, table, filters]
+    params:
+      returns: List[Dict]
+  disconnect:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.openai_realtime
+    args: [self]
+    params:
+      returns: None
+  emit_voice_log:
+    type: async
+    module: salon.ai-service.main
+    args: [request]
+  end_session:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.session_manager
+    args: [self, session_id]
+    params:
+      returns: None
+  escalate_ticket:
+    type: tool
+    module: urackit_v2.ai-service.db.queries
+    args: [ticket_id, reason, to_human]
+    params:
+      returns: str
+  event_generator:
+    type: async
+    module: salon.ai-service.main
+  execute_tool:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.agent_adapter
+    args: [self, name, arguments]
+    params:
+      returns: Any
+  extract_text_from_pdf:
+    type: sync
+    module: quiz.services.ai.quiz_agents.processor
+    args: [file_data]
+    params:
+      returns: str
+  find_contact_by_phone:
+    type: tool
+    module: urackit_v2.ai-service.db.queries
+    args: [phone]
+    params:
+      returns: str
+  find_device_by_name:
+    type: tool
+    module: urackit_v2.ai-service.db.queries
+    args: [asset_name]
+    params:
+      returns: str
+  find_next_available:
+    type: async
+    module: healthcare_voice.ai-service.agents.tools
+    args: [args, session]
+    params:
+      returns: Dict
+  find_organization_by_name:
+    type: tool
+    module: urackit_v2.ai-service.db.queries
+    args: [name]
+    params:
+      returns: str
+  find_organization_by_ue_code:
+    type: tool
+    module: urackit_v2.ai-service.db.queries
+    args: [u_e_code]
+    params:
+      returns: str
+  function_handler:
+    type: async
+    module: realestate_voice.main
+    args: [name, call_id, args]
+    params:
+      returns: Any
+  get_account_manager:
+    type: tool
+    module: urackit_v2.ai-service.db.queries
+    args: [organization_id]
+    params:
+      returns: str
+  get_agent_tools:
+    type: async
+    module: urackit_v2.ai-service.main
+    args: [agent_name]
+  get_agent_tools_config:
+    type: sync
+    module: salon.ai-service.main
+    args: [webhook_base_url]
+    params:
+      returns: list
+  get_all_sessions:
+    type: sync
+    module: urackit_v2.ai-service.sip_integration.session_manager
+    args: [self]
+    params:
+      returns: list
+  get_appointment:
+    type: async
+    module: healthcare_voice.ai-service.routes.appointments
+    args: [appointment_id]
+  get_available_slots:
+    type: async
+    module: healthcare_voice.ai-service.agents.tools
+    args: [args, session]
+    params:
+      returns: Dict
+  get_categories:
+    type: async
+    module: salon.ai-service.main
+  get_contact_by_name_for_org:
+    type: tool
+    module: urackit_v2.ai-service.db.queries
+    args: [name, organization_id]
+    params:
+      returns: str
+  get_contact_devices:
+    type: tool
+    module: urackit_v2.ai-service.db.queries
+    args: [contact_id]
+    params:
+      returns: str
+  get_dashboard:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.webhook_server
+  get_db:
+    type: sync
+    module: urackit_v2.ai-service.db.connection
+    params:
+      returns: SupabaseDB
+  get_device_by_name_for_org:
+    type: tool
+    module: urackit_v2.ai-service.db.queries
+    args: [asset_name, organization_id]
+    params:
+      returns: str
+  get_device_details:
+    type: tool
+    module: urackit_v2.ai-service.db.queries
+    args: [device_id]
+    params:
+      returns: str
+  get_device_status:
+    type: tool
+    module: urackit_v2.ai-service.db.queries
+    args: [device_id]
+    params:
+      returns: str
+  get_dialer:
+    type: async
+    module: salon.ai-service.main
+  get_dialer_config:
+    type: async
+    module: salon.ai-service.main
+  get_elevenlabs_signed_url:
+    type: async
+    module: salon.ai-service.main
+  get_healthcare_tools:
+    type: sync
+    module: healthcare_voice.ai-service.agents.healthcare_agent
+    params:
+      returns: List[Dict]
+  get_hours:
+    type: async
+    module: salon.ai-service.main
+  get_knowledge_base_stats:
+    type: sync
+    module: urackit_v2.ai-service.memory.knowledge_base
+    params:
+      returns: dict
+  get_live_sessions:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.webhook_server
+  get_office_hours:
+    type: async
+    module: healthcare_voice.ai-service.agents.tools
+    args: [args, session]
+    params:
+      returns: Dict
+  get_organization_contacts:
+    type: tool
+    module: urackit_v2.ai-service.db.queries
+    args: [organization_id]
+    params:
+      returns: str
+  get_organization_devices:
+    type: tool
+    module: urackit_v2.ai-service.db.queries
+    args: [organization_id]
+    params:
+      returns: str
+  get_organization_locations:
+    type: tool
+    module: urackit_v2.ai-service.db.queries
+    args: [organization_id]
+    params:
+      returns: str
+  get_organization_summary:
+    type: tool
+    module: urackit_v2.ai-service.db.queries
+    args: [organization_id]
+    params:
+      returns: str
+  get_patient:
+    type: async
+    module: healthcare_voice.ai-service.routes.patients
+    args: [patient_id]
+  get_patient_appointments:
+    type: async
+    module: healthcare_voice.ai-service.routes.patients
+    args: [patient_id, upcoming_only]
+  get_patient_insurance:
+    type: async
+    module: healthcare_voice.ai-service.routes.patients
+    args: [patient_id]
+  get_provider:
+    type: async
+    module: healthcare_voice.ai-service.routes.providers
+    args: [provider_id]
+  get_provider_appointments:
+    type: async
+    module: healthcare_voice.ai-service.routes.providers
+    args: [provider_id, date]
+  get_provider_info:
+    type: async
+    module: healthcare_voice.ai-service.agents.tools
+    args: [args, session]
+    params:
+      returns: Dict
+  get_provider_schedule:
+    type: async
+    module: healthcare_voice.ai-service.routes.providers
+    args: [provider_id]
+  get_provider_time_off:
+    type: async
+    module: healthcare_voice.ai-service.routes.providers
+    args: [provider_id, start_date, end_date]
+  get_providers:
+    type: async
+    module: healthcare_voice.ai-service.agents.tools
+    args: [args, session]
+    params:
+      returns: Dict
+  get_salon_info:
+    type: async
+    module: salon.ai-service.main
+  get_services:
+    type: async
+    module: salon.ai-service.main
+  get_session:
+    type: sync
+    module: salon.ai-service.main
+    args: [self, session_id]
+    params:
+      returns: Optional[Dict]
+  get_session_details:
+    type: async
+    module: realestate_voice.main
+    args: [session_id]
+  get_session_manager:
+    type: sync
+    module: urackit_v2.ai-service.sip_integration.session_manager
+    params:
+      returns: VoiceSessionManager
+  get_stylists:
+    type: async
+    module: salon.ai-service.main
+  get_system_instructions:
+    type: sync
+    module: healthcare_voice.ai-service.agents.healthcare_agent
+    args: [patient_data]
+    params:
+      returns: str
+  get_system_prompt:
+    type: sync
+    module: urackit_v2.ai-service.sip_integration.agent_adapter
+    args: [self]
+    params:
+      returns: str
+  get_system_prompt_for_role:
+    type: sync
+    module: urackit_v2.ai-service.main
+    args: [role]
+    params:
+      returns: str
+  get_ticket_priorities:
+    type: tool
+    module: urackit_v2.ai-service.db.queries
+    params:
+      returns: str
+  get_ticket_statuses:
+    type: tool
+    module: urackit_v2.ai-service.db.queries
+    params:
+      returns: str
+  get_tickets_by_contact:
+    type: tool
+    module: urackit_v2.ai-service.db.queries
+    args: [contact_id]
+    params:
+      returns: str
+  get_tickets_by_organization:
+    type: tool
+    module: urackit_v2.ai-service.db.queries
+    args: [organization_id]
+    params:
+      returns: str
+  get_todays_appointments:
+    type: async
+    module: healthcare_voice.ai-service.routes.appointments
+    args: [provider_id]
+  get_tools_schema:
+    type: sync
+    module: urackit_v2.ai-service.sip_integration.agent_adapter
+    args: [self]
+    params:
+      returns: list[dict]
+  get_voice_token:
+    type: async
+    module: salon.ai-service.main
+    args: [identity]
+  get_voice_widget:
+    type: async
+    module: salon.ai-service.main
+  handle:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.media_stream
+    args: [self]
+    params:
+      returns: None
+  handle_call_status:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.webhook_server
+    args: [request, CallSid, CallStatus, CallDuration]
+  handle_conference_status:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.webhook_server
+    args: [request, session_id]
+  handle_conference_stream:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.webhook_server
+    args: [websocket, session_id]
+  handle_function:
+    type: async
+    module: urackit_v2.ai-service.main
+    args: [name, arguments]
+    params:
+      returns: str
+  handle_function_call:
+    type: async
+    module: realestate_voice.main
+    args: [function_name, call_id, arguments, session]
+    params:
+      returns: Any
+  handle_incoming_call:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.webhook_server
+    args: [request, CallSid, From, To, Direction, AccountSid, CallerName, CallerCity, CallerState, CallerZip, CallerCountry,
+      x_twilio_signature]
+  handle_media_stream:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.webhook_server
+    args: [websocket, session_id]
+  handle_outbound_call_status:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.webhook_server
+    args: [request, session_id]
+  handle_recording_status:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.webhook_server
+    args: [request, session_id]
+  hang_up_call:
+    type: tool
+    module: urackit_v2.ai-service.db.queries
+    args: [reason]
+    params:
+      returns: str
+  health_check:
+    type: async
+    module: salon.ai-service.main
+  init_session_manager:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.session_manager
+    params:
+      returns: VoiceSessionManager
+  insert:
+    type: sync
+    module: urackit_v2.ai-service.db.connection
+    args: [self, table, data]
+    params:
+      returns: List[Dict]
+  is_expired:
+    type: sync
+    module: urackit_v2.ai-service.sip_integration.session_manager
+    args: [self, timeout_seconds]
+    params:
+      returns: bool
+  is_responding:
+    type: sync
+    module: urackit_v2.ai-service.sip_integration.openai_realtime
+    args: [self]
+    params:
+      returns: bool
+  knowledge_stats:
+    type: async
+    module: urackit_v2.ai-service.main
+  lifespan:
+    type: async
+    module: salon.ai-service.main
+    args: [app]
+  list_agents:
+    type: async
+    module: urackit_v2.ai-service.main
+  list_appointments:
+    type: async
+    module: healthcare_voice.ai-service.routes.appointments
+    args: [date, provider_id, patient_id, status, limit]
+  list_patients:
+    type: async
+    module: healthcare_voice.ai-service.routes.patients
+    args: [limit, offset]
+  list_providers:
+    type: async
+    module: healthcare_voice.ai-service.routes.providers
+    args: [specialization, accepting_new_patients, active_only]
+  list_voices:
+    type: async
+    module: salon.ai-service.main
+  log_agent_tool_requests:
+    type: async
+    module: salon.ai-service.main
+    args: [request, call_next]
+  log_error:
+    type: sync
+    module: salon.ai-service.main
+    args: [self, session_id, error, details]
+  log_event:
+    type: sync
+    module: salon.ai-service.main
+    args: [self, session_id, event_type, data]
+  log_function_call:
+    type: sync
+    module: salon.ai-service.main
+    args: [self, session_id, function_name, args, result, error]
+  log_transcript:
+    type: sync
+    module: salon.ai-service.main
+    args: [self, session_id, role, text, is_final]
+  log_voice_transcript:
+    type: async
+    module: salon.ai-service.main
+    args: [request]
+  lookup_organization_data:
+    type: tool
+    module: urackit_v2.ai-service.db.queries
+    args: [organization_id, query_type, search_term]
+    params:
+      returns: str
+  lookup_patient:
+    type: async
+    module: healthcare_voice.ai-service.agents.tools
+    args: [args, session]
+    params:
+      returns: Dict
+  lookup_patient_by_phone:
+    type: async
+    module: healthcare_voice.ai-service.agents.tools
+    args: [args, session]
+    params:
+      returns: Dict
+  lookup_support_info:
+    type: tool
+    module: urackit_v2.ai-service.memory.knowledge_base
+    args: [question, top_k]
+    params:
+      returns: str
+  lookup_ticket:
+    type: tool
+    module: urackit_v2.ai-service.db.queries
+    args: [ticket_id]
+    params:
+      returns: str
+  main:
+    type: sync
+    module: urackit_v2.ai-service.sip_integration.server
+  media_stream_websocket:
+    type: async
+    module: urackit_v2.ai-service.main
+    args: [websocket, session_id]
+  notify_transcript_update:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.session_manager
+    args: [self, session_id, role, content]
+    params:
+      returns: None
+  parse_csv:
+    type: sync
+    module: quiz.services.ai.quiz_agents.processor
+    args: [file_data]
+    params:
+      returns: str
+  process_import:
+    type: async
+    module: quiz.services.ai.quiz_agents.processor
+    args: [file_data, file_type]
+    params:
+      returns: List[dict]
+  process_import_endpoint:
+    type: async
+    module: quiz.services.ai.main
+    args: [request]
+  process_input:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.agent_adapter
+    args: [self, session_id, text]
+    params:
+      returns: str
+  receive:
+    type: async
+    module: salon.ai-service.main
+  reload_knowledge:
+    type: async
+    module: urackit_v2.ai-service.main
+  reload_knowledge_base:
+    type: sync
+    module: urackit_v2.ai-service.memory.knowledge_base
+    params:
+      returns: str
+  reschedule_appointment:
+    type: async
+    module: healthcare_voice.ai-service.agents.tools
+    args: [args, session]
+    params:
+      returns: Dict
+  root:
+    type: async
+    module: salon.ai-service.main
+  rpc:
+    type: sync
+    module: urackit_v2.ai-service.db.connection
+    args: [self, function_name, params]
+    params:
+      returns: Any
+  schedule_appointment:
+    type: async
+    module: healthcare_voice.ai-service.agents.tools
+    args: [args, session]
+    params:
+      returns: Dict
+  search_knowledge:
+    type: async
+    module: urackit_v2.ai-service.main
+    args: [query, top_k]
+  search_patient:
+    type: async
+    module: healthcare_voice.ai-service.routes.patients
+    args: [search]
+  search_provider_by_name:
+    type: async
+    module: healthcare_voice.ai-service.routes.providers
+    args: [name]
+  select:
+    type: sync
+    module: urackit_v2.ai-service.db.connection
+    args: [self, table, columns, filters, limit, order]
+    params:
+      returns: List[Dict]
+  send_audio:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.openai_realtime
+    args: [self, audio]
+    params:
+      returns: None
+  send_audio_to_browser:
+    type: sync
+    module: urackit_v2.ai-service.main
+    args: [chunk]
+  send_mark:
+    type: async
+    module: realestate_voice.xai_integration.media_stream
+    args: [self, name]
+    params:
+      returns: None
+  send_text:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.openai_realtime
+    args: [self, text]
+    params:
+      returns: None
+  send_transcript:
+    type: sync
+    module: urackit_v2.ai-service.main
+    args: [role, text]
+  set_audio_callback:
+    type: sync
+    module: urackit_v2.ai-service.sip_integration.openai_realtime
+    args: [self, callback]
+    params:
+      returns: None
+  set_function_callback:
+    type: sync
+    module: urackit_v2.ai-service.sip_integration.openai_realtime
+    args: [self, callback]
+    params:
+      returns: None
+  set_interrupt_callback:
+    type: sync
+    module: urackit_v2.ai-service.sip_integration.openai_realtime
+    args: [self, callback]
+    params:
+      returns: None
+  set_session_context:
+    type: async
+    module: urackit_v2.ai-service.main
+    args: [session_id, context]
+  set_speaking_callback:
+    type: sync
+    module: urackit_v2.ai-service.sip_integration.openai_realtime
+    args: [self, callback]
+    params:
+      returns: None
+  set_text_callback:
+    type: sync
+    module: urackit_v2.ai-service.sip_integration.openai_realtime
+    args: [self, callback]
+    params:
+      returns: None
+  shutdown_sip:
+    type: async
+    module: urackit_v2.ai-service.main
+  start:
+    type: async
+    module: realestate_voice.xai_integration.media_stream
+    args: [self]
+    params:
+      returns: None
+  start_greeting:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.openai_realtime
+    args: [self, caller_phone]
+    params:
+      returns: None
+  start_session:
+    type: async
+    module: urackit_v2.ai-service.main
+  startup_sip:
+    type: async
+    module: urackit_v2.ai-service.main
+  stop:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.session_manager
+    args: [self]
+    params:
+      returns: None
+  stream_voice_logs:
+    type: async
+    module: salon.ai-service.main
+  subscribe:
+    type: async
+    module: salon.ai-service.main
+    args: [self]
+    params:
+      returns: asyncio.Queue
+  summarize_call:
+    type: async
+    module: urackit_v2.ai-service.main
+    args: [request]
+  text_to_speech:
+    type: async
+    module: salon.ai-service.main
+    args: [request]
+  tool_cancel_appointment:
+    type: async
+    module: salon.ai-service.main
+    args: [request]
+  tool_create_appointment:
+    type: async
+    module: salon.ai-service.main
+    args: [request]
+  tool_get_available_slots:
+    type: async
+    module: salon.ai-service.main
+    args: [request]
+  tool_get_business_hours:
+    type: async
+    module: salon.ai-service.main
+  tool_get_services:
+    type: async
+    module: salon.ai-service.main
+  tool_get_stylists:
+    type: async
+    module: salon.ai-service.main
+  tool_lookup_appointment:
+    type: async
+    module: salon.ai-service.main
+    args: [request]
+  tool_reschedule_appointment:
+    type: async
+    module: salon.ai-service.main
+    args: [request]
+  touch:
+    type: sync
+    module: urackit_v2.ai-service.sip_integration.session_manager
+    args: [self]
+    params:
+      returns: None
+  transfer_to_human:
+    type: tool
+    module: urackit_v2.ai-service.db.queries
+    args: [reason]
+    params:
+      returns: str
+  truncate_response:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.openai_realtime
+    args: [self, item_id, audio_end_ms]
+    params:
+      returns: None
+  twilio_media_stream:
+    type: async
+    module: salon.ai-service.main
+    args: [websocket]
+  twilio_status_callback:
+    type: async
+    module: realestate_voice.main
+    args: [CallSid, CallStatus, CallDuration]
+  twilio_voice_app_webhook:
+    type: async
+    module: salon.ai-service.main
+    args: [request, CallSid, From, To, Direction]
+  twilio_voice_webhook:
+    type: async
+    module: salon.ai-service.main
+    args: [request]
+  twilio_webhook:
+    type: async
+    module: urackit_v2.ai-service.main
+    args: [request, CallSid, From, To, CallStatus, Direction]
+  twilio_websocket:
+    type: async
+    module: realestate_voice.main
+    args: [websocket, call_sid]
+  twiml_app_voice_webhook:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.webhook_server
+    args: [request]
+  unsubscribe:
+    type: sync
+    module: salon.ai-service.main
+    args: [self, queue]
+  update:
+    type: sync
+    module: urackit_v2.ai-service.db.connection
+    args: [self, table, data, filters]
+    params:
+      returns: List[Dict]
+  update_for_silent_mode:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.openai_realtime
+    args: [self]
+    params:
+      returns: None
+  update_session:
+    type: sync
+    module: salon.ai-service.main
+    args: [self, session_id]
+  update_session_state:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.session_manager
+    args: [self, session_id, state]
+    params:
+      returns: None
+  update_ticket_status:
+    type: tool
+    module: urackit_v2.ai-service.db.queries
+    args: [ticket_id, status]
+    params:
+      returns: str
+  uptime_check:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.webhook_server
+  voice_websocket:
+    type: async
+    module: salon.ai-service.main
+    args: [websocket, session_id]
+  wait_for_response_done:
+    type: async
+    module: urackit_v2.ai-service.sip_integration.openai_realtime
+    args: [self, timeout]
+    params:
+      returns: bool
+  webrtc_connect:
+    type: async
+    module: urackit_v2.ai-service.main
+    args: [request]
+  webrtc_disconnect:
+    type: async
+    module: urackit_v2.ai-service.main
+    args: [payload]
+  webrtc_voice_connect:
+    type: async
+    module: salon.ai-service.main
+    args: [request]
+  webrtc_voice_disconnect:
+    type: async
+    module: salon.ai-service.main
+    args: [request]
+  webrtc_voice_sessions_list:
+    type: async
+    module: salon.ai-service.main
+  websocket_chat:
+    type: async
+    module: urackit_v2.ai-service.main
+    args: [websocket, session_id]
+
+variables:
+  AI_SERVICE_PORT:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [quiz.services.ai.main]
+  OPENAI_API_KEY:
+    type: env
+    params:
+      caller: [os.environ.get, os.getenv]
+      path: [realestate_voice.main, urackit_v2.ai-service.main]
+  OPENAI_REALTIME_MODEL:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [urackit_v2.ai-service.main]
+  OPENAI_VOICE_MODEL:
+    type: env
+    params:
+      caller: [os.environ.get]
+      path: [realestate_voice.main]
+  SUPABASE_SERVICE_KEY:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [urackit_v2.ai-service.db.connection]
+  SUPABASE_SERVICE_ROLE_KEY:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [urackit_v2.ai-service.db.connection, quiz.services.ai.main]
+  SUPABASE_URL:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [urackit_v2.ai-service.db.connection, quiz.services.ai.main]
+  WEBHOOK_BASE_URL:
+    type: env
+    params:
+      caller: [os.getenv]
+      path: [salon.ai-service.main]
+
+files:
+  _CHROMA_PATH:
+    type: variable
+    actions: [write]
+    params:
+      caller: [_CHROMA_PATH.mkdir]
+  dashboard.html:
+    type: literal
+    actions: [read]
+    params:
+      caller: [os.path.join]
+      path: [static_dir]
+  dashboard_path:
+    type: variable
+    actions: [read]
+    params:
+      caller: [os.path.exists]
+  dialer.html:
+    type: literal
+    actions: [read]
+    params:
+      caller: [os.path.join]
+      path: [static_dir]
+  dialer_path:
+    type: variable
+    actions: [read]
+    params:
+      caller: [os.path.exists]
+  file_path:
+    type: variable
+    actions: [read]
+    params:
+      caller: [supabase.storage.from_.download]
+  index.html:
+    type: literal
+    actions: [read]
+    params:
+      caller: [os.path.join]
+      path: [static_dir]
+  index_path:
+    type: variable
+    actions: [read]
+    params:
+      caller: [os.path.exists]
+  static_dir:
+    type: variable
+    actions: [read]
+    params:
+      caller: [os.path.exists]
+  urackit_knowledge.txt:
+    type: literal
+    actions: [read]
+    params:
+      path: [_BASE_DIR]
+  voice-widget.html:
+    type: literal
+    actions: [read]
+    params:
+      caller: [os.path.join]
+      path: [static_dir]
+  widget_path:
+    type: variable
+    actions: [read]
+    params:
+      caller: [os.path.exists]
